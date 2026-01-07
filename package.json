@@ -7,7 +7,8 @@
     "start:tunnel": "expo start --tunnel",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "test": "jest"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",
@@ -36,8 +37,11 @@
   },
   "devDependencies": {
     "@babel/core": "^7.26.0",
+    "@types/jest": "^30.0.0",
     "@types/react": "~19.1.10",
     "babel-plugin-module-resolver": "^5.0.2",
+    "jest": "^30.2.0",
+    "ts-jest": "^29.4.6",
     "typescript": "~5.9.2"
   },
   "private": true
