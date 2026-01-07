@@ -1,7 +1,7 @@
 // app/(auth)/signup.tsx
 // Sign up screen
 
-import React, { useState } from "react";
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -10,17 +10,17 @@ import {
   Platform,
   ScrollView,
   TouchableOpacity,
-} from "react-native";
-import { Link, router } from "expo-router";
-import { useAuth } from "@/hooks/useAuth";
-import { Button, Input } from "@/components/ui";
-import { ValidationError, validate, signUpSchema } from "@/lib/validation";
+} from 'react-native';
+import { Link, router } from 'expo-router';
+import { useAuth } from '@/src/hooks/useAuth';
+import { Button, Input } from '@/src/components/ui';
+import { ValidationError, validate, signUpSchema } from '@/src/lib/validation';
 
 export default function SignUpScreen() {
   const { signUp, loading, error, clearError } = useAuth();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [username, setUsername] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [localError, setLocalError] = useState<string | null>(null);
 
@@ -45,9 +45,9 @@ export default function SignUpScreen() {
 
     try {
       await signUp(email, password, username);
-      router.replace("/(tabs)");
+      router.replace('/(tabs)');
     } catch (err: any) {
-      setLocalError(err.message || "Sign up failed");
+      setLocalError(err.message || 'Sign up failed');
     }
   };
 
@@ -56,7 +56,7 @@ export default function SignUpScreen() {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView
         contentContainerStyle={styles.scrollContent}
@@ -98,7 +98,9 @@ export default function SignUpScreen() {
             error={fieldErrors.password}
           />
 
-          {displayError && <Text style={styles.error}>{displayError}</Text>}
+          {displayError && (
+            <Text style={styles.error}>{displayError}</Text>
+          )}
 
           <Button
             title="Create Account"
@@ -125,11 +127,11 @@ export default function SignUpScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F2F2F7",
+    backgroundColor: '#F2F2F7',
   },
   scrollContent: {
     flexGrow: 1,
-    justifyContent: "center",
+    justifyContent: 'center',
     padding: 24,
   },
   header: {
@@ -137,13 +139,13 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 32,
-    fontWeight: "bold",
-    color: "#000",
+    fontWeight: 'bold',
+    color: '#000',
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: "#666",
+    color: '#666',
   },
   form: {
     marginBottom: 24,
@@ -152,22 +154,22 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   error: {
-    color: "#FF3B30",
+    color: '#FF3B30',
     fontSize: 14,
     marginBottom: 16,
-    textAlign: "center",
+    textAlign: 'center',
   },
   footer: {
-    flexDirection: "row",
-    justifyContent: "center",
+    flexDirection: 'row',
+    justifyContent: 'center',
   },
   footerText: {
-    color: "#666",
+    color: '#666',
     fontSize: 14,
   },
   footerLink: {
-    color: "#007AFF",
+    color: '#007AFF',
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: '600',
   },
 });

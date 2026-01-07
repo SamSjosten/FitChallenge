@@ -7,24 +7,23 @@
     "icon": "./assets/icon.png",
     "scheme": "fitchallenge",
     "userInterfaceStyle": "light",
+    "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash.png",
+      "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#007AFF"
     },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.fitchallenge.app"
+      "bundleIdentifier": "com.yourcompany.fitchallenge",
+      "usesAppleSignIn": true
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#007AFF"
       },
-      "package": "com.fitchallenge.app"
+      "package": "com.yourcompany.fitchallenge"
     },
     "web": {
       "bundler": "metro",
@@ -33,7 +32,10 @@
     },
     "plugins": [
       "expo-router",
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-apple-authentication",
+      "expo-asset",
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true

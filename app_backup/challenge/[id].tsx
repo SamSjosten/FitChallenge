@@ -12,16 +12,16 @@ import {
   Alert,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/src/hooks/useAuth';
 import {
   useChallenge,
   useLeaderboard,
   useLogActivity,
   useInviteUser,
-} from '@/hooks/useChallenges';
-import { authService } from '@/services/auth';
-import { Button, Card, Input, LoadingScreen, ErrorMessage, EmptyState } from '@/components/ui';
-import type { ProfilePublic } from '@/types/database';
+} from '@/src/hooks/useChallenges';
+import { authService } from '@/src/services/auth';
+import { Button, Card, Input, LoadingScreen, ErrorMessage, EmptyState } from '@/src/components/ui';
+import type { ProfilePublic } from '@/src/types/database';
 
 export default function ChallengeDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
