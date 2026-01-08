@@ -1,15 +1,19 @@
 // src/services/challenges.ts
 // Challenge management service
 
-import { supabase, withAuth } from '@/lib/supabase';
+import { supabase, withAuth } from "@/lib/supabase";
 import {
   validate,
   createChallengeSchema,
   inviteParticipantSchema,
   respondToInviteSchema,
   CreateChallengeInput,
-} from '@/lib/validation';
-import type { Challenge, ChallengeParticipant, ProfilePublic } from '@/types/database';
+} from "@/lib/validation";
+import type {
+  Challenge,
+  ChallengeParticipant,
+  ProfilePublic,
+} from "@/types/database";
 
 // =============================================================================
 // TYPES
@@ -51,7 +55,7 @@ export const challengeService = {
     return withAuth(async (userId) => {
       // Insert challenge
       const { data: challenge, error: challengeError } = await supabase
-        .from('challenges')
+        .from("challenges")
         .insert({
           creator_id: userId,
           title: validated.title,
@@ -63,7 +67,7 @@ export const challengeService = {
           daily_target: validated.daily_target,
           start_date: validated.start_date,
           end_date: validated.end_date,
-          status: 'pending',
+          status: "pending",
         })
         .select()
         .single();
@@ -72,11 +76,11 @@ export const challengeService = {
 
       // Auto-add creator as accepted participant
       const { error: participantError } = await supabase
-        .from('challenge_participants')
+        .from("challenge_participants")
         .insert({
           challenge_id: challenge.id,
           user_id: userId,
-          invite_status: 'accepted',
+          invite_status: "accepted",
         });
 
       if (participantError) throw participantError;
@@ -90,19 +94,26 @@ export const challengeService = {
    */
   async getMyActiveChallenges(): Promise<ChallengeWithParticipation[]> {
     return withAuth(async (userId) => {
+      const now = new Date().toISOString();
+
       const { data, error } = await supabase
-        .from('challenges')
-        .select(`
+        .from("challenges")
+        .select(
+          `
           *,
           challenge_participants!inner (
             invite_status,
             current_progress
           )
-        `)
-        .eq('challenge_participants.user_id', userId)
-        .eq('challenge_participants.invite_status', 'accepted')
-        .in('status', ['pending', 'active'])
-        .order('start_date', { ascending: true });
+        `
+        )
+        .eq("challenge_participants.user_id", userId)
+        .eq("challenge_participants.invite_status", "accepted")
+        // Time-based filtering: exclude ended challenges
+        .gt("end_date", now)
+        // Exclude override statuses (cancelled/archived)
+        .not("status", "in", '("cancelled","archived")')
+        .order("start_date", { ascending: true });
 
       if (error) throw error;
 
@@ -122,26 +133,32 @@ export const challengeService = {
   async getPendingInvites(): Promise<PendingInvite[]> {
     return withAuth(async (userId) => {
       const { data, error } = await supabase
-        .from('challenge_participants')
-        .select(`
+        .from("challenge_participants")
+        .select(
+          `
           joined_at,
           challenge:challenges!inner (
             *
           )
-        `)
-        .eq('user_id', userId)
-        .eq('invite_status', 'pending');
+        `
+        )
+        .eq("user_id", userId)
+        .eq("invite_status", "pending");
 
       if (error) throw error;
 
       // Fetch creator profiles separately (profiles_public)
       const challenges = data || [];
-      const creatorIds = [...new Set(challenges.map((c) => c.challenge.creator_id).filter(Boolean))];
-      
+      const creatorIds = [
+        ...new Set(
+          challenges.map((c) => c.challenge.creator_id).filter(Boolean)
+        ),
+      ];
+
       const { data: creators } = await supabase
-        .from('profiles_public')
-        .select('*')
-        .in('id', creatorIds);
+        .from("profiles_public")
+        .select("*")
+        .in("id", creatorIds);
 
       const creatorMap = new Map(creators?.map((c) => [c.id, c]) || []);
 
@@ -149,10 +166,10 @@ export const challengeService = {
         challenge: item.challenge,
         creator: creatorMap.get(item.challenge.creator_id!) || {
           id: item.challenge.creator_id!,
-          username: 'Unknown',
+          username: "Unknown",
           display_name: null,
           avatar_url: null,
-          updated_at: '',
+          updated_at: "",
         },
         invited_at: item.joined_at,
       }));
@@ -163,23 +180,27 @@ export const challengeService = {
    * Get a single challenge by ID
    * CONTRACT: RLS enforces visibility
    */
-  async getChallenge(challengeId: string): Promise<ChallengeWithParticipation | null> {
+  async getChallenge(
+    challengeId: string
+  ): Promise<ChallengeWithParticipation | null> {
     return withAuth(async (userId) => {
       const { data, error } = await supabase
-        .from('challenges')
-        .select(`
+        .from("challenges")
+        .select(
+          `
           *,
           challenge_participants (
             invite_status,
             current_progress
           )
-        `)
-        .eq('id', challengeId)
-        .eq('challenge_participants.user_id', userId)
+        `
+        )
+        .eq("id", challengeId)
+        .eq("challenge_participants.user_id", userId)
         .single();
 
       if (error) {
-        if (error.code === 'PGRST116') return null; // Not found
+        if (error.code === "PGRST116") return null; // Not found
         throw error;
       }
 
@@ -201,24 +222,24 @@ export const challengeService = {
 
     // Insert participant (RLS enforces creator check)
     const { error: insertError } = await supabase
-      .from('challenge_participants')
+      .from("challenge_participants")
       .insert({
         challenge_id,
         user_id,
-        invite_status: 'pending',
+        invite_status: "pending",
       });
 
     if (insertError) throw insertError;
 
     // Trigger notification (server-side function)
     const { error: notifyError } = await supabase.rpc(
-      'enqueue_challenge_invite_notification',
+      "enqueue_challenge_invite_notification",
       { p_challenge_id: challenge_id, p_invited_user_id: user_id }
     );
 
     // Log but don't fail on notification error
     if (notifyError) {
-      console.error('Failed to send invite notification:', notifyError);
+      console.error("Failed to send invite notification:", notifyError);
     }
   },
 
@@ -231,13 +252,44 @@ export const challengeService = {
 
     return withAuth(async (userId) => {
       const { error } = await supabase
-        .from('challenge_participants')
+        .from("challenge_participants")
         .update({ invite_status: response })
-        .eq('challenge_id', challenge_id)
-        .eq('user_id', userId);
+        .eq("challenge_id", challenge_id)
+        .eq("user_id", userId);
 
       if (error) throw error;
     });
+  },
+
+  /**
+   * Leave a challenge (for non-creator participants)
+   * CONTRACT: Only participant can leave their own participation (RLS enforced)
+   * Sets invite_status to 'declined' which removes from active view
+   */
+  async leaveChallenge(challengeId: string): Promise<void> {
+    return withAuth(async (userId) => {
+      const { error } = await supabase
+        .from("challenge_participants")
+        .update({ invite_status: "declined" })
+        .eq("challenge_id", challengeId)
+        .eq("user_id", userId);
+
+      if (error) throw error;
+    });
+  },
+
+  /**
+   * Cancel a challenge (creator only)
+   * CONTRACT: Only creator can cancel (RLS enforced)
+   * Sets status to 'cancelled' which removes from all users' views
+   */
+  async cancelChallenge(challengeId: string): Promise<void> {
+    const { error } = await supabase
+      .from("challenges")
+      .update({ status: "cancelled" })
+      .eq("id", challengeId);
+
+    if (error) throw error;
   },
 
   /**
@@ -247,11 +299,11 @@ export const challengeService = {
    */
   async getLeaderboard(challengeId: string): Promise<LeaderboardEntry[]> {
     const { data, error } = await supabase
-      .from('challenge_participants')
-      .select('user_id, current_progress, current_streak')
-      .eq('challenge_id', challengeId)
-      .eq('invite_status', 'accepted')
-      .order('current_progress', { ascending: false });
+      .from("challenge_participants")
+      .select("user_id, current_progress, current_streak")
+      .eq("challenge_id", challengeId)
+      .eq("invite_status", "accepted")
+      .order("current_progress", { ascending: false });
 
     if (error) throw error;
 
@@ -260,9 +312,9 @@ export const challengeService = {
 
     // Fetch profiles from profiles_public (not profiles!)
     const { data: profiles } = await supabase
-      .from('profiles_public')
-      .select('*')
-      .in('id', userIds);
+      .from("profiles_public")
+      .select("*")
+      .in("id", userIds);
 
     const profileMap = new Map(profiles?.map((p) => [p.id, p]) || []);
 
@@ -273,10 +325,10 @@ export const challengeService = {
       rank: index + 1,
       profile: profileMap.get(p.user_id) || {
         id: p.user_id,
-        username: 'Unknown',
+        username: "Unknown",
         display_name: null,
         avatar_url: null,
-        updated_at: '',
+        updated_at: "",
       },
     }));
   },
@@ -288,13 +340,13 @@ export const challengeService = {
   async canViewLeaderboard(challengeId: string): Promise<boolean> {
     return withAuth(async (userId) => {
       const { data } = await supabase
-        .from('challenge_participants')
-        .select('invite_status')
-        .eq('challenge_id', challengeId)
-        .eq('user_id', userId)
+        .from("challenge_participants")
+        .select("invite_status")
+        .eq("challenge_id", challengeId)
+        .eq("user_id", userId)
         .single();
 
-      return data?.invite_status === 'accepted';
+      return data?.invite_status === "accepted";
     });
   },
 };

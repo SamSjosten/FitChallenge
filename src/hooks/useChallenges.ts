@@ -159,3 +159,31 @@ export function useLogActivity() {
     },
   });
 }
+
+/**
+ * Leave a challenge (for non-creator participants)
+ */
+export function useLeaveChallenge() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (challengeId: string) => challengeService.leaveChallenge(challengeId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: challengeKeys.active() });
+    },
+  });
+}
+
+/**
+ * Cancel a challenge (creator only)
+ */
+export function useCancelChallenge() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (challengeId: string) => challengeService.cancelChallenge(challengeId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: challengeKeys.active() });
+    },
+  });
+}

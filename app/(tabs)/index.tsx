@@ -23,6 +23,11 @@ import {
   ErrorMessage,
   EmptyState,
 } from "@/components/ui";
+import {
+  getEffectiveStatus,
+  getStatusLabel,
+  getStatusColor,
+} from "@/lib/challengeStatus";
 
 export default function HomeScreen() {
   const { profile } = useAuth();
@@ -129,15 +134,7 @@ export default function HomeScreen() {
 
       {/* Active Challenges */}
       <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Active Challenges</Text>
-          <Button
-            title="+ New"
-            variant="outline"
-            size="small"
-            onPress={() => router.push("/challenge/create")}
-          />
-        </View>
+        <Text style={styles.sectionTitle}>Active Challenges</Text>
 
         {activeError && (
           <ErrorMessage
@@ -155,53 +152,54 @@ export default function HomeScreen() {
           />
         )}
 
-        {activeChallenges?.map((challenge) => (
-          <Card
-            key={challenge.id}
-            style={styles.challengeCard}
-            onPress={() => router.push(`/challenge/${challenge.id}`)}
-          >
-            <View style={styles.challengeHeader}>
-              <Text style={styles.challengeTitle}>{challenge.title}</Text>
-              <View
-                style={[
-                  styles.statusBadge,
-                  challenge.status === "active"
-                    ? styles.statusActive
-                    : styles.statusPending,
-                ]}
-              >
-                <Text style={styles.statusText}>
-                  {challenge.status === "active" ? "Active" : "Starting Soon"}
-                </Text>
-              </View>
-            </View>
-            <Text style={styles.challengeType}>
-              {challenge.challenge_type.replace("_", " ")}
-            </Text>
-            <View style={styles.progressContainer}>
-              <Text style={styles.progressText}>
-                {challenge.my_participation?.current_progress || 0} /{" "}
-                {challenge.goal_value} {challenge.goal_unit}
-              </Text>
-              <View style={styles.progressBar}>
+        {activeChallenges?.map((challenge) => {
+          const effectiveStatus = getEffectiveStatus(challenge);
+          return (
+            <Card
+              key={challenge.id}
+              style={styles.challengeCard}
+              onPress={() => router.push(`/challenge/${challenge.id}`)}
+            >
+              <View style={styles.challengeHeader}>
+                <Text style={styles.challengeTitle}>{challenge.title}</Text>
                 <View
                   style={[
-                    styles.progressFill,
-                    {
-                      width: `${Math.min(
-                        ((challenge.my_participation?.current_progress || 0) /
-                          challenge.goal_value) *
-                          100,
-                        100
-                      )}%`,
-                    },
+                    styles.statusBadge,
+                    { backgroundColor: getStatusColor(effectiveStatus) },
                   ]}
-                />
+                >
+                  <Text style={styles.statusText}>
+                    {getStatusLabel(effectiveStatus)}
+                  </Text>
+                </View>
               </View>
-            </View>
-          </Card>
-        ))}
+              <Text style={styles.challengeType}>
+                {challenge.challenge_type.replace("_", " ")}
+              </Text>
+              <View style={styles.progressContainer}>
+                <Text style={styles.progressText}>
+                  {challenge.my_participation?.current_progress || 0} /{" "}
+                  {challenge.goal_value} {challenge.goal_unit}
+                </Text>
+                <View style={styles.progressBar}>
+                  <View
+                    style={[
+                      styles.progressFill,
+                      {
+                        width: `${Math.min(
+                          ((challenge.my_participation?.current_progress || 0) /
+                            challenge.goal_value) *
+                            100,
+                          100
+                        )}%`,
+                      },
+                    ]}
+                  />
+                </View>
+              </View>
+            </Card>
+          );
+        })}
       </View>
     </ScrollView>
   );
@@ -230,12 +228,6 @@ const styles = StyleSheet.create({
   },
   section: {
     marginBottom: 24,
-  },
-  sectionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 12,
   },
   sectionTitle: {
     fontSize: 18,
