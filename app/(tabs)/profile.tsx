@@ -158,6 +158,16 @@ export default function ProfileScreen() {
         )}
       </Card>
 
+      {/* Friends */}
+      <Card style={styles.actionsCard}>
+        <Text style={styles.cardTitle}>Social</Text>
+        <Button
+          title="Friends"
+          variant="outline"
+          onPress={() => router.push("/friends")}
+        />
+      </Card>
+
       {/* Account Actions */}
       <Card style={styles.actionsCard}>
         <Text style={styles.cardTitle}>Account</Text>

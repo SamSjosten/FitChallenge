@@ -22,10 +22,11 @@ import type { ChallengeType } from "@/types/database";
 
 const CHALLENGE_TYPES: { value: ChallengeType; label: string; unit: string }[] =
   [
-    { value: "steps", label: "👟 Steps", unit: "steps" },
-    { value: "active_minutes", label: "⏱️ Active Minutes", unit: "minutes" },
-    { value: "workouts", label: "💪 Workouts", unit: "workouts" },
-    { value: "distance", label: "🏃 Distance", unit: "km" },
+    { value: "steps", label: "Steps", unit: "steps" },
+    { value: "active_minutes", label: "Active Minutes", unit: "minutes" },
+    { value: "workouts", label: "Workouts", unit: "workouts" },
+    { value: "distance", label: "Distance", unit: "km" },
+    { value: "custom", label: "Custom", unit: "units" },
   ];
 
 const DURATION_PRESETS = [
@@ -45,6 +46,8 @@ export default function CreateChallengeScreen() {
   const [description, setDescription] = useState("");
   const [challengeType, setChallengeType] = useState<ChallengeType>("steps");
   const [goalValue, setGoalValue] = useState("");
+  const [customActivityName, setCustomActivityName] = useState("");
+  const [customUnit, setCustomUnit] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   // Scheduling fields
@@ -64,6 +67,10 @@ export default function CreateChallengeScreen() {
   const [customDuration, setCustomDuration] = useState("7");
 
   const selectedType = CHALLENGE_TYPES.find((t) => t.value === challengeType)!;
+
+  // For custom type, use user-provided values
+  const displayUnit =
+    challengeType === "custom" ? customUnit || "units" : selectedType.unit;
 
   // Get effective duration
   const effectiveDuration =
@@ -148,6 +155,14 @@ export default function CreateChallengeScreen() {
       setError("Duration must be between 1 and 365 days");
       return;
     }
+    if (challengeType === "custom" && !customActivityName.trim()) {
+      setError("Please enter a custom activity name");
+      return;
+    }
+    if (challengeType === "custom" && !customUnit.trim()) {
+      setError("Please enter a unit for your custom activity");
+      return;
+    }
 
     const startDate = getStartDate();
     const endDate = getEndDate();
@@ -164,7 +179,8 @@ export default function CreateChallengeScreen() {
         description: description.trim() || undefined,
         challenge_type: challengeType,
         goal_value: parseInt(goalValue),
-        goal_unit: selectedType.unit,
+        goal_unit:
+          challengeType === "custom" ? customUnit.trim() : selectedType.unit,
         start_date: startDate.toISOString(),
         end_date: endDate.toISOString(),
         win_condition: "highest_total",
@@ -238,9 +254,29 @@ export default function CreateChallengeScreen() {
           ))}
         </View>
 
+        {/* Custom Activity Fields */}
+        {challengeType === "custom" && (
+          <View style={styles.customFields}>
+            <Input
+              label="Activity Name"
+              value={customActivityName}
+              onChangeText={setCustomActivityName}
+              placeholder="e.g., Pushups, Meditation, Glasses of Water"
+              maxLength={50}
+            />
+            <Input
+              label="Unit"
+              value={customUnit}
+              onChangeText={setCustomUnit}
+              placeholder="e.g., reps, minutes, glasses"
+              maxLength={20}
+            />
+          </View>
+        )}
+
         {/* Goal */}
         <Input
-          label={`Goal (${selectedType.unit})`}
+          label={`Goal (${displayUnit})`}
           value={goalValue}
           onChangeText={setGoalValue}
           placeholder={`e.g., 10000`}
@@ -408,8 +444,8 @@ export default function CreateChallengeScreen() {
         <Card style={styles.summary}>
           <Text style={styles.summaryTitle}>Challenge Summary</Text>
           <Text style={styles.summaryText}>
-            {title || "Your challenge"} • {goalValue || "?"} {selectedType.unit}{" "}
-            in {effectiveDuration || "?"} days
+            {title || "Your challenge"} • {goalValue || "?"} {displayUnit} in{" "}
+            {effectiveDuration || "?"} days
           </Text>
           <View style={styles.summaryDates}>
             <Text style={styles.summaryDateLabel}>Starts:</Text>
@@ -501,6 +537,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "500",
     color: "#333",
+  },
+  customFields: {
+    marginBottom: 8,
   },
   // Start Mode Toggle
   toggleContainer: {

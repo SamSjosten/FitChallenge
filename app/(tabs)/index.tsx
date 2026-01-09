@@ -8,11 +8,13 @@ import {
   StyleSheet,
   ScrollView,
   RefreshControl,
+  TouchableOpacity,
 } from "react-native";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { useAuth } from "@/hooks/useAuth";
 import {
   useActiveChallenges,
+  useCompletedChallenges,
   usePendingInvites,
   useRespondToInvite,
 } from "@/hooks/useChallenges";
@@ -43,12 +45,24 @@ export default function HomeScreen() {
     refetch: refetchPending,
   } = usePendingInvites();
   const respondToInvite = useRespondToInvite();
+  const { data: completedChallenges, refetch: refetchCompleted } =
+    useCompletedChallenges();
 
   const [refreshing, setRefreshing] = React.useState(false);
+  const [showCompleted, setShowCompleted] = React.useState(false);
+
+  // Auto-refresh when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      refetchActive();
+      refetchPending();
+      refetchCompleted();
+    }, [refetchActive, refetchPending, refetchCompleted])
+  );
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([refetchActive(), refetchPending()]);
+    await Promise.all([refetchActive(), refetchPending(), refetchCompleted()]);
     setRefreshing(false);
   };
 
@@ -101,34 +115,66 @@ export default function HomeScreen() {
       {pendingInvites && pendingInvites.length > 0 && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Pending Invites</Text>
-          {pendingInvites.map((invite) => (
-            <Card key={invite.challenge.id} style={styles.inviteCard}>
-              <Text style={styles.inviteTitle}>{invite.challenge.title}</Text>
-              <Text style={styles.inviteFrom}>
-                From {invite.creator.display_name || invite.creator.username}
-              </Text>
-              <Text style={styles.inviteDetails}>
-                {invite.challenge.challenge_type} • Goal:{" "}
-                {invite.challenge.goal_value} {invite.challenge.goal_unit}
-              </Text>
-              <View style={styles.inviteActions}>
-                <Button
-                  title="Accept"
-                  size="small"
-                  onPress={() => handleAcceptInvite(invite.challenge.id)}
-                  loading={respondToInvite.isPending}
-                  style={styles.acceptButton}
-                />
-                <Button
-                  title="Decline"
-                  variant="outline"
-                  size="small"
-                  onPress={() => handleDeclineInvite(invite.challenge.id)}
-                  loading={respondToInvite.isPending}
-                />
-              </View>
-            </Card>
-          ))}
+          {pendingInvites.map((invite) => {
+            const status = getEffectiveStatus(invite.challenge);
+            const startDate = new Date(invite.challenge.start_date);
+            const endDate = new Date(invite.challenge.end_date);
+            const durationDays = Math.ceil(
+              (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
+            );
+
+            return (
+              <Card key={invite.challenge.id} style={styles.inviteCard}>
+                <View style={styles.inviteHeader}>
+                  <Text style={styles.inviteTitle}>
+                    {invite.challenge.title}
+                  </Text>
+                  <View
+                    style={[
+                      styles.statusBadge,
+                      { backgroundColor: getStatusColor(status) },
+                    ]}
+                  >
+                    <Text style={styles.statusText}>
+                      {getStatusLabel(status)}
+                    </Text>
+                  </View>
+                </View>
+                <Text style={styles.inviteFrom}>
+                  From {invite.creator.display_name || invite.creator.username}
+                </Text>
+                <Text style={styles.inviteDetails}>
+                  {invite.challenge.challenge_type.replace("_", " ")} • Goal:{" "}
+                  {invite.challenge.goal_value} {invite.challenge.goal_unit}
+                </Text>
+                <View style={styles.inviteDates}>
+                  <Text style={styles.inviteDateText}>
+                    📅 {startDate.toLocaleDateString()} →{" "}
+                    {endDate.toLocaleDateString()}
+                  </Text>
+                  <Text style={styles.inviteDuration}>
+                    {durationDays} day{durationDays !== 1 ? "s" : ""}
+                  </Text>
+                </View>
+                <View style={styles.inviteActions}>
+                  <Button
+                    title="Accept"
+                    size="small"
+                    onPress={() => handleAcceptInvite(invite.challenge.id)}
+                    loading={respondToInvite.isPending}
+                    style={styles.acceptButton}
+                  />
+                  <Button
+                    title="Decline"
+                    variant="outline"
+                    size="small"
+                    onPress={() => handleDeclineInvite(invite.challenge.id)}
+                    loading={respondToInvite.isPending}
+                  />
+                </View>
+              </Card>
+            );
+          })}
         </View>
       )}
 
@@ -201,6 +247,47 @@ export default function HomeScreen() {
           );
         })}
       </View>
+
+      {/* Completed Challenges */}
+      {completedChallenges && completedChallenges.length > 0 && (
+        <View style={styles.section}>
+          <TouchableOpacity
+            style={styles.completedHeader}
+            onPress={() => setShowCompleted(!showCompleted)}
+          >
+            <Text style={styles.sectionTitle}>
+              Completed ({completedChallenges.length})
+            </Text>
+            <Text style={styles.expandIcon}>{showCompleted ? "▼" : "▶"}</Text>
+          </TouchableOpacity>
+
+          {showCompleted &&
+            completedChallenges.map((challenge) => (
+              <Card
+                key={challenge.id}
+                style={styles.completedCard}
+                onPress={() => router.push(`/challenge/${challenge.id}`)}
+              >
+                <View style={styles.challengeHeader}>
+                  <Text style={styles.challengeTitle}>{challenge.title}</Text>
+                  <View style={styles.completedBadge}>
+                    <Text style={styles.completedBadgeText}>Completed</Text>
+                  </View>
+                </View>
+                <Text style={styles.challengeType}>
+                  {challenge.challenge_type.replace("_", " ")}
+                </Text>
+                <Text style={styles.completedStats}>
+                  Final: {challenge.my_participation?.current_progress || 0} /{" "}
+                  {challenge.goal_value} {challenge.goal_unit}
+                </Text>
+                <Text style={styles.completedDate}>
+                  Ended {new Date(challenge.end_date).toLocaleDateString()}
+                </Text>
+              </Card>
+            ))}
+        </View>
+      )}
     </ScrollView>
   );
 }
@@ -317,5 +404,65 @@ const styles = StyleSheet.create({
     height: "100%",
     backgroundColor: "#007AFF",
     borderRadius: 4,
+  },
+  completedHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  expandIcon: {
+    fontSize: 12,
+    color: "#666",
+  },
+  completedCard: {
+    marginBottom: 12,
+    opacity: 0.85,
+  },
+  completedBadge: {
+    backgroundColor: "#007AFF",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  completedBadgeText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#fff",
+  },
+  completedStats: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#333",
+    marginTop: 8,
+  },
+  completedDate: {
+    fontSize: 12,
+    color: "#666",
+    marginTop: 4,
+  },
+  inviteHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 4,
+  },
+  inviteDates: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: "#F2F2F7",
+    padding: 8,
+    borderRadius: 6,
+    marginBottom: 12,
+  },
+  inviteDateText: {
+    fontSize: 12,
+    color: "#333",
+  },
+  inviteDuration: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#007AFF",
   },
 });

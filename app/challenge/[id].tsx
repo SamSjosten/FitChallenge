@@ -317,13 +317,16 @@ export default function ChallengeDetailScreen() {
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Leaderboard</Text>
-          {isCreator && (
+          {isCreator && effectiveStatus === "upcoming" && (
             <Button
               title="+ Invite"
               variant="outline"
               size="small"
               onPress={() => setShowInviteModal(true)}
             />
+          )}
+          {isCreator && effectiveStatus !== "upcoming" && (
+            <Text style={styles.inviteDisabledNote}>Invites closed</Text>
           )}
         </View>
 
@@ -737,5 +740,20 @@ const styles = StyleSheet.create({
   },
   closeButton: {
     marginTop: 16,
+  },
+  dangerSection: {
+    marginTop: 24,
+    marginBottom: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: "#E5E5EA",
+  },
+  leaveButton: {
+    borderColor: "#FF3B30",
+  },
+  inviteDisabledNote: {
+    fontSize: 12,
+    color: "#999",
+    fontStyle: "italic",
   },
 });

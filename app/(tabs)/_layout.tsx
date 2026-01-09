@@ -8,8 +8,9 @@ import { Text, View, StyleSheet, Pressable } from "react-native";
 // Simple icon component
 function TabIcon({ name, focused }: { name: string; focused: boolean }) {
   const icons: Record<string, string> = {
-    home: "🏠",
-    profile: "👤",
+    home: "",
+    friends: "",
+    profile: "",
   };
 
   return (
@@ -69,6 +70,15 @@ export default function TabLayout() {
             <TabIcon name="home" focused={focused} />
           ),
           headerTitle: "FitChallenge",
+        }}
+      />
+      <Tabs.Screen
+        name="friends"
+        options={{
+          title: "Friends",
+          tabBarIcon: ({ focused }) => (
+            <TabIcon name="friends" focused={focused} />
+          ),
         }}
       />
       <Tabs.Screen

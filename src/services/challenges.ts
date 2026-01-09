@@ -127,6 +127,42 @@ export const challengeService = {
   },
 
   /**
+   * Get completed challenges for current user
+   * CONTRACT: Uses time-derived status - challenges where end_date has passed
+   */
+  async getCompletedChallenges(): Promise<ChallengeWithParticipation[]> {
+    return withAuth(async (userId) => {
+      const now = new Date().toISOString();
+
+      const { data, error } = await supabase
+        .from("challenges")
+        .select(
+          `
+          *,
+          challenge_participants!inner (
+            invite_status,
+            current_progress
+          )
+        `
+        )
+        .eq("challenge_participants.user_id", userId)
+        .eq("challenge_participants.invite_status", "accepted")
+        .lte("end_date", now)
+        .not("status", "in", '("cancelled","archived")')
+        .order("end_date", { ascending: false })
+        .limit(20);
+
+      if (error) throw error;
+
+      return (data || []).map((c) => ({
+        ...c,
+        my_participation: c.challenge_participants?.[0],
+        challenge_participants: undefined,
+      }));
+    });
+  },
+
+  /**
    * Get pending invites for current user
    * CONTRACT: Uses profiles_public for creator identity
    */
