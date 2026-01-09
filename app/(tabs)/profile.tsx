@@ -139,7 +139,9 @@ export default function ProfileScreen() {
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Member Since</Text>
               <Text style={styles.infoValue}>
-                {new Date(profile.created_at).toLocaleDateString()}
+                {profile.created_at
+                  ? new Date(profile.created_at).toLocaleDateString()
+                  : "—"}
               </Text>
             </View>
             <View style={styles.infoRow}>

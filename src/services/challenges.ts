@@ -19,17 +19,26 @@ import type {
 // TYPES
 // =============================================================================
 
+// Derive participation type from DB types to reduce drift
+type ParticipationFields = Pick<
+  ChallengeParticipant,
+  "invite_status" | "current_progress"
+>;
+
+// Coerced version with non-null numerics (nulls coalesced in service layer)
+export interface MyParticipation {
+  invite_status: ChallengeParticipant["invite_status"]; // Keep nullable from DB
+  current_progress: number; // Coalesced to 0
+}
+
 export interface ChallengeWithParticipation extends Challenge {
-  my_participation?: {
-    invite_status: string;
-    current_progress: number;
-  };
+  my_participation?: MyParticipation;
 }
 
 export interface LeaderboardEntry {
   user_id: string;
-  current_progress: number;
-  current_streak: number;
+  current_progress: number; // Coalesced to 0
+  current_streak: number; // Coalesced to 0
   rank: number;
   profile: ProfilePublic;
 }
@@ -37,7 +46,24 @@ export interface LeaderboardEntry {
 export interface PendingInvite {
   challenge: Challenge;
   creator: ProfilePublic;
-  invited_at: string;
+  invited_at: string | null; // Nullable from DB
+}
+
+// =============================================================================
+// HELPERS
+// =============================================================================
+
+/**
+ * Map raw participation data to MyParticipation, coalescing numeric nulls to 0
+ */
+function mapParticipation(
+  raw: ParticipationFields | undefined
+): MyParticipation | undefined {
+  if (!raw) return undefined;
+  return {
+    invite_status: raw.invite_status, // Keep as-is (nullable)
+    current_progress: raw.current_progress ?? 0,
+  };
 }
 
 // =============================================================================
@@ -117,11 +143,10 @@ export const challengeService = {
 
       if (error) throw error;
 
-      // Flatten the nested structure
-      return (data || []).map((c) => ({
-        ...c,
-        my_participation: c.challenge_participants?.[0],
-        challenge_participants: undefined,
+      // Flatten via destructuring, coalesce numeric nulls
+      return (data || []).map(({ challenge_participants, ...challenge }) => ({
+        ...challenge,
+        my_participation: mapParticipation(challenge_participants?.[0]),
       }));
     });
   },
@@ -154,10 +179,10 @@ export const challengeService = {
 
       if (error) throw error;
 
-      return (data || []).map((c) => ({
-        ...c,
-        my_participation: c.challenge_participants?.[0],
-        challenge_participants: undefined,
+      // Flatten via destructuring, coalesce numeric nulls
+      return (data || []).map(({ challenge_participants, ...challenge }) => ({
+        ...challenge,
+        my_participation: mapParticipation(challenge_participants?.[0]),
       }));
     });
   },
@@ -187,7 +212,11 @@ export const challengeService = {
       const challenges = data || [];
       const creatorIds = [
         ...new Set(
-          challenges.map((c) => c.challenge.creator_id).filter(Boolean)
+          challenges
+            .map((c) => c.challenge.creator_id)
+            .filter(
+              (id): id is string => typeof id === "string" && id.length > 0
+            )
         ),
       ];
 
@@ -240,10 +269,11 @@ export const challengeService = {
         throw error;
       }
 
+      // Flatten via destructuring, coalesce numeric nulls
+      const { challenge_participants, ...challenge } = data;
       return {
-        ...data,
-        my_participation: data.challenge_participants?.[0],
-        challenge_participants: undefined,
+        ...challenge,
+        my_participation: mapParticipation(challenge_participants?.[0]),
       };
     });
   },
@@ -370,10 +400,11 @@ export const challengeService = {
 
     const profileMap = new Map(profiles?.map((p) => [p.id, p]) || []);
 
+    // Coalesce numeric nulls to 0
     return participants.map((p, index) => ({
       user_id: p.user_id,
-      current_progress: p.current_progress,
-      current_streak: p.current_streak,
+      current_progress: p.current_progress ?? 0,
+      current_streak: p.current_streak ?? 0,
       rank: index + 1,
       profile: profileMap.get(p.user_id) || {
         id: p.user_id,

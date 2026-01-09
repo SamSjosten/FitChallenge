@@ -2,21 +2,21 @@
 // Friends management service
 
 import { supabase, withAuth } from "@/lib/supabase";
-import type { ProfilePublic } from "@/types/database";
+import type { ProfilePublic, Friend as DbFriend } from "@/types/database";
 
 // =============================================================================
 // TYPES
 // =============================================================================
 
-export interface Friend {
-  id: string;
-  requested_by: string;
-  requested_to: string;
-  status: "pending" | "accepted" | "blocked";
-  created_at: string;
-  updated_at: string;
+// DB has status as string (CHECK constraint), define proper type for service layer
+export type FriendStatus = "pending" | "accepted" | "blocked";
+
+// Mapped Friend type with proper status enum
+export interface Friend extends Omit<DbFriend, "status"> {
+  status: FriendStatus;
 }
 
+// Use mapped Friend type, extend with joined profile
 export interface FriendWithProfile extends Friend {
   friend_profile: ProfilePublic;
 }
@@ -24,7 +24,21 @@ export interface FriendWithProfile extends Friend {
 export interface PendingRequest {
   id: string;
   requester: ProfilePublic;
-  created_at: string;
+  created_at: string | null; // Nullable from DB
+}
+
+// =============================================================================
+// HELPERS
+// =============================================================================
+
+/**
+ * Cast DB friend row to typed Friend (status string -> enum)
+ */
+function mapFriend(dbFriend: DbFriend): Friend {
+  return {
+    ...dbFriend,
+    status: dbFriend.status as FriendStatus,
+  };
 }
 
 // =============================================================================
@@ -65,7 +79,7 @@ export const friendsService = {
         const otherId =
           f.requested_by === userId ? f.requested_to : f.requested_by;
         return {
-          ...f,
+          ...mapFriend(f),
           friend_profile: profileMap.get(otherId) || {
             id: otherId,
             username: "Unknown",

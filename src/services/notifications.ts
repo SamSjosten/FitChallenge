@@ -1,32 +1,22 @@
-// src/services/notifications.ts
-// Notifications service - read only (server creates notifications)
-
 import { supabase, withAuth } from "@/lib/supabase";
+import type { Notification as DbNotification } from "@/types/database";
 
-// =============================================================================
-// TYPES
-// =============================================================================
-
-export interface Notification {
-  id: string;
-  user_id: string;
-  type: string;
-  title: string;
-  body: string;
-  data: Record<string, any>;
-  read_at: string | null;
-  created_at: string;
+export interface Notification extends Omit<DbNotification, "data"> {
+  data: Record<string, unknown>;
 }
 
-// =============================================================================
-// SERVICE
-// =============================================================================
+function mapNotification(db: DbNotification): Notification {
+  const { data, ...rest } = db;
+  return {
+    ...rest,
+    data:
+      data !== null && typeof data === "object" && !Array.isArray(data)
+        ? (data as Record<string, unknown>)
+        : {},
+  };
+}
 
 export const notificationsService = {
-  /**
-   * Get all notifications for current user
-   * CONTRACT: RLS enforces user can only see their own
-   */
   async getNotifications(): Promise<Notification[]> {
     return withAuth(async () => {
       const { data, error } = await supabase
@@ -36,13 +26,10 @@ export const notificationsService = {
         .limit(50);
 
       if (error) throw error;
-      return data || [];
+      return (data || []).map(mapNotification);
     });
   },
 
-  /**
-   * Get unread count
-   */
   async getUnreadCount(): Promise<number> {
     return withAuth(async () => {
       const { count, error } = await supabase
@@ -55,22 +42,17 @@ export const notificationsService = {
     });
   },
 
-  /**
-   * Mark a notification as read
-   * CONTRACT: RLS enforces user can only update their own
-   */
   async markAsRead(notificationId: string): Promise<void> {
-    const { error } = await supabase
-      .from("notifications")
-      .update({ read_at: new Date().toISOString() })
-      .eq("id", notificationId);
+    return withAuth(async () => {
+      const { error } = await supabase
+        .from("notifications")
+        .update({ read_at: new Date().toISOString() })
+        .eq("id", notificationId);
 
-    if (error) throw error;
+      if (error) throw error;
+    });
   },
 
-  /**
-   * Mark all notifications as read
-   */
   async markAllAsRead(): Promise<void> {
     return withAuth(async (userId) => {
       const { error } = await supabase
