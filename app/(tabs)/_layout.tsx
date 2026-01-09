@@ -4,6 +4,7 @@
 import React from "react";
 import { Tabs, router } from "expo-router";
 import { Text, View, StyleSheet, Pressable } from "react-native";
+import { useUnreadNotificationCount } from "@/hooks/useNotifications";
 
 // Simple icon component
 function TabIcon({ name, focused }: { name: string; focused: boolean }) {
@@ -19,6 +20,27 @@ function TabIcon({ name, focused }: { name: string; focused: boolean }) {
         {icons[name] || "📱"}
       </Text>
     </View>
+  );
+}
+
+// Notification bell for header
+function NotificationBell() {
+  const { data: unreadCount } = useUnreadNotificationCount();
+
+  return (
+    <Pressable
+      style={styles.bellContainer}
+      onPress={() => router.push("/notifications")}
+    >
+      <Text style={styles.bellIcon}>🔔</Text>
+      {unreadCount !== undefined && unreadCount > 0 && (
+        <View style={styles.badge}>
+          <Text style={styles.badgeText}>
+            {unreadCount > 9 ? "9+" : unreadCount}
+          </Text>
+        </View>
+      )}
+    </Pressable>
   );
 }
 
@@ -70,6 +92,7 @@ export default function TabLayout() {
             <TabIcon name="home" focused={focused} />
           ),
           headerTitle: "FitChallenge",
+          headerRight: () => <NotificationBell />,
         }}
       />
       <Tabs.Screen
@@ -143,5 +166,35 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: "400",
     lineHeight: 34,
+  },
+  createButtonText: {
+    color: "#fff",
+    fontSize: 32,
+    fontWeight: "400",
+    lineHeight: 34,
+  },
+  bellContainer: {
+    marginRight: 16,
+    position: "relative",
+  },
+  bellIcon: {
+    fontSize: 22,
+  },
+  badge: {
+    position: "absolute",
+    top: -4,
+    right: -6,
+    backgroundColor: "#FF3B30",
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 4,
+  },
+  badgeText: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "bold",
   },
 });
