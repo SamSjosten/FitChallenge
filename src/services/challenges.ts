@@ -252,31 +252,39 @@ export const challengeService = {
    * Invite a user to a challenge
    * CONTRACT: Only creator can invite (RLS enforced)
    * CONTRACT: Triggers notification via server function
+   * Defense-in-depth: Requires auth before attempting mutation
    */
   async inviteUser(input: unknown): Promise<void> {
     const { challenge_id, user_id } = validate(inviteParticipantSchema, input);
 
-    // Insert participant (RLS enforces creator check)
-    const { error: insertError } = await supabase
-      .from("challenge_participants")
-      .insert({
-        challenge_id,
-        user_id,
-        invite_status: "pending",
-      });
+    return withAuth(async (currentUserId) => {
+      // Log for debugging/audit (userId available for future policy expansion)
+      console.debug(
+        `User ${currentUserId} inviting ${user_id} to challenge ${challenge_id}`
+      );
 
-    if (insertError) throw insertError;
+      // Insert participant (RLS enforces creator check)
+      const { error: insertError } = await supabase
+        .from("challenge_participants")
+        .insert({
+          challenge_id,
+          user_id,
+          invite_status: "pending",
+        });
 
-    // Trigger notification (server-side function)
-    const { error: notifyError } = await supabase.rpc(
-      "enqueue_challenge_invite_notification",
-      { p_challenge_id: challenge_id, p_invited_user_id: user_id }
-    );
+      if (insertError) throw insertError;
 
-    // Log but don't fail on notification error
-    if (notifyError) {
-      console.error("Failed to send invite notification:", notifyError);
-    }
+      // Trigger notification (server-side function)
+      const { error: notifyError } = await supabase.rpc(
+        "enqueue_challenge_invite_notification",
+        { p_challenge_id: challenge_id, p_invited_user_id: user_id }
+      );
+
+      // Log but don't fail on notification error
+      if (notifyError) {
+        console.error("Failed to send invite notification:", notifyError);
+      }
+    });
   },
 
   /**
@@ -318,14 +326,22 @@ export const challengeService = {
    * Cancel a challenge (creator only)
    * CONTRACT: Only creator can cancel (RLS enforced)
    * Sets status to 'cancelled' which removes from all users' views
+   * Defense-in-depth: Requires auth before attempting mutation
    */
   async cancelChallenge(challengeId: string): Promise<void> {
-    const { error } = await supabase
-      .from("challenges")
-      .update({ status: "cancelled" })
-      .eq("id", challengeId);
+    return withAuth(async (currentUserId) => {
+      // Log for debugging/audit (userId available for future policy expansion)
+      console.debug(
+        `User ${currentUserId} cancelling challenge ${challengeId}`
+      );
 
-    if (error) throw error;
+      const { error } = await supabase
+        .from("challenges")
+        .update({ status: "cancelled" })
+        .eq("id", challengeId);
+
+      if (error) throw error;
+    });
   },
 
   /**
