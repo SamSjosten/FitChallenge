@@ -8,6 +8,7 @@ import { StatusBar } from "expo-status-bar";
 import { View, ActivityIndicator, StyleSheet } from "react-native";
 import { supabase } from "@/lib/supabase";
 import type { Session } from "@supabase/supabase-js";
+import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
 
 // Create a client
 const queryClient = new QueryClient({
@@ -61,6 +62,9 @@ function RootLayoutNav() {
   }, []);
 
   useProtectedRoute(session, isLoading);
+
+  // Enable realtime updates when logged in
+  useRealtimeSubscription();
 
   if (isLoading) {
     return (
