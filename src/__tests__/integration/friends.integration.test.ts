@@ -39,6 +39,9 @@ describe("Friends RLS Integration Tests", () => {
   });
 
   afterAll(async () => {
+    // Guard against beforeAll failure
+    if (!user1?.id || !user2?.id) return;
+
     // Final cleanup - remove any friendships between test users
     const serviceClient = createServiceClient();
     await serviceClient

@@ -88,13 +88,16 @@ export interface TestUser {
   client: SupabaseClient<Database>;
 }
 
+// Cache to prevent race conditions when multiple test files run in parallel
+let cachedUser1: TestUser | null = null;
+let cachedUser2: TestUser | null = null;
+let user1Promise: Promise<TestUser> | null = null;
+let user2Promise: Promise<TestUser> | null = null;
+
 /**
  * Sign in as a test user, creating them if they don't exist
  */
-export async function getTestUser(
-  email: string,
-  password: string
-): Promise<TestUser> {
+async function getTestUser(email: string, password: string): Promise<TestUser> {
   const client = createAnonClient();
 
   // Try to sign in
@@ -125,6 +128,27 @@ export async function getTestUser(
     });
 
     if (signUpError) {
+      // If database error (likely race condition), wait and retry sign in
+      if (
+        signUpError.message?.includes("Database error") ||
+        signUpError.message?.includes("already registered")
+      ) {
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+
+        const { data: retrySignIn, error: retryError } =
+          await client.auth.signInWithPassword({ email, password });
+
+        if (retrySignIn.user) {
+          return {
+            id: retrySignIn.user.id,
+            email: retrySignIn.user.email!,
+            client,
+          };
+        }
+        throw new Error(
+          `Failed to create test user: ${signUpError.message}. Retry failed: ${retryError?.message}`
+        );
+      }
       throw new Error(`Failed to create test user: ${signUpError.message}`);
     }
 
@@ -156,17 +180,37 @@ export async function getTestUser(
 }
 
 /**
- * Get the primary test user
+ * Get the primary test user (cached to prevent race conditions)
  */
 export async function getTestUser1(): Promise<TestUser> {
-  return getTestUser(testConfig.testUser.email, testConfig.testUser.password);
+  if (cachedUser1) return cachedUser1;
+
+  if (!user1Promise) {
+    user1Promise = getTestUser(
+      testConfig.testUser.email,
+      testConfig.testUser.password
+    );
+  }
+
+  cachedUser1 = await user1Promise;
+  return cachedUser1;
 }
 
 /**
- * Get the secondary test user (for multi-user tests)
+ * Get the secondary test user (cached to prevent race conditions)
  */
 export async function getTestUser2(): Promise<TestUser> {
-  return getTestUser(testConfig.testUser2.email, testConfig.testUser2.password);
+  if (cachedUser2) return cachedUser2;
+
+  if (!user2Promise) {
+    user2Promise = getTestUser(
+      testConfig.testUser2.email,
+      testConfig.testUser2.password
+    );
+  }
+
+  cachedUser2 = await user2Promise;
+  return cachedUser2;
 }
 
 // =============================================================================
