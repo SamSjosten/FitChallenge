@@ -83,12 +83,72 @@ describe("Activity Integration Tests", () => {
         p_challenge_id: id,
         p_activity_type: "steps",
         p_value: 5000,
-        p_recorded_at: new Date().toISOString(),
         p_source: "manual",
         p_client_event_id: clientEventId,
       });
 
       expect(error).toBeNull();
+    });
+
+    it("should ignore client-provided recorded_at for manual logs (uses server time)", async () => {
+      const timeBounds = getActiveTimeBounds();
+      const challenge = await createTestChallenge(user1.client, {
+        ...timeBounds,
+      });
+      const challengeId = requireId(challenge.id);
+
+      try {
+        await user1.client.from("challenge_participants").insert({
+          challenge_id: challengeId,
+          user_id: user1.id,
+          invite_status: "accepted",
+        });
+
+        const clientEventId = generateTestUUID();
+        // Malicious / untrusted timestamp (still within challenge bounds)
+        // Pick something clearly distinct from "now" to ensure the override is observable.
+        const maliciousRecordedAt = new Date(
+          Date.now() - 30 * 60 * 1000
+        ).toISOString(); // -30m
+
+        // Capture a tight window around the RPC call to sanity-check "server now".
+        const before = Date.now();
+
+        const { error } = await user1.client.rpc("log_activity", {
+          p_challenge_id: challengeId,
+          p_activity_type: "steps",
+          p_value: 1234,
+          p_recorded_at: maliciousRecordedAt,
+          p_source: "manual",
+          p_client_event_id: clientEventId,
+        });
+        expect(error).toBeNull();
+
+        const { data: logs, error: logsError } = await user1.client
+          .from("activity_logs")
+          .select("recorded_at, client_event_id")
+          .eq("challenge_id", challengeId)
+          .eq("client_event_id", clientEventId)
+          .limit(1);
+
+        expect(logsError).toBeNull();
+        expect(logs?.length).toBe(1);
+
+        const storedRecordedAt = logs?.[0]?.recorded_at as string;
+        expect(storedRecordedAt).toBeDefined();
+
+        // Stored recorded_at should NOT equal the malicious timestamp
+        expect(storedRecordedAt).not.toBe(maliciousRecordedAt);
+
+        // And it should be close to server "now"
+        // (sanity window: within ~2 minutes of the test's execution window)
+        const storedMs = new Date(storedRecordedAt).getTime();
+        const after = Date.now();
+        expect(storedMs).toBeGreaterThanOrEqual(before - 2 * 60 * 1000);
+        expect(storedMs).toBeLessThanOrEqual(after + 2 * 60 * 1000);
+      } finally {
+        await cleanupChallenge(challengeId);
+      }
     });
 
     it("should be idempotent - same client_event_id doesn't duplicate", async () => {
@@ -114,7 +174,6 @@ describe("Activity Integration Tests", () => {
           p_challenge_id: challengeId,
           p_activity_type: "steps",
           p_value: 1000,
-          p_recorded_at: new Date().toISOString(),
           p_source: "manual",
           p_client_event_id: clientEventId,
         });
@@ -125,7 +184,6 @@ describe("Activity Integration Tests", () => {
           p_challenge_id: challengeId,
           p_activity_type: "steps",
           p_value: 1000,
-          p_recorded_at: new Date().toISOString(),
           p_source: "manual",
           p_client_event_id: clientEventId,
         });
@@ -155,7 +213,6 @@ describe("Activity Integration Tests", () => {
         p_challenge_id: id,
         p_activity_type: "steps",
         p_value: 1000,
-        p_recorded_at: new Date().toISOString(),
         p_source: "manual",
         p_client_event_id: generateTestUUID(),
       });
@@ -180,7 +237,6 @@ describe("Activity Integration Tests", () => {
           p_challenge_id: challengeId,
           p_activity_type: "steps",
           p_value: 1000,
-          p_recorded_at: new Date().toISOString(),
           p_source: "manual",
           p_client_event_id: generateTestUUID(),
         });
@@ -209,7 +265,6 @@ describe("Activity Integration Tests", () => {
           p_challenge_id: challengeId,
           p_activity_type: "steps",
           p_value: 2000,
-          p_recorded_at: new Date().toISOString(),
           p_source: "manual",
           p_client_event_id: generateTestUUID(),
         });
@@ -248,7 +303,6 @@ describe("Activity Integration Tests", () => {
         p_challenge_id: summaryTestChallengeId,
         p_activity_type: "steps",
         p_value: 1000,
-        p_recorded_at: new Date().toISOString(),
         p_source: "manual",
         p_client_event_id: generateTestUUID(),
       });
@@ -257,7 +311,6 @@ describe("Activity Integration Tests", () => {
         p_challenge_id: summaryTestChallengeId,
         p_activity_type: "steps",
         p_value: 2000,
-        p_recorded_at: new Date().toISOString(),
         p_source: "manual",
         p_client_event_id: generateTestUUID(),
       });
@@ -266,7 +319,6 @@ describe("Activity Integration Tests", () => {
         p_challenge_id: summaryTestChallengeId,
         p_activity_type: "steps",
         p_value: 3000,
-        p_recorded_at: new Date().toISOString(),
         p_source: "manual",
         p_client_event_id: generateTestUUID(),
       });
@@ -339,7 +391,6 @@ describe("Activity Integration Tests", () => {
           p_challenge_id: challengeId,
           p_activity_type: "steps",
           p_value: 5000,
-          p_recorded_at: new Date().toISOString(),
           p_source: "manual",
           p_client_event_id: generateTestUUID(),
         });
@@ -349,7 +400,6 @@ describe("Activity Integration Tests", () => {
           p_challenge_id: challengeId,
           p_activity_type: "steps",
           p_value: 3000,
-          p_recorded_at: new Date().toISOString(),
           p_source: "manual",
           p_client_event_id: generateTestUUID(),
         });
@@ -399,7 +449,6 @@ describe("Activity Integration Tests", () => {
           p_challenge_id: challengeId,
           p_activity_type: "steps",
           p_value: 1000,
-          p_recorded_at: new Date().toISOString(),
           p_source: "manual",
           p_client_event_id: generateTestUUID(),
         });
@@ -408,7 +457,6 @@ describe("Activity Integration Tests", () => {
           p_challenge_id: challengeId,
           p_activity_type: "steps",
           p_value: 2000,
-          p_recorded_at: new Date().toISOString(),
           p_source: "manual",
           p_client_event_id: generateTestUUID(),
         });

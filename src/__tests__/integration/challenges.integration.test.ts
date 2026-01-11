@@ -359,6 +359,184 @@ describe("Challenge Visibility Integration Tests", () => {
     });
   });
 
+  describe("Active challenge time filtering", () => {
+    let upcomingChallengeId: string | null = null;
+    let activeChallengeId: string | null = null;
+    let endedChallengeId: string | null = null;
+
+    beforeAll(async () => {
+      const now = new Date();
+
+      // Create upcoming challenge (starts tomorrow)
+      const upcomingChallenge = await createTestChallenge(user1.client, {
+        title: "Upcoming Challenge",
+        start_date: new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString(),
+        end_date: new Date(
+          now.getTime() + 7 * 24 * 60 * 60 * 1000
+        ).toISOString(),
+      });
+      upcomingChallengeId = requireId(upcomingChallenge.id);
+
+      // Create active challenge (started 1 hour ago, ends in 7 days)
+      const activeChallenge = await createTestChallenge(user1.client, {
+        title: "Active Challenge",
+        start_date: new Date(now.getTime() - 60 * 60 * 1000).toISOString(),
+        end_date: new Date(
+          now.getTime() + 7 * 24 * 60 * 60 * 1000
+        ).toISOString(),
+      });
+      activeChallengeId = requireId(activeChallenge.id);
+
+      // Create ended challenge (ended 1 hour ago)
+      const endedChallenge = await createTestChallenge(user1.client, {
+        title: "Ended Challenge",
+        start_date: new Date(
+          now.getTime() - 7 * 24 * 60 * 60 * 1000
+        ).toISOString(),
+        end_date: new Date(now.getTime() - 60 * 60 * 1000).toISOString(),
+      });
+      endedChallengeId = requireId(endedChallenge.id);
+
+      // Add user1 as accepted participant in all challenges
+      for (const challengeId of [
+        upcomingChallengeId,
+        activeChallengeId,
+        endedChallengeId,
+      ]) {
+        await user1.client.from("challenge_participants").insert({
+          challenge_id: challengeId,
+          user_id: user1.id,
+          invite_status: "accepted",
+        });
+      }
+    }, 30000);
+
+    afterAll(async () => {
+      // Cleanup all challenges
+      for (const challengeId of [
+        upcomingChallengeId,
+        activeChallengeId,
+        endedChallengeId,
+      ]) {
+        if (challengeId) {
+          await cleanupChallenge(challengeId);
+        }
+      }
+    });
+
+    it("excludes upcoming challenges from active query", async () => {
+      const now = new Date().toISOString();
+
+      // Query using same logic as getMyActiveChallenges
+      const { data } = await user1.client
+        .from("challenges")
+        .select(`*, challenge_participants!inner (invite_status)`)
+        .eq("challenge_participants.user_id", user1.id)
+        .eq("challenge_participants.invite_status", "accepted")
+        .lte("start_date", now)
+        .gt("end_date", now)
+        .not("status", "in", '("cancelled","archived")');
+
+      const challengeIds = data?.map((c) => c.id) || [];
+
+      // Upcoming challenge should NOT be included
+      expect(challengeIds).not.toContain(upcomingChallengeId);
+    });
+
+    it("includes currently active challenges", async () => {
+      const now = new Date().toISOString();
+
+      const { data } = await user1.client
+        .from("challenges")
+        .select(`*, challenge_participants!inner (invite_status)`)
+        .eq("challenge_participants.user_id", user1.id)
+        .eq("challenge_participants.invite_status", "accepted")
+        .lte("start_date", now)
+        .gt("end_date", now)
+        .not("status", "in", '("cancelled","archived")');
+
+      const challengeIds = data?.map((c) => c.id) || [];
+
+      // Active challenge SHOULD be included
+      expect(challengeIds).toContain(activeChallengeId);
+    });
+
+    it("excludes ended challenges from active query", async () => {
+      const now = new Date().toISOString();
+
+      const { data } = await user1.client
+        .from("challenges")
+        .select(`*, challenge_participants!inner (invite_status)`)
+        .eq("challenge_participants.user_id", user1.id)
+        .eq("challenge_participants.invite_status", "accepted")
+        .lte("start_date", now)
+        .gt("end_date", now)
+        .not("status", "in", '("cancelled","archived")');
+
+      const challengeIds = data?.map((c) => c.id) || [];
+
+      // Ended challenge should NOT be included
+      expect(challengeIds).not.toContain(endedChallengeId);
+    });
+
+    it("respects half-open interval [start_date, end_date)", async () => {
+      // Verify boundary conditions using a fixed timestamp to avoid drift:
+      // - start_date == now  -> included  (start_date <= now)
+      // - end_date == now    -> excluded  (end_date > now, not >=)
+
+      const fixedNow = new Date().toISOString();
+
+      const startsNow = await createTestChallenge(user1.client, {
+        title: "Starts Now Boundary",
+        start_date: fixedNow,
+        end_date: new Date(Date.now() + 60 * 60 * 1000).toISOString(), // +1 hour
+      });
+      const startsNowId = requireId(startsNow.id);
+
+      const endsNow = await createTestChallenge(user1.client, {
+        title: "Ends Now Boundary",
+        start_date: new Date(Date.now() - 60 * 60 * 1000).toISOString(), // -1 hour
+        end_date: fixedNow,
+      });
+      const endsNowId = requireId(endsNow.id);
+
+      // Add user1 as accepted participant in both boundary challenges
+      for (const challengeId of [startsNowId, endsNowId]) {
+        await user1.client.from("challenge_participants").insert({
+          challenge_id: challengeId,
+          user_id: user1.id,
+          invite_status: "accepted",
+        });
+      }
+
+      const { data, error } = await user1.client
+        .from("challenges")
+        .select(`id, challenge_participants!inner (invite_status)`)
+        .eq("challenge_participants.user_id", user1.id)
+        .eq("challenge_participants.invite_status", "accepted")
+        .lte("start_date", fixedNow) // inclusive
+        .gt("end_date", fixedNow) // exclusive
+        .not("status", "in", '("cancelled","archived")');
+
+      if (error) throw error;
+
+      const challengeIds = data?.map((c) => c.id) || [];
+
+      // Boundary expectations
+      expect(challengeIds).toContain(startsNowId);
+      expect(challengeIds).not.toContain(endsNowId);
+
+      // Also ensure our existing fixtures still behave
+      expect(challengeIds).toContain(activeChallengeId);
+      expect(challengeIds).not.toContain(upcomingChallengeId);
+      expect(challengeIds).not.toContain(endedChallengeId);
+
+      // Cleanup the boundary challenges created in this test
+      await cleanupChallenge(startsNowId);
+      await cleanupChallenge(endsNowId);
+    });
+  });
+
   describe("Leaderboard visibility", () => {
     let challengeId: string | null = null;
 

@@ -15,36 +15,49 @@ export type EffectiveStatus =
 
 /**
  * Get effective challenge status from time bounds
- * Single source of truth - same logic as DB function
+ *
+ * @param challenge - Challenge with status and date bounds
+ * @param nowOverride - Optional injected 'now' (e.g., server-derived time or cached offset).
+ *                      If omitted, falls back to device time.
  */
-export function getEffectiveStatus(challenge: {
-  status: string;
-  start_date: string;
-  end_date: string;
-}): EffectiveStatus {
+export function getEffectiveStatus(
+  challenge: {
+    status: string;
+    start_date: string;
+    end_date: string;
+  },
+  nowOverride?: Date
+): EffectiveStatus {
   // Overrides take precedence
   if (challenge.status === "cancelled" || challenge.status === "archived") {
     return challenge.status as EffectiveStatus;
   }
 
-  const now = new Date();
-  const start = new Date(challenge.start_date);
-  const end = new Date(challenge.end_date);
+  // Use milliseconds for explicit comparison (avoids timezone parsing weirdness)
+  const nowMs = (nowOverride ?? new Date()).getTime();
+  const startMs = new Date(challenge.start_date).getTime();
+  const endMs = new Date(challenge.end_date).getTime();
 
-  if (now < start) return "upcoming";
-  if (now >= end) return "completed";
+  if (nowMs < startMs) return "upcoming";
+  if (nowMs >= endMs) return "completed";
   return "active";
 }
 
 /**
  * Check if activity logging is allowed
+ *
+ * @param challenge - Challenge with status and date bounds
+ * @param nowOverride - Optional injected 'now' (e.g., server-derived time or cached offset)
  */
-export function canLogActivity(challenge: {
-  status: string;
-  start_date: string;
-  end_date: string;
-}): boolean {
-  return getEffectiveStatus(challenge) === "active";
+export function canLogActivity(
+  challenge: {
+    status: string;
+    start_date: string;
+    end_date: string;
+  },
+  nowOverride?: Date
+): boolean {
+  return getEffectiveStatus(challenge, nowOverride) === "active";
 }
 
 /**
