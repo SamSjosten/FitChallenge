@@ -167,12 +167,6 @@ const styles = StyleSheet.create({
     fontWeight: "400",
     lineHeight: 34,
   },
-  createButtonText: {
-    color: "#fff",
-    fontSize: 32,
-    fontWeight: "400",
-    lineHeight: 34,
-  },
   bellContainer: {
     marginRight: 16,
     position: "relative",
@@ -198,3 +192,4 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
 });
+

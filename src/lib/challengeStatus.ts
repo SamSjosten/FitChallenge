@@ -18,7 +18,7 @@ export type EffectiveStatus =
  * Single source of truth - same logic as DB function
  */
 export function getEffectiveStatus(challenge: {
-  status: string;
+  status: string | null;
   start_date: string;
   end_date: string;
 }): EffectiveStatus {
@@ -40,7 +40,7 @@ export function getEffectiveStatus(challenge: {
  * Check if activity logging is allowed
  */
 export function canLogActivity(challenge: {
-  status: string;
+  status: string | null;
   start_date: string;
   end_date: string;
 }): boolean {
@@ -81,3 +81,4 @@ export function getStatusColor(status: EffectiveStatus): string {
       return "#8E8E93"; // Gray
   }
 }
+

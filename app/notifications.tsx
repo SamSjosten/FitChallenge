@@ -120,7 +120,7 @@ export default function NotificationsScreen() {
               </View>
               <Text style={styles.notificationBody}>{notification.body}</Text>
               <Text style={styles.notificationTime}>
-                {formatTimeAgo(notification.created_at)}
+                {formatTimeAgo(notification.created_at ?? "")}
               </Text>
             </Card>
           </TouchableOpacity>
@@ -198,3 +198,4 @@ const styles = StyleSheet.create({
     color: "#999",
   },
 });
+
