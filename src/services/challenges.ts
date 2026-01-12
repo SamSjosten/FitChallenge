@@ -222,12 +222,15 @@ export const challengeService = {
         ),
       ];
 
-      const { data: creators } = await supabase
-        .from("profiles_public")
-        .select("*")
-        .in("id", creatorIds);
-
-      const creatorMap = new Map(creators?.map((c) => [c.id, c]) || []);
+      // Guard: skip query if no creator IDs to fetch (empty .in() is problematic)
+      let creatorMap = new Map<string, ProfilePublic>();
+      if (creatorIds.length > 0) {
+        const { data: creators } = await supabase
+          .from("profiles_public")
+          .select("*")
+          .in("id", creatorIds);
+        creatorMap = new Map(creators?.map((c) => [c.id, c]) || []);
+      }
 
       return challenges.map((item) => ({
         challenge: item.challenge,
