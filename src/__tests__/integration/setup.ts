@@ -230,8 +230,8 @@ export async function createTestChallenge(
   if (!user) throw new Error("Must be authenticated to create challenge");
 
   const now = new Date();
-  const startDate = new Date(now.getTime() + 24 * 60 * 60 * 1000); // Tomorrow
-  const endDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days
+  const startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000); // Yesterday (default: active)
+  const endDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // +7 days
 
   const { data, error } = await client
     .from("challenges")
@@ -244,7 +244,7 @@ export async function createTestChallenge(
       win_condition: "highest_total",
       start_date: startDate.toISOString(),
       end_date: endDate.toISOString(),
-      status: "active", // For testing, start as active
+      status: "active", // NOTE: time-derived status is determined by start/end; this value is only used for override states
       ...overrides,
     })
     .select()

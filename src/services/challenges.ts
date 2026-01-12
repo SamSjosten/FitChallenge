@@ -135,8 +135,9 @@ export const challengeService = {
         )
         .eq("challenge_participants.user_id", userId)
         .eq("challenge_participants.invite_status", "accepted")
-        // Time-based filtering: exclude ended challenges
-        .gt("end_date", now)
+        // Time-based filtering: active window is [start_date, end_date)
+        .lte("start_date", now) // Must have started
+        .gt("end_date", now) // Must not have ended
         // Exclude override statuses (cancelled/archived)
         .not("status", "in", '("cancelled","archived")')
         .order("start_date", { ascending: true });
