@@ -313,10 +313,10 @@ describe("serverTime", () => {
   // Integration with challengeStatus
   // =============================================================================
   describe("integration with challenge status determination", () => {
-    test("simulates device clock 2 hours behind server...", () => {
-      // Import getEffectiveStatus lazily to allow mocking
-      const { getEffectiveStatus } = require("../challengeStatus");
+    // Import getEffectiveStatus lazily to allow mocking
+    const { getEffectiveStatus } = require("../challengeStatus");
 
+    describe("device clock skew scenarios", () => {
       test("simulates device clock 2 hours behind server - challenge appears upcoming on device but active on server", () => {
         // Scenario: Device clock is 2 hours behind server
         // Server says 14:00, device says 12:00
