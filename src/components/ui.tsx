@@ -1,8 +1,9 @@
 // src/components/ui.tsx
 // Basic UI components for FitChallenge
 
-import React from 'react';
+import React from "react";
 import {
+  StyleProp,
   TouchableOpacity,
   Text,
   TextInput,
@@ -13,7 +14,7 @@ import {
   TouchableOpacityProps,
   ViewStyle,
   TextStyle,
-} from 'react-native';
+} from "react-native";
 
 // =============================================================================
 // BUTTON
@@ -21,15 +22,15 @@ import {
 
 interface ButtonProps extends TouchableOpacityProps {
   title: string;
-  variant?: 'primary' | 'secondary' | 'outline' | 'danger';
-  size?: 'small' | 'medium' | 'large';
+  variant?: "primary" | "secondary" | "outline" | "danger";
+  size?: "small" | "medium" | "large";
   loading?: boolean;
 }
 
 export function Button({
   title,
-  variant = 'primary',
-  size = 'medium',
+  variant = "primary",
+  size = "medium",
   loading = false,
   disabled,
   style,
@@ -56,9 +57,9 @@ export function Button({
       {...props}
     >
       {loading ? (
-        <ActivityIndicator 
-          color={variant === 'primary' ? '#fff' : '#007AFF'} 
-          size="small" 
+        <ActivityIndicator
+          color={variant === "primary" ? "#fff" : "#007AFF"}
+          size="small"
         />
       ) : (
         <Text style={textStyles}>{title}</Text>
@@ -74,25 +75,21 @@ export function Button({
 interface InputProps extends TextInputProps {
   label?: string;
   error?: string;
-  containerStyle?: ViewStyle;
+  containerStyle?: StyleProp<ViewStyle>;
 }
 
-export function Input({ 
-  label, 
-  error, 
+export function Input({
+  label,
+  error,
   style,
   containerStyle,
-  ...props 
+  ...props
 }: InputProps) {
   return (
     <View style={[styles.inputContainer, containerStyle]}>
       {label && <Text style={styles.inputLabel}>{label}</Text>}
       <TextInput
-        style={[
-          styles.input,
-          error && styles.input_error,
-          style,
-        ]}
+        style={[styles.input, error && styles.input_error, style]}
         placeholderTextColor="#999"
         {...props}
       />
@@ -107,15 +104,15 @@ export function Input({
 
 interface CardProps {
   children: React.ReactNode;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
   onPress?: () => void;
 }
 
 export function Card({ children, style, onPress }: CardProps) {
   const Wrapper = onPress ? TouchableOpacity : View;
   return (
-    <Wrapper 
-      style={[styles.card, style]} 
+    <Wrapper
+      style={[styles.card, style]}
       onPress={onPress}
       activeOpacity={onPress ? 0.7 : 1}
     >
@@ -150,11 +147,11 @@ export function ErrorMessage({ message, onRetry }: ErrorMessageProps) {
     <View style={styles.errorContainer}>
       <Text style={styles.errorText}>{message}</Text>
       {onRetry && (
-        <Button 
-          title="Retry" 
-          variant="outline" 
-          size="small" 
-          onPress={onRetry} 
+        <Button
+          title="Retry"
+          variant="outline"
+          size="small"
+          onPress={onRetry}
         />
       )}
     </View>
@@ -172,19 +169,19 @@ interface EmptyStateProps {
   onAction?: () => void;
 }
 
-export function EmptyState({ 
-  title, 
-  message, 
-  actionLabel, 
-  onAction 
+export function EmptyState({
+  title,
+  message,
+  actionLabel,
+  onAction,
 }: EmptyStateProps) {
   return (
     <View style={styles.emptyContainer}>
       <Text style={styles.emptyTitle}>{title}</Text>
       {message && <Text style={styles.emptyMessage}>{message}</Text>}
       {actionLabel && onAction && (
-        <Button 
-          title={actionLabel} 
+        <Button
+          title={actionLabel}
           onPress={onAction}
           style={{ marginTop: 16 }}
         />
@@ -201,22 +198,22 @@ const styles = StyleSheet.create({
   // Button styles
   button: {
     borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   button_primary: {
-    backgroundColor: '#007AFF',
+    backgroundColor: "#007AFF",
   },
   button_secondary: {
-    backgroundColor: '#E5E5EA',
+    backgroundColor: "#E5E5EA",
   },
   button_outline: {
-    backgroundColor: 'transparent',
+    backgroundColor: "transparent",
     borderWidth: 1,
-    borderColor: '#007AFF',
+    borderColor: "#007AFF",
   },
   button_danger: {
-    backgroundColor: '#FF3B30',
+    backgroundColor: "#FF3B30",
   },
   button_disabled: {
     opacity: 0.5,
@@ -234,19 +231,19 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
   },
   buttonText: {
-    fontWeight: '600',
+    fontWeight: "600",
   },
   buttonText_primary: {
-    color: '#fff',
+    color: "#fff",
   },
   buttonText_secondary: {
-    color: '#000',
+    color: "#000",
   },
   buttonText_outline: {
-    color: '#007AFF',
+    color: "#007AFF",
   },
   buttonText_danger: {
-    color: '#fff',
+    color: "#fff",
   },
   buttonText_small: {
     fontSize: 14,
@@ -264,34 +261,34 @@ const styles = StyleSheet.create({
   },
   inputLabel: {
     fontSize: 14,
-    fontWeight: '500',
-    color: '#333',
+    fontWeight: "500",
+    color: "#333",
     marginBottom: 6,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#D1D1D6',
+    borderColor: "#D1D1D6",
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 12,
     fontSize: 16,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
   },
   input_error: {
-    borderColor: '#FF3B30',
+    borderColor: "#FF3B30",
   },
   inputError: {
     fontSize: 12,
-    color: '#FF3B30',
+    color: "#FF3B30",
     marginTop: 4,
   },
 
   // Card styles
   card: {
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     borderRadius: 12,
     padding: 16,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -301,40 +298,40 @@ const styles = StyleSheet.create({
   // Loading styles
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#F2F2F7',
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#F2F2F7",
   },
 
   // Error styles
   errorContainer: {
     padding: 16,
-    alignItems: 'center',
+    alignItems: "center",
     gap: 12,
   },
   errorText: {
     fontSize: 14,
-    color: '#FF3B30',
-    textAlign: 'center',
+    color: "#FF3B30",
+    textAlign: "center",
   },
 
   // Empty state styles
   emptyContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     padding: 32,
   },
   emptyTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-    textAlign: 'center',
+    fontWeight: "600",
+    color: "#333",
+    textAlign: "center",
   },
   emptyMessage: {
     fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
+    color: "#666",
+    textAlign: "center",
     marginTop: 8,
   },
 });
