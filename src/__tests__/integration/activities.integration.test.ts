@@ -425,6 +425,162 @@ describe("Activity Integration Tests", () => {
     });
   });
 
+  describe("getRecentActivities pagination", () => {
+    let paginationTestChallengeId: string | null = null;
+    const createdAtValues: string[] = [];
+
+    beforeAll(async () => {
+      // Create a challenge for pagination tests
+      const timeBounds = getActiveTimeBounds();
+      const challenge = await createTestChallenge(user1.client, {
+        ...timeBounds,
+      });
+      paginationTestChallengeId = requireId(challenge.id);
+
+      // Add user1 as participant
+      await user1.client.from("challenge_participants").insert({
+        challenge_id: paginationTestChallengeId,
+        user_id: user1.id,
+        invite_status: "accepted",
+      });
+
+      // Log 5 activities with slight delays to ensure distinct created_at values
+      for (let i = 0; i < 5; i++) {
+        const clientEventId = generateTestUUID();
+        await user1.client.rpc("log_activity", {
+          p_challenge_id: paginationTestChallengeId,
+          p_activity_type: "steps",
+          p_value: (i + 1) * 1000,
+          p_source: "manual",
+          p_client_event_id: clientEventId,
+        });
+
+        // Fetch the created_at value
+        const { data } = await user1.client
+          .from("activity_logs")
+          .select("created_at")
+          .eq("client_event_id", clientEventId)
+          .single();
+
+        if (data?.created_at) {
+          createdAtValues.push(data.created_at);
+        }
+
+        // Small delay to ensure distinct timestamps
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+    }, 60000);
+
+    afterAll(async () => {
+      if (paginationTestChallengeId) {
+        await cleanupChallenge(paginationTestChallengeId);
+        paginationTestChallengeId = null;
+      }
+    });
+
+    it("should return activities with limit", async () => {
+      const challengeId = requireId(paginationTestChallengeId);
+      const { data, error } = await user1.client
+        .from("activity_logs")
+        .select("*")
+        .eq("user_id", user1.id)
+        .eq("challenge_id", challengeId)
+        .order("created_at", { ascending: false })
+        .limit(3);
+
+      expect(error).toBeNull();
+      expect(data?.length).toBe(3);
+    });
+
+    it("should return activities before cursor (cursor-based pagination)", async () => {
+      const challengeId = requireId(paginationTestChallengeId);
+      // Get all activities first
+      const { data: allData } = await user1.client
+        .from("activity_logs")
+        .select("*")
+        .eq("user_id", user1.id)
+        .eq("challenge_id", challengeId)
+        .order("created_at", { ascending: false });
+
+      expect(allData?.length).toBeGreaterThanOrEqual(3);
+
+      // Use the 3rd item's created_at as cursor
+      const cursor = allData![2].created_at!;
+
+      // Fetch items before the cursor
+      const { data: pagedData, error } = await user1.client
+        .from("activity_logs")
+        .select("*")
+        .eq("user_id", user1.id)
+        .eq("challenge_id", challengeId)
+        .lt("created_at", cursor)
+        .order("created_at", { ascending: false });
+
+      expect(error).toBeNull();
+      // Should return items older than the cursor
+      expect(pagedData?.length).toBeGreaterThanOrEqual(2);
+
+      // All returned items should have created_at < cursor
+      pagedData?.forEach((item) => {
+        expect(new Date(item.created_at!).getTime()).toBeLessThan(
+          new Date(cursor).getTime()
+        );
+      });
+    });
+
+    it("should return empty array when cursor is before all activities", async () => {
+      const challengeId = requireId(paginationTestChallengeId);
+      // Use a very old timestamp as cursor
+      const oldCursor = "2020-01-01T00:00:00.000Z";
+
+      const { data, error } = await user1.client
+        .from("activity_logs")
+        .select("*")
+        .eq("user_id", user1.id)
+        .eq("challenge_id", challengeId)
+        .lt("created_at", oldCursor)
+        .order("created_at", { ascending: false });
+
+      expect(error).toBeNull();
+      expect(data?.length).toBe(0);
+    });
+
+    it("should combine limit and cursor correctly", async () => {
+      const challengeId = requireId(paginationTestChallengeId);
+      // Get all activities
+      const { data: allData } = await user1.client
+        .from("activity_logs")
+        .select("*")
+        .eq("user_id", user1.id)
+        .eq("challenge_id", challengeId)
+        .order("created_at", { ascending: false });
+
+      expect(allData?.length).toBeGreaterThanOrEqual(4);
+
+      // Use second item's created_at as cursor, limit to 2
+      const cursor = allData![1].created_at!;
+
+      const { data: pagedData, error } = await user1.client
+        .from("activity_logs")
+        .select("*")
+        .eq("user_id", user1.id)
+        .eq("challenge_id", challengeId)
+        .lt("created_at", cursor)
+        .order("created_at", { ascending: false })
+        .limit(2);
+
+      expect(error).toBeNull();
+      expect(pagedData?.length).toBeLessThanOrEqual(2);
+
+      // Should be deterministically ordered
+      if (pagedData && pagedData.length > 1) {
+        expect(
+          new Date(pagedData[0].created_at!).getTime()
+        ).toBeGreaterThanOrEqual(new Date(pagedData[1].created_at!).getTime());
+      }
+    });
+  });
+
   describe("Activity logs RLS", () => {
     it("should only allow user to see their own activity logs", async () => {
       // Create challenge with both users
