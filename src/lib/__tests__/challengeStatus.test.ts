@@ -170,6 +170,75 @@ describe("challengeStatus", () => {
   });
 
   // =============================================================================
+  // Server Time Integration
+  // =============================================================================
+  describe("server time integration", () => {
+    test("simulates server-ahead scenario: device thinks upcoming, server says active", () => {
+      // Scenario: Server is 2 hours ahead of device
+      // Challenge starts at BASE_NOW + 1 hour (server time)
+      // Device time = BASE_NOW, so device thinks "upcoming"
+      // Server time = BASE_NOW + 2 hours, so server says "active"
+
+      const deviceNow = BASE_NOW;
+      const serverNow = new Date(BASE_NOW.getTime() + 2 * ONE_HOUR_MS);
+
+      const challenge = makeChallenge("pending", ONE_HOUR_MS, ONE_DAY_MS * 7);
+
+      // Using device time: challenge starts in 1 hour → upcoming
+      expect(getEffectiveStatus(challenge, deviceNow)).toBe("upcoming");
+
+      // Using server time (2h ahead): challenge started 1 hour ago → active
+      expect(getEffectiveStatus(challenge, serverNow)).toBe("active");
+    });
+
+    test("simulates server-behind scenario: device thinks active, server says upcoming", () => {
+      // Scenario: Server is 2 hours behind device
+      // Challenge starts at BASE_NOW + 1 hour (server time)
+      // Device time = BASE_NOW + 2 hours, so device thinks "active"
+      // Server time = BASE_NOW, so server says "upcoming"
+
+      const deviceNow = new Date(BASE_NOW.getTime() + 2 * ONE_HOUR_MS);
+      const serverNow = BASE_NOW;
+
+      const challenge = makeChallenge("pending", ONE_HOUR_MS, ONE_DAY_MS * 7);
+
+      // Using device time (2h ahead): challenge started 1 hour ago → active
+      expect(getEffectiveStatus(challenge, deviceNow)).toBe("active");
+
+      // Using server time: challenge starts in 1 hour → upcoming
+      expect(getEffectiveStatus(challenge, serverNow)).toBe("upcoming");
+    });
+
+    test("boundary: server time exactly at challenge end marks completed", () => {
+      // Half-open interval [start, end) - end is exclusive
+      const challenge = makeChallenge("pending", -ONE_DAY_MS, 0);
+
+      // Exactly at end time → completed (end-exclusive)
+      expect(getEffectiveStatus(challenge, BASE_NOW)).toBe("completed");
+
+      // 1ms before end → still active
+      const justBeforeEnd = new Date(BASE_NOW.getTime() - 1);
+      expect(getEffectiveStatus(challenge, justBeforeEnd)).toBe("active");
+    });
+
+    test("canLogActivity respects server time for activity window", () => {
+      // Challenge is active from BASE_NOW to BASE_NOW + 7 days
+      const challenge = makeChallenge("pending", 0, ONE_DAY_MS * 7);
+
+      // At start boundary: can log (start-inclusive)
+      expect(canLogActivity(challenge, BASE_NOW)).toBe(true);
+
+      // 1ms before start: cannot log
+      const beforeStart = new Date(BASE_NOW.getTime() - 1);
+      expect(canLogActivity(challenge, beforeStart)).toBe(false);
+
+      // At end boundary: cannot log (end-exclusive)
+      const atEnd = new Date(BASE_NOW.getTime() + ONE_DAY_MS * 7);
+      expect(canLogActivity(challenge, atEnd)).toBe(false);
+    });
+  });
+
+  // =============================================================================
   // UI Helpers (locks down label/color consistency)
   // =============================================================================
   describe("getStatusLabel", () => {

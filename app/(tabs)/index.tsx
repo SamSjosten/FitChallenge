@@ -30,6 +30,7 @@ import {
   getStatusLabel,
   getStatusColor,
 } from "@/lib/challengeStatus";
+import { getServerNow } from "@/lib/serverTime";
 
 export default function HomeScreen() {
   const { profile } = useAuth();
@@ -116,7 +117,7 @@ export default function HomeScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Pending Invites</Text>
           {pendingInvites.map((invite) => {
-            const status = getEffectiveStatus(invite.challenge);
+            const status = getEffectiveStatus(invite.challenge, getServerNow());
             const startDate = new Date(invite.challenge.start_date);
             const endDate = new Date(invite.challenge.end_date);
             const durationDays = Math.ceil(
@@ -199,7 +200,7 @@ export default function HomeScreen() {
         )}
 
         {activeChallenges?.map((challenge) => {
-          const effectiveStatus = getEffectiveStatus(challenge);
+          const effectiveStatus = getEffectiveStatus(challenge, getServerNow());
           return (
             <Card
               key={challenge.id}

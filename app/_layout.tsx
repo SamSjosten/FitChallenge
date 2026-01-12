@@ -9,6 +9,7 @@ import { View, ActivityIndicator, StyleSheet } from "react-native";
 import { supabase } from "@/lib/supabase";
 import type { Session } from "@supabase/supabase-js";
 import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
+import { syncServerTime } from "@/lib/serverTime";
 
 // Create a client
 const queryClient = new QueryClient({
@@ -49,6 +50,13 @@ function RootLayoutNav() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setIsLoading(false);
+
+      // Sync server time once authenticated
+      if (session) {
+        syncServerTime().catch((err) =>
+          console.warn("Initial server time sync failed:", err)
+        );
+      }
     });
 
     // Listen for auth changes
@@ -56,6 +64,13 @@ function RootLayoutNav() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
+
+      // Re-sync server time on auth state change (e.g., fresh login)
+      if (session) {
+        syncServerTime().catch((err) =>
+          console.warn("Server time sync on auth change failed:", err)
+        );
+      }
     });
 
     return () => subscription.unsubscribe();

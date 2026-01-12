@@ -36,6 +36,7 @@ import {
   getStatusLabel,
   getStatusColor,
 } from "@/lib/challengeStatus";
+import { getServerNow } from "@/lib/serverTime";
 import type { ProfilePublic } from "@/types/database";
 
 export default function ChallengeDetailScreen() {
@@ -188,12 +189,12 @@ export default function ChallengeDetailScreen() {
   const myInviteStatus = challenge.my_participation?.invite_status;
 
   // Derive status from time bounds (matches DB function)
-  const effectiveStatus = getEffectiveStatus(challenge);
+  const effectiveStatus = getEffectiveStatus(challenge, getServerNow());
 
   // Leaderboard visibility is determined by RLS - empty results = not authorized
   // Log activity: RPC will reject if not accepted participant
   // Use time-derived status, not stored status column
-  const challengeAllowsLogging = canLogActivity(challenge);
+  const challengeAllowsLogging = canLogActivity(challenge, getServerNow());
 
   // Find current user's rank in leaderboard (if visible per RLS)
   const myRank = leaderboard?.findIndex((e) => e.user_id === profile?.id);

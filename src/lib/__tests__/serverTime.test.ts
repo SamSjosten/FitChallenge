@@ -307,4 +307,100 @@ describe("serverTime", () => {
       });
     });
   });
+
+  // =============================================================================
+  // Integration with challengeStatus
+  // =============================================================================
+  describe("integration with challenge status determination", () => {
+    // Import getEffectiveStatus lazily to allow mocking
+    const { getEffectiveStatus } = require("../challengeStatus");
+
+    test("simulates device clock 2 hours behind server - challenge appears upcoming on device but active on server", () => {
+      // Scenario: Device clock is 2 hours behind server
+      // Server says 14:00, device says 12:00
+      const serverAheadMs = 2 * 60 * 60 * 1000; // 2 hours
+      setOffsetMs(serverAheadMs);
+
+      // Challenge starts at 13:00 server time
+      // Device time (FIXED_NOW) = 12:00
+      // Server time = 14:00 (FIXED_NOW + offset)
+      const challenge = {
+        status: "pending",
+        start_date: new Date(FIXED_NOW + 60 * 60 * 1000).toISOString(), // 13:00 server
+        end_date: new Date(FIXED_NOW + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      };
+
+      // Using raw device time: 12:00 < 13:00 start → upcoming
+      const deviceTime = new Date(FIXED_NOW);
+      expect(getEffectiveStatus(challenge, deviceTime)).toBe("upcoming");
+
+      // Using server-adjusted time: 14:00 > 13:00 start → active
+      const serverTime = getServerNow();
+      expect(getEffectiveStatus(challenge, serverTime)).toBe("active");
+    });
+
+    test("simulates device clock 2 hours ahead of server - challenge appears active on device but upcoming on server", () => {
+      // Scenario: Device clock is 2 hours ahead of server
+      // Server says 12:00, device says 14:00
+      const serverBehindMs = -2 * 60 * 60 * 1000; // -2 hours
+      setOffsetMs(serverBehindMs);
+
+      // Challenge starts at 13:00 server time
+      // Device time = 14:00 (would say active)
+      // Server time = 12:00 (FIXED_NOW + offset, says upcoming)
+      const challenge = {
+        status: "pending",
+        start_date: new Date(FIXED_NOW + 60 * 60 * 1000).toISOString(), // 13:00
+        end_date: new Date(FIXED_NOW + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      };
+
+      // Device at 14:00 thinks it's active (14:00 > 13:00)
+      const deviceAhead = new Date(FIXED_NOW + 2 * 60 * 60 * 1000);
+      expect(getEffectiveStatus(challenge, deviceAhead)).toBe("active");
+
+      // Server-adjusted time at 12:00 says upcoming (12:00 < 13:00)
+      const serverTime = getServerNow();
+      expect(getEffectiveStatus(challenge, serverTime)).toBe("upcoming");
+    });
+
+    test("challenge service query simulation with server time", () => {
+      // Simulates what challengeService.getMyActiveChallenges does
+      // It uses getServerNow().toISOString() for time comparisons
+
+      const serverAheadMs = 30 * 60 * 1000; // Server 30 min ahead
+      setOffsetMs(serverAheadMs);
+
+      const now = getServerNow(); // Server-adjusted time
+
+      // Challenge that just started (per server time)
+      const challenge = {
+        id: "test-1",
+        start_date: new Date(FIXED_NOW + 15 * 60 * 1000).toISOString(), // 15 min after FIXED_NOW
+        end_date: new Date(FIXED_NOW + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        status: "pending",
+      };
+
+      // Filter logic from getMyActiveChallenges:
+      // .lte("start_date", now) -> start_date <= now
+      // .gt("end_date", now) -> end_date > now
+      const startDate = new Date(challenge.start_date);
+      const endDate = new Date(challenge.end_date);
+
+      const isActive = startDate <= now && endDate > now;
+
+      // With server time (30 min ahead of FIXED_NOW):
+      // now = FIXED_NOW + 30min
+      // start_date = FIXED_NOW + 15min
+      // start_date (15min) <= now (30min) ✓
+      // end_date (7 days) > now ✓
+      // → Challenge IS active
+      expect(isActive).toBe(true);
+
+      // But with device time (FIXED_NOW), challenge wouldn't be active yet:
+      const deviceNow = new Date(FIXED_NOW);
+      const isActiveByDevice = startDate <= deviceNow && endDate > deviceNow;
+      // start_date (15min) <= device (0min) ✗
+      expect(isActiveByDevice).toBe(false);
+    });
+  });
 });

@@ -9,6 +9,7 @@ import {
   respondToInviteSchema,
   CreateChallengeInput,
 } from "@/lib/validation";
+import { getServerNow } from "@/lib/serverTime";
 import type {
   Challenge,
   ChallengeParticipant,
@@ -120,7 +121,7 @@ export const challengeService = {
    */
   async getMyActiveChallenges(): Promise<ChallengeWithParticipation[]> {
     return withAuth(async (userId) => {
-      const now = new Date().toISOString();
+      const now = getServerNow().toISOString();
 
       const { data, error } = await supabase
         .from("challenges")
@@ -158,7 +159,7 @@ export const challengeService = {
    */
   async getCompletedChallenges(): Promise<ChallengeWithParticipation[]> {
     return withAuth(async (userId) => {
-      const now = new Date().toISOString();
+      const now = getServerNow().toISOString();
 
       const { data, error } = await supabase
         .from("challenges")
