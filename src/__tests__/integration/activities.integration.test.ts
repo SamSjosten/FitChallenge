@@ -12,6 +12,20 @@ import {
   generateTestUUID,
   type TestUser,
 } from "./setup";
+import type { ActivityLog } from "@/types/database";
+
+// Mock React Native modules and Supabase singleton
+// The tests use injected clients from setup.ts, not the app's singleton
+jest.mock("react-native-url-polyfill/auto", () => {});
+jest.mock("expo-secure-store", () => ({
+  getItemAsync: jest.fn(),
+  setItemAsync: jest.fn(),
+  deleteItemAsync: jest.fn(),
+}));
+jest.mock("@/lib/supabase", () => ({
+  supabase: {},
+  withAuth: jest.fn(),
+}));
 
 // Validate config before running tests
 beforeAll(() => {
@@ -887,6 +901,303 @@ describe("Activity Integration Tests", () => {
         expect(user2Logs?.[0].value).toBe(2000);
       } finally {
         await cleanupChallenge(challengeId);
+      }
+    });
+  });
+
+  // =============================================================================
+  // SERVICE API PAGINATION TESTS
+  // =============================================================================
+  // These tests call activityService.getRecentActivities() directly to validate
+  // the service layer's pagination logic, not just raw Supabase queries.
+  // =============================================================================
+
+  describe("activityService.getRecentActivities API", () => {
+    // Import service inline to avoid module resolution issues in test environment
+    const { activityService } = require("@/services/activities");
+
+    let serviceTestChallengeId: string | null = null;
+    const serviceTestClientEventIds: string[] = [];
+
+    beforeAll(async () => {
+      // Create a challenge for service API tests
+      const timeBounds = getActiveTimeBounds();
+      const challenge = await createTestChallenge(user1.client, {
+        ...timeBounds,
+      });
+      serviceTestChallengeId = requireId(challenge.id);
+
+      // Add user1 as participant
+      await user1.client.from("challenge_participants").insert({
+        challenge_id: serviceTestChallengeId,
+        user_id: user1.id,
+        invite_status: "accepted",
+      });
+
+      // Log 7 activities to have enough for pagination testing
+      for (let i = 0; i < 7; i++) {
+        const clientEventId = generateTestUUID();
+        serviceTestClientEventIds.push(clientEventId);
+        await user1.client.rpc("log_activity", {
+          p_challenge_id: serviceTestChallengeId,
+          p_activity_type: "steps",
+          p_value: (i + 1) * 100,
+          p_source: "manual",
+          p_client_event_id: clientEventId,
+        });
+        // Small delay to help ensure distinct timestamps
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+    }, 60000);
+
+    afterAll(async () => {
+      if (serviceTestChallengeId) {
+        await cleanupChallenge(serviceTestChallengeId);
+        serviceTestChallengeId = null;
+      }
+    });
+
+    it("should return activities via service API with injected client", async () => {
+      const activities: ActivityLog[] =
+        await activityService.getRecentActivities({
+          limit: 5,
+          client: user1.client,
+        });
+
+      expect(activities).toBeDefined();
+      expect(Array.isArray(activities)).toBe(true);
+      expect(activities.length).toBeGreaterThan(0);
+      expect(activities.length).toBeLessThanOrEqual(5);
+
+      // All activities should belong to user1
+      activities.forEach((activity) => {
+        expect(activity.user_id).toBe(user1.id);
+      });
+    });
+
+    it("should paginate using extractCursor with no duplicates", async () => {
+      const seenIds = new Set<string>();
+      const allFetchedActivities: ActivityLog[] = [];
+      let cursor: { beforeRecordedAt: string; beforeId: string } | null = null;
+      const pageSize = 2;
+      let iterations = 0;
+      const maxIterations = 10;
+
+      // Paginate through all activities
+      while (iterations < maxIterations) {
+        iterations++;
+
+        const activities: ActivityLog[] =
+          await activityService.getRecentActivities({
+            limit: pageSize,
+            ...(cursor && {
+              beforeRecordedAt: cursor.beforeRecordedAt,
+              beforeId: cursor.beforeId,
+            }),
+            client: user1.client,
+          });
+
+        if (activities.length === 0) {
+          break;
+        }
+
+        // Check for duplicates
+        activities.forEach((activity) => {
+          expect(seenIds.has(activity.id)).toBe(false);
+          seenIds.add(activity.id);
+          allFetchedActivities.push(activity);
+        });
+
+        // Extract cursor from last activity for next page
+        const lastActivity: ActivityLog = activities[activities.length - 1];
+        cursor = activityService.extractCursor(lastActivity);
+      }
+
+      // Should have fetched at least the 7 activities we created
+      expect(allFetchedActivities.length).toBeGreaterThanOrEqual(7);
+
+      // Verify our test activities are in the results
+      const fetchedClientEventIds = new Set(
+        allFetchedActivities
+          .filter((a) => a.client_event_id !== null)
+          .map((a) => a.client_event_id as string)
+      );
+      serviceTestClientEventIds.forEach((id) => {
+        expect(fetchedClientEventIds.has(id)).toBe(true);
+      });
+    });
+
+    it("should return results in descending order by recorded_at", async () => {
+      const activities: ActivityLog[] =
+        await activityService.getRecentActivities({
+          limit: 10,
+          client: user1.client,
+        });
+
+      expect(activities.length).toBeGreaterThan(1);
+
+      // Verify descending order
+      for (let i = 1; i < activities.length; i++) {
+        const prevTime = new Date(activities[i - 1].recorded_at).getTime();
+        const currTime = new Date(activities[i].recorded_at).getTime();
+        expect(prevTime).toBeGreaterThanOrEqual(currTime);
+      }
+    });
+
+    it("should respect limit parameter", async () => {
+      const activities3: ActivityLog[] =
+        await activityService.getRecentActivities({
+          limit: 3,
+          client: user1.client,
+        });
+      expect(activities3.length).toBeLessThanOrEqual(3);
+
+      const activities1: ActivityLog[] =
+        await activityService.getRecentActivities({
+          limit: 1,
+          client: user1.client,
+        });
+      expect(activities1.length).toBeLessThanOrEqual(1);
+    });
+  });
+
+  // =============================================================================
+  // SAME-SECOND REGRESSION TEST (SERVICE API)
+  // =============================================================================
+  // Regression test: verifies that activities logged within the same second
+  // are not skipped during pagination when using the service API.
+  // =============================================================================
+
+  describe("Same-second pagination regression (service API)", () => {
+    const { activityService } = require("@/services/activities");
+
+    let sameSecondChallengeId: string | null = null;
+    const sameSecondClientEventIds: string[] = [];
+
+    beforeAll(async () => {
+      // Create a challenge
+      const timeBounds = getActiveTimeBounds();
+      const challenge = await createTestChallenge(user1.client, {
+        ...timeBounds,
+      });
+      const challengeId = requireId(challenge.id);
+      sameSecondChallengeId = challengeId;
+
+      // Add user1 as participant
+      await user1.client.from("challenge_participants").insert({
+        challenge_id: challengeId,
+        user_id: user1.id,
+        invite_status: "accepted",
+      });
+
+      // Log 5 activities as fast as possible (likely same second)
+      const createPromises = Array.from({ length: 5 }, () => {
+        const clientEventId = generateTestUUID();
+        sameSecondClientEventIds.push(clientEventId);
+        return user1.client.rpc("log_activity", {
+          p_challenge_id: challengeId,
+          p_activity_type: "steps",
+          p_value: 50,
+          p_source: "manual",
+          p_client_event_id: clientEventId,
+        });
+      });
+      await Promise.all(createPromises);
+    }, 60000);
+
+    afterAll(async () => {
+      if (sameSecondChallengeId) {
+        await cleanupChallenge(sameSecondChallengeId);
+        sameSecondChallengeId = null;
+      }
+    });
+
+    it("should paginate through same-second activities without skipping (1 at a time)", async () => {
+      const seenIds = new Set<string>();
+      let cursor: { beforeRecordedAt: string; beforeId: string } | null = null;
+      let iterations = 0;
+      const maxIterations = 20;
+
+      // Paginate 1 activity at a time - most rigorous test for cursor precision
+      while (iterations < maxIterations) {
+        iterations++;
+
+        const activities: ActivityLog[] =
+          await activityService.getRecentActivities({
+            limit: 1,
+            ...(cursor && {
+              beforeRecordedAt: cursor.beforeRecordedAt,
+              beforeId: cursor.beforeId,
+            }),
+            client: user1.client,
+          });
+
+        if (activities.length === 0) {
+          break;
+        }
+
+        const activity: ActivityLog = activities[0];
+
+        // Verify no duplicates
+        expect(seenIds.has(activity.id)).toBe(false);
+        seenIds.add(activity.id);
+
+        // Extract cursor for next page
+        cursor = activityService.extractCursor(activity);
+      }
+
+      // Query to get IDs of our test activities
+      const { data: ourActivities } = await user1.client
+        .from("activity_logs")
+        .select("id")
+        .in("client_event_id", sameSecondClientEventIds);
+
+      const ourActivityIds = new Set(ourActivities?.map((a) => a.id) || []);
+
+      // All our test activities should have been seen
+      ourActivityIds.forEach((id) => {
+        expect(seenIds.has(id)).toBe(true);
+      });
+
+      // Should have found all 5
+      expect(ourActivityIds.size).toBe(5);
+    });
+
+    it("should handle extractCursor with fractional-second timestamps", async () => {
+      // Fetch an activity
+      const activities: ActivityLog[] =
+        await activityService.getRecentActivities({
+          limit: 1,
+          client: user1.client,
+        });
+
+      expect(activities.length).toBe(1);
+
+      const cursor = activityService.extractCursor(activities[0]);
+
+      // Cursor should be valid ISO format
+      expect(cursor.beforeRecordedAt).toMatch(
+        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?Z$/
+      );
+      expect(cursor.beforeId).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+      );
+
+      // Using the cursor should not throw
+      const nextPage: ActivityLog[] = await activityService.getRecentActivities(
+        {
+          limit: 1,
+          beforeRecordedAt: cursor.beforeRecordedAt,
+          beforeId: cursor.beforeId,
+          client: user1.client,
+        }
+      );
+
+      expect(Array.isArray(nextPage)).toBe(true);
+
+      // Next page should not contain the same activity
+      if (nextPage.length > 0) {
+        expect(nextPage[0].id).not.toBe(activities[0].id);
       }
     });
   });

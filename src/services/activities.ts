@@ -1,6 +1,7 @@
 // src/services/activities.ts
 // Activity logging service - all writes via atomic RPC function
 
+import { SupabaseClient } from "@supabase/supabase-js";
 import { supabase, withAuth } from "@/lib/supabase";
 import { validate, logActivitySchema } from "@/lib/validation";
 import type { ActivityLog, Database } from "@/types/database";
@@ -161,17 +162,23 @@ export const activityService = {
    * @param arg.limit - Maximum number of activities to return (default 20, max 100)
    * @param arg.beforeRecordedAt - Cursor timestamp: only return activities recorded before this (ISO string)
    * @param arg.beforeId - Cursor id: tie-breaker when recorded_at matches (required with beforeRecordedAt)
+   * @param arg.client - Optional Supabase client for testing (must be authenticated)
    */
   async getRecentActivities(
     arg?:
       | number
-      | { limit?: number; beforeRecordedAt?: string; beforeId?: string }
+      | {
+          limit?: number;
+          beforeRecordedAt?: string;
+          beforeId?: string;
+          client?: SupabaseClient<Database>;
+        }
   ): Promise<ActivityLog[]> {
     // Backwards compatibility: support (limit?: number) signature
     const options = typeof arg === "number" ? { limit: arg } : arg ?? {};
     const MAX_LIMIT = 100;
     const limit = Math.min(Math.max(1, options.limit ?? 20), MAX_LIMIT);
-    const { beforeRecordedAt, beforeId } = options;
+    const { beforeRecordedAt, beforeId, client: injectedClient } = options;
 
     // Validate cursor: both fields required together for stable pagination
     if (beforeRecordedAt && !beforeId) {
@@ -204,8 +211,12 @@ export const activityService = {
       throw new Error("beforeId must be a valid UUID");
     }
 
-    return withAuth(async (userId) => {
-      let query = supabase
+    // Query builder - shared between injected and default client paths
+    const executeQuery = async (
+      userId: string,
+      queryClient: SupabaseClient<Database>
+    ): Promise<ActivityLog[]> => {
+      let query = queryClient
         .from("activity_logs")
         .select("*")
         .eq("user_id", userId)
@@ -225,6 +236,20 @@ export const activityService = {
 
       if (error) throw error;
       return data || [];
+    };
+
+    // If client is injected (for testing), use it directly
+    if (injectedClient) {
+      const {
+        data: { user },
+      } = await injectedClient.auth.getUser();
+      if (!user) throw new Error("Authentication required");
+      return executeQuery(user.id, injectedClient);
+    }
+
+    // Default: use singleton client with withAuth
+    return withAuth(async (userId) => {
+      return executeQuery(userId, supabase);
     });
   },
 };
