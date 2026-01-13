@@ -96,14 +96,14 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="friends"
+        name="challenges"
         options={{
-          title: "Friends",
+          title: "Challenges",
           tabBarIcon: ({ focused }) => (
-            <TabIcon name="friends" focused={focused} />
+            <TabIcon name="trophy" focused={focused} />
           ),
         }}
-      />
+      /> 
       <Tabs.Screen
         name="create"
         options={{
@@ -115,6 +115,15 @@ export default function TabLayout() {
             e.preventDefault();
             router.push("/challenge/create");
           },
+        }}
+      /> 
+      <Tabs.Screen
+        name="friends"
+        options={{
+          title: "Friends",
+          tabBarIcon: ({ focused }) => (
+            <TabIcon name="friends" focused={focused} />
+          ),
         }}
       />
       <Tabs.Screen
