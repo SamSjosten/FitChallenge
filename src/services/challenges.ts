@@ -292,12 +292,7 @@ export const challengeService = {
   async inviteUser(input: unknown): Promise<void> {
     const { challenge_id, user_id } = validate(inviteParticipantSchema, input);
 
-    return withAuth(async (currentUserId) => {
-      // Log for debugging/audit (userId available for future policy expansion)
-      console.debug(
-        `User ${currentUserId} inviting ${user_id} to challenge ${challenge_id}`
-      );
-
+    return withAuth(async () => {
       // Insert participant (RLS enforces creator check)
       const { error: insertError } = await supabase
         .from("challenge_participants")
@@ -364,12 +359,7 @@ export const challengeService = {
    * Defense-in-depth: Requires auth before attempting mutation
    */
   async cancelChallenge(challengeId: string): Promise<void> {
-    return withAuth(async (currentUserId) => {
-      // Log for debugging/audit (userId available for future policy expansion)
-      console.debug(
-        `User ${currentUserId} cancelling challenge ${challengeId}`
-      );
-
+    return withAuth(async () => {
       const { error } = await supabase
         .from("challenges")
         .update({ status: "cancelled" })
