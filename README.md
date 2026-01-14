@@ -1,10 +1,12 @@
-# FitChallenge - Vertical Slice Implementation
+# FitChallenge
 
 A working end-to-end implementation of the FitChallenge app proving the core flow:
 **Sign up → Create challenge → Invite friend → Accept invite → Log activity → View leaderboard**
 
-> This README documents the validated vertical slice.
+> This README documents the validated vertical slice and the Electric Mint design system.
 > For exact feature scope and experimental work, see `docs/SCOPE.md`.
+
+---
 
 ## Quick Start
 
@@ -20,6 +22,11 @@ A working end-to-end implementation of the FitChallenge app proving the core flo
    supabase/migrations/005_push_tokens.sql
    supabase/migrations/006_consent_audit.sql
    supabase/migrations/007_rls_policies.sql
+   supabase/migrations/008_rls_helper_functions.sql
+   supabase/migrations/009_effective_status.sql
+   supabase/migrations/010_activity_summary_rpc.sql
+   supabase/migrations/011_enforce_server_time_activity_logging.sql
+   supabase/migrations/012_get_server_time.sql
    ```
 3. Copy your project URL and anon key from Settings → API
 
@@ -44,6 +51,103 @@ npx expo start
 ```
 
 Scan the QR code with Expo Go (iOS/Android) or press `w` for web.
+
+### 4. Run Tests
+
+```bash
+npm test              # Unit tests only
+npm run test:unit     # Unit tests only
+npm run test:integration  # Integration tests
+npm run test:all      # All tests
+```
+
+---
+
+## Design System
+
+FitChallenge uses the **Electric Mint** design system with a cohesive theme built on Plus Jakarta Sans typography and Heroicons.
+
+### Theme Prerequisites
+
+1. The theme file (`src/constants/theme.ts`) contains color definitions
+2. The ThemeProvider (`src/providers/ThemeProvider.tsx`) provides theme context
+3. Plus Jakarta Sans fonts are loaded via `@expo-google-fonts/plus-jakarta-sans`
+
+### Required Imports
+
+Each screen uses these key imports:
+
+```tsx
+// Theme hook
+import { useAppTheme } from "@/providers/ThemeProvider";
+
+// Heroicons (outline variants)
+import {
+  HomeIcon,
+  TrophyIcon,
+  UsersIcon,
+  UserIcon,
+  PlusIcon,
+  MagnifyingGlassIcon,
+  ChevronRightIcon,
+  ChevronLeftIcon,
+  XMarkIcon,
+  Cog6ToothIcon,
+  BellIcon,
+  UserPlusIcon,
+} from "react-native-heroicons/outline";
+
+// Heroicons (solid variants for active states)
+import {
+  HomeIcon as HomeIconSolid,
+  TrophyIcon as TrophyIconSolid,
+  UsersIcon as UsersIconSolid,
+  UserIcon as UserIconSolid,
+} from "react-native-heroicons/solid";
+
+// For gradient headers
+import { LinearGradient } from "expo-linear-gradient";
+```
+
+### Theme Usage Pattern
+
+All screens follow this pattern:
+
+```tsx
+export default function Screen() {
+  const { colors, spacing, radius, typography, shadows } = useAppTheme();
+
+  return (
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      {/* Use inline styles with theme tokens */}
+      <Text
+        style={{
+          fontSize: typography.fontSize.lg,
+          fontFamily: "PlusJakartaSans_700Bold",
+          color: colors.textPrimary,
+        }}
+      >
+        Title
+      </Text>
+    </View>
+  );
+}
+```
+
+### Color Reference
+
+| Old iOS Color | New Theme Color                 |
+| ------------- | ------------------------------- |
+| `#007AFF`     | `colors.primary.main` (#00D26A) |
+| `#F2F2F7`     | `colors.background`             |
+| `#34C759`     | `colors.success`                |
+| `#FF9500`     | `colors.energy.main`            |
+| `#FF3B30`     | `colors.error`                  |
+| `#000000`     | `colors.textPrimary`            |
+| `#666666`     | `colors.textSecondary`          |
+| `#999999`     | `colors.textMuted`              |
+| `#FFFFFF`     | `colors.surface`                |
+| `#E5E5EA`     | `colors.border`                 |
 
 ---
 
@@ -135,42 +239,110 @@ Scan the QR code with Expo Go (iOS/Android) or press `w` for web.
 - Schema supports `requested_by` / `requested_to`
 - Only recipient can accept (not implemented in UI yet)
 
+### ✅ Server Time Enforcement
+
+- Activity logging uses server time via `get_server_time()` RPC
+- Prevents client-side time manipulation
+
 ---
 
 ## File Structure
 
 ```
 app/
-├── _layout.tsx          # Root layout with auth routing
-├── index.tsx            # Root redirect
+├── _layout.tsx              # Root layout with auth routing
+├── index.tsx                # Root redirect
+├── notifications.tsx        # Notifications screen
+├── friends.tsx              # Friends screen (⚠️ duplicate, see note)
 ├── (auth)/
-│   ├── login.tsx        # Sign in
-│   └── signup.tsx       # Sign up
+│   ├── login.tsx            # Sign in
+│   └── signup.tsx           # Sign up
 ├── (tabs)/
-│   ├── _layout.tsx      # Tab navigation
-│   ├── index.tsx        # Home/Dashboard
-│   └── profile.tsx      # Profile screen
+│   ├── _layout.tsx          # Tab navigation
+│   ├── index.tsx            # Home/Dashboard
+│   ├── challenges.tsx       # Challenges list
+│   ├── create.tsx           # Create challenge (⚠️ duplicate, see note)
+│   ├── friends.tsx          # Friends tab
+│   └── profile.tsx          # Profile screen
 └── challenge/
-    ├── create.tsx       # Create challenge
-    └── [id].tsx         # Challenge detail + leaderboard
+    ├── create.tsx           # Create challenge form
+    └── [id].tsx             # Challenge detail + leaderboard
 
 src/
-├── components/ui.tsx    # Reusable UI components
-├── constants/config.ts  # Environment config
+├── components/
+│   └── ui.tsx               # Reusable UI components
+├── constants/
+│   ├── config.ts            # Environment config
+│   └── theme.ts             # Electric Mint theme tokens
+├── providers/
+│   └── ThemeProvider.tsx    # Theme context provider
 ├── hooks/
-│   ├── useAuth.ts       # Auth state management
-│   └── useChallenges.ts # Challenge data hooks
+│   ├── useAuth.ts           # Auth state management
+│   ├── useChallenges.ts     # Challenge data hooks
+│   ├── useFriends.ts        # Friends data hooks
+│   ├── useNotifications.ts  # Notifications hooks
+│   └── useRealtimeSubscription.ts  # Supabase realtime
 ├── lib/
-│   ├── supabase.ts      # Supabase client
-│   └── validation.ts    # Zod schemas
+│   ├── supabase.ts          # Supabase client
+│   ├── validation.ts        # Zod schemas
+│   ├── challengeStatus.ts   # Challenge status utilities
+│   ├── serverTime.ts        # Server time synchronization
+│   ├── username.ts          # Username normalization
+│   ├── uuid.ts              # UUID generation
+│   └── __tests__/           # Unit tests for lib modules
+│       ├── challengeStatus.test.ts
+│       ├── generateClientEventId.test.ts
+│       ├── serverTime.test.ts
+│       ├── usernameNormalization.test.ts
+│       └── withAuth.test.ts
 ├── services/
-│   ├── auth.ts          # Auth operations
-│   ├── activities.ts    # Activity logging (RPC)
-│   └── challenges.ts    # Challenge CRUD
-└── types/database.ts    # TypeScript types
+│   ├── auth.ts              # Auth operations
+│   ├── activities.ts        # Activity logging (RPC)
+│   ├── challenges.ts        # Challenge CRUD
+│   ├── friends.ts           # Friends operations
+│   └── notifications.ts     # Notifications service
+├── types/
+│   ├── database.ts          # TypeScript types
+│   └── react-native-heroicons.d.ts  # Heroicons type defs
+└── __tests__/
+    ├── integration/
+    │   ├── setup.ts
+    │   ├── activities.integration.test.ts
+    │   ├── activity.server-time.integration.test.ts
+    │   ├── challenges.integration.test.ts
+    │   └── friends.integration.test.ts
+    └── unit/
+        └── challenges.test.ts
 
-supabase/migrations/     # Database migrations (001-007)
+supabase/
+└── migrations/              # Database migrations (001-012)
+
+docs/
+└── SCOPE.md                 # Feature scope documentation
 ```
+
+> ⚠️ **Note on duplicate files:**
+>
+> - `app/friends.tsx` and `app/(tabs)/friends.tsx` both exist
+> - `app/(tabs)/create.tsx` and `app/challenge/create.tsx` both exist
+>
+> This duplication is noted for future cleanup.
+
+### Design System Files
+
+The Electric Mint design system is applied to these screens:
+
+| Screen           | Location                    |
+| ---------------- | --------------------------- |
+| Tab Layout       | `app/(tabs)/_layout.tsx`    |
+| Friends          | `app/(tabs)/friends.tsx`    |
+| Profile          | `app/(tabs)/profile.tsx`    |
+| Challenges       | `app/(tabs)/challenges.tsx` |
+| Challenge Detail | `app/challenge/[id].tsx`    |
+| Create Challenge | `app/challenge/create.tsx`  |
+| Login            | `app/(auth)/login.tsx`      |
+| Signup           | `app/(auth)/signup.tsx`     |
+| Notifications    | `app/notifications.tsx`     |
 
 ---
 
@@ -197,6 +369,35 @@ supabase/migrations/     # Database migrations (001-007)
 - Notifications inbox UI (experimental; no delivery guarantees)
 - Health sync (HealthKit/Google Fit)
 - Data export / account deletion UI
+
+---
+
+## Testing Checklists
+
+### Functional Testing
+
+- [ ] Auth flow works (signup, login, logout)
+- [ ] Profile displays correctly
+- [ ] Challenge creation works
+- [ ] Invite flow works between two users
+- [ ] Activity logging updates progress
+- [ ] Leaderboard displays and ranks correctly
+- [ ] Pending invitees cannot see leaderboard
+
+### Design System Testing
+
+After applying theme files:
+
+- [ ] Tab bar shows Electric Mint active color
+- [ ] Tab bar icons are Heroicons (not emojis)
+- [ ] FAB button is Electric Mint with shadow
+- [ ] Friends screen has search bar with icon
+- [ ] Friends screen shows online indicators (green dot)
+- [ ] Profile screen has stats grid and achievements
+- [ ] Challenge detail has gradient header
+- [ ] Create challenge has activity type grid
+- [ ] Login/signup use theme colors
+- [ ] Notifications use primary color for unread
 
 ---
 
@@ -236,3 +437,9 @@ Check RLS on `challenge_participants`:
 select * from public.challenge_participants
 where challenge_id = 'your-challenge-id';
 ```
+
+### Theme not applying
+
+1. Verify `ThemeProvider` wraps your app in `_layout.tsx`
+2. Check that `useAppTheme` hook is imported from the correct path
+3. Ensure Plus Jakarta Sans fonts are loaded before rendering
