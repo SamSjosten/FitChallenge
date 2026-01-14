@@ -1,41 +1,105 @@
 // app/(tabs)/_layout.tsx
-// Tab navigation layout with centered create button
+// Tab navigation layout with centered FAB and Heroicons
+// Design System v1.0
 
 import React from "react";
 import { Tabs, router } from "expo-router";
-import { Text, View, StyleSheet, Pressable } from "react-native";
+import { View, Pressable, Text } from "react-native";
 import { useUnreadNotificationCount } from "@/hooks/useNotifications";
+import { useAppTheme } from "@/providers/ThemeProvider";
+import {
+  HomeIcon,
+  TrophyIcon,
+  UsersIcon,
+  UserIcon,
+  PlusIcon,
+  BellIcon,
+} from "react-native-heroicons/outline";
+import {
+  HomeIcon as HomeIconSolid,
+  TrophyIcon as TrophyIconSolid,
+  UsersIcon as UsersIconSolid,
+  UserIcon as UserIconSolid,
+} from "react-native-heroicons/solid";
 
-// Simple icon component
-function TabIcon({ name, focused }: { name: string; focused: boolean }) {
-  const icons: Record<string, string> = {
-    home: "",
-    friends: "",
-    profile: "",
+// Tab icon component using Heroicons
+function TabIcon({
+  name,
+  focused,
+  color,
+}: {
+  name: string;
+  focused: boolean;
+  color: string;
+}) {
+  const iconSize = 22;
+
+  const icons: Record<string, { outline: React.ReactNode; solid: React.ReactNode }> = {
+    home: {
+      outline: <HomeIcon size={iconSize} color={color} />,
+      solid: <HomeIconSolid size={iconSize} color={color} />,
+    },
+    compete: {
+      outline: <TrophyIcon size={iconSize} color={color} />,
+      solid: <TrophyIconSolid size={iconSize} color={color} />,
+    },
+    friends: {
+      outline: <UsersIcon size={iconSize} color={color} />,
+      solid: <UsersIconSolid size={iconSize} color={color} />,
+    },
+    profile: {
+      outline: <UserIcon size={iconSize} color={color} />,
+      solid: <UserIconSolid size={iconSize} color={color} />,
+    },
   };
 
+  const icon = icons[name];
+  if (!icon) return null;
+
   return (
-    <View style={styles.iconContainer}>
-      <Text style={[styles.icon, focused && styles.iconFocused]}>
-        {icons[name] || "📱"}
-      </Text>
+    <View style={{ alignItems: "center", justifyContent: "center" }}>
+      {focused ? icon.solid : icon.outline}
     </View>
   );
 }
 
 // Notification bell for header
 function NotificationBell() {
+  const { colors } = useAppTheme();
   const { data: unreadCount } = useUnreadNotificationCount();
 
   return (
     <Pressable
-      style={styles.bellContainer}
+      style={{
+        marginRight: 16,
+        position: "relative",
+        padding: 8,
+      }}
       onPress={() => router.push("/notifications")}
     >
-      <Text style={styles.bellIcon}>🔔</Text>
+      <BellIcon size={22} color={colors.textSecondary} />
       {unreadCount !== undefined && unreadCount > 0 && (
-        <View style={styles.badge}>
-          <Text style={styles.badgeText}>
+        <View
+          style={{
+            position: "absolute",
+            top: 4,
+            right: 2,
+            backgroundColor: colors.error,
+            borderRadius: 10,
+            minWidth: 18,
+            height: 18,
+            alignItems: "center",
+            justifyContent: "center",
+            paddingHorizontal: 4,
+          }}
+        >
+          <Text
+            style={{
+              color: "#fff",
+              fontSize: 11,
+              fontFamily: "PlusJakartaSans_700Bold",
+            }}
+          >
             {unreadCount > 9 ? "9+" : unreadCount}
           </Text>
         </View>
@@ -44,66 +108,90 @@ function NotificationBell() {
   );
 }
 
-// Centered create button
+// Centered FAB create button
 function CreateButton() {
+  const { colors, shadows } = useAppTheme();
+
   return (
-    <View style={styles.createButtonContainer}>
+    <View
+      style={{
+        flex: 1,
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
       <Pressable
-        style={styles.createButton}
+        style={({ pressed }) => ({
+          width: 56,
+          height: 56,
+          borderRadius: 28,
+          backgroundColor: colors.primary.main,
+          alignItems: "center",
+          justifyContent: "center",
+          marginTop: -16,
+          transform: [{ scale: pressed ? 0.95 : 1 }],
+          ...shadows.float,
+          shadowColor: colors.primary.main,
+        })}
         onPress={() => router.push("/challenge/create")}
       >
-        <Text style={styles.createButtonText}>+</Text>
+        <PlusIcon size={24} color="#FFFFFF" strokeWidth={2.5} />
       </Pressable>
     </View>
   );
 }
 
 export default function TabLayout() {
+  const { colors } = useAppTheme();
+
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: "#007AFF",
-        tabBarInactiveTintColor: "#8E8E93",
+        tabBarActiveTintColor: colors.primary.main,
+        tabBarInactiveTintColor: colors.textMuted,
         tabBarStyle: {
-          backgroundColor: "#fff",
+          backgroundColor: colors.surface,
           borderTopWidth: 1,
-          borderTopColor: "#E5E5EA",
+          borderTopColor: colors.border,
           paddingBottom: 8,
           paddingTop: 8,
           height: 60,
         },
         tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: "500",
+          fontSize: 11,
+          fontFamily: "PlusJakartaSans_500Medium",
+          marginTop: 2,
         },
         headerStyle: {
-          backgroundColor: "#F2F2F7",
+          backgroundColor: colors.background,
         },
         headerTitleStyle: {
-          fontWeight: "600",
+          fontFamily: "PlusJakartaSans_700Bold",
+          color: colors.textPrimary,
         },
+        headerShadowVisible: false,
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
           title: "Home",
-          tabBarIcon: ({ focused }) => (
-            <TabIcon name="home" focused={focused} />
+          tabBarIcon: ({ focused, color }) => (
+            <TabIcon name="home" focused={focused} color={color} />
           ),
-          headerTitle: "FitChallenge",
-          headerRight: () => <NotificationBell />,
+          headerShown: false,
         }}
       />
       <Tabs.Screen
         name="challenges"
         options={{
-          title: "Challenges",
-          tabBarIcon: ({ focused }) => (
-            <TabIcon name="trophy" focused={focused} />
+          title: "Compete",
+          tabBarIcon: ({ focused, color }) => (
+            <TabIcon name="compete" focused={focused} color={color} />
           ),
+          headerTitle: "Challenges",
         }}
-      /> 
+      />
       <Tabs.Screen
         name="create"
         options={{
@@ -116,89 +204,28 @@ export default function TabLayout() {
             router.push("/challenge/create");
           },
         }}
-      /> 
+      />
       <Tabs.Screen
         name="friends"
         options={{
           title: "Friends",
-          tabBarIcon: ({ focused }) => (
-            <TabIcon name="friends" focused={focused} />
+          tabBarIcon: ({ focused, color }) => (
+            <TabIcon name="friends" focused={focused} color={color} />
           ),
+          headerShown: false,
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
           title: "Profile",
-          tabBarIcon: ({ focused }) => (
-            <TabIcon name="profile" focused={focused} />
+          tabBarIcon: ({ focused, color }) => (
+            <TabIcon name="profile" focused={focused} color={color} />
           ),
+          headerShown: false,
         }}
       />
     </Tabs>
   );
 }
-
-const styles = StyleSheet.create({
-  iconContainer: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  icon: {
-    fontSize: 24,
-    opacity: 0.6,
-  },
-  iconFocused: {
-    opacity: 1,
-  },
-  createButtonContainer: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  createButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: "#007AFF",
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: -20,
-    shadowColor: "#007AFF",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  createButtonText: {
-    color: "#fff",
-    fontSize: 32,
-    fontWeight: "400",
-    lineHeight: 34,
-  },
-  bellContainer: {
-    marginRight: 16,
-    position: "relative",
-  },
-  bellIcon: {
-    fontSize: 22,
-  },
-  badge: {
-    position: "absolute",
-    top: -4,
-    right: -6,
-    backgroundColor: "#FF3B30",
-    borderRadius: 10,
-    minWidth: 18,
-    height: 18,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 4,
-  },
-  badgeText: {
-    color: "#fff",
-    fontSize: 11,
-    fontWeight: "bold",
-  },
-});
 

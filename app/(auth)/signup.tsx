@@ -1,46 +1,57 @@
 // app/(auth)/signup.tsx
-// Sign up screen
+// Sign up screen - Design System v1.0
 
 import React, { useState } from "react";
 import {
   View,
   Text,
-  StyleSheet,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   TouchableOpacity,
+  TextInput,
 } from "react-native";
 import { Link, router } from "expo-router";
 import { useAuth } from "@/hooks/useAuth";
-import { Button, Input } from "@/components/ui";
-import { ValidationError, validate, signUpSchema } from "@/lib/validation";
+import { useAppTheme } from "@/providers/ThemeProvider";
 
-export default function SignUpScreen() {
+export default function SignupScreen() {
+  const { colors, spacing, radius, typography } = useAppTheme();
   const { signUp, loading, error, clearError } = useAuth();
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [username, setUsername] = useState("");
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [localError, setLocalError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const handleSignUp = async () => {
-    setFieldErrors({});
     setLocalError(null);
+    setFieldErrors({});
     clearError();
 
-    // Validate input
-    try {
-      validate(signUpSchema, { email, password, username });
-    } catch (err) {
-      if (err instanceof ValidationError) {
-        const errors: Record<string, string> = {};
-        err.errors.forEach((e) => {
-          errors[e.field] = e.message;
-        });
-        setFieldErrors(errors);
-        return;
-      }
+    const errors: Record<string, string> = {};
+
+    if (!username.trim()) {
+      errors.username = "Username is required";
+    } else if (username.length < 3) {
+      errors.username = "Username must be at least 3 characters";
+    }
+
+    if (!email.trim()) {
+      errors.email = "Email is required";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      errors.email = "Please enter a valid email";
+    }
+
+    if (!password) {
+      errors.password = "Password is required";
+    } else if (password.length < 6) {
+      errors.password = "Password must be at least 6 characters";
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      return;
     }
 
     try {
@@ -55,65 +66,231 @@ export default function SignUpScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={{ flex: 1, backgroundColor: colors.background }}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={{
+          flexGrow: 1,
+          justifyContent: "center",
+          padding: spacing.xl,
+        }}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.header}>
-          <Text style={styles.title}>Create Account</Text>
-          <Text style={styles.subtitle}>Join FitChallenge today</Text>
+        <View style={{ marginBottom: spacing.xl }}>
+          <Text
+            style={{
+              fontSize: typography.fontSize["2xl"],
+              fontFamily: "PlusJakartaSans_700Bold",
+              color: colors.textPrimary,
+              marginBottom: spacing.sm,
+            }}
+          >
+            Create Account
+          </Text>
+          <Text
+            style={{
+              fontSize: typography.fontSize.base,
+              fontFamily: "PlusJakartaSans_500Medium",
+              color: colors.textSecondary,
+            }}
+          >
+            Start your fitness journey
+          </Text>
         </View>
 
-        <View style={styles.form}>
-          <Input
-            label="Username"
+        <View style={{ marginBottom: spacing.xl }}>
+          {/* Username */}
+          <Text
+            style={{
+              fontSize: typography.fontSize.sm,
+              fontFamily: "PlusJakartaSans_600SemiBold",
+              color: colors.textSecondary,
+              marginBottom: spacing.xs,
+            }}
+          >
+            Username
+          </Text>
+          <TextInput
+            style={{
+              backgroundColor: colors.surface,
+              borderRadius: radius.input,
+              paddingHorizontal: spacing.md,
+              paddingVertical: spacing.md,
+              borderWidth: 1,
+              borderColor: fieldErrors.username ? colors.error : colors.border,
+              fontSize: typography.fontSize.base,
+              fontFamily: "PlusJakartaSans_500Medium",
+              color: colors.textPrimary,
+              marginBottom: fieldErrors.username ? spacing.xs : spacing.md,
+            }}
             value={username}
             onChangeText={setUsername}
-            placeholder="your_username"
+            placeholder="yourname"
+            placeholderTextColor={colors.textMuted}
             autoCapitalize="none"
             autoCorrect={false}
-            error={fieldErrors.username}
           />
+          {fieldErrors.username && (
+            <Text
+              style={{
+                fontSize: typography.fontSize.xs,
+                fontFamily: "PlusJakartaSans_500Medium",
+                color: colors.error,
+                marginBottom: spacing.md,
+              }}
+            >
+              {fieldErrors.username}
+            </Text>
+          )}
 
-          <Input
-            label="Email"
+          {/* Email */}
+          <Text
+            style={{
+              fontSize: typography.fontSize.sm,
+              fontFamily: "PlusJakartaSans_600SemiBold",
+              color: colors.textSecondary,
+              marginBottom: spacing.xs,
+            }}
+          >
+            Email
+          </Text>
+          <TextInput
+            style={{
+              backgroundColor: colors.surface,
+              borderRadius: radius.input,
+              paddingHorizontal: spacing.md,
+              paddingVertical: spacing.md,
+              borderWidth: 1,
+              borderColor: fieldErrors.email ? colors.error : colors.border,
+              fontSize: typography.fontSize.base,
+              fontFamily: "PlusJakartaSans_500Medium",
+              color: colors.textPrimary,
+              marginBottom: fieldErrors.email ? spacing.xs : spacing.md,
+            }}
             value={email}
             onChangeText={setEmail}
             placeholder="your@email.com"
+            placeholderTextColor={colors.textMuted}
             keyboardType="email-address"
             autoCapitalize="none"
             autoCorrect={false}
-            error={fieldErrors.email}
           />
+          {fieldErrors.email && (
+            <Text
+              style={{
+                fontSize: typography.fontSize.xs,
+                fontFamily: "PlusJakartaSans_500Medium",
+                color: colors.error,
+                marginBottom: spacing.md,
+              }}
+            >
+              {fieldErrors.email}
+            </Text>
+          )}
 
-          <Input
-            label="Password"
+          {/* Password */}
+          <Text
+            style={{
+              fontSize: typography.fontSize.sm,
+              fontFamily: "PlusJakartaSans_600SemiBold",
+              color: colors.textSecondary,
+              marginBottom: spacing.xs,
+            }}
+          >
+            Password
+          </Text>
+          <TextInput
+            style={{
+              backgroundColor: colors.surface,
+              borderRadius: radius.input,
+              paddingHorizontal: spacing.md,
+              paddingVertical: spacing.md,
+              borderWidth: 1,
+              borderColor: fieldErrors.password ? colors.error : colors.border,
+              fontSize: typography.fontSize.base,
+              fontFamily: "PlusJakartaSans_500Medium",
+              color: colors.textPrimary,
+              marginBottom: fieldErrors.password ? spacing.xs : spacing.md,
+            }}
             value={password}
             onChangeText={setPassword}
-            placeholder="Create a strong password"
+            placeholder="Min 6 characters"
+            placeholderTextColor={colors.textMuted}
             secureTextEntry
-            error={fieldErrors.password}
           />
+          {fieldErrors.password && (
+            <Text
+              style={{
+                fontSize: typography.fontSize.xs,
+                fontFamily: "PlusJakartaSans_500Medium",
+                color: colors.error,
+                marginBottom: spacing.md,
+              }}
+            >
+              {fieldErrors.password}
+            </Text>
+          )}
 
-          {displayError && <Text style={styles.error}>{displayError}</Text>}
+          {displayError && (
+            <Text
+              style={{
+                fontSize: typography.fontSize.sm,
+                fontFamily: "PlusJakartaSans_500Medium",
+                color: colors.error,
+                textAlign: "center",
+                marginBottom: spacing.md,
+              }}
+            >
+              {displayError}
+            </Text>
+          )}
 
-          <Button
-            title="Create Account"
+          <TouchableOpacity
+            style={{
+              backgroundColor: colors.primary.main,
+              borderRadius: radius.button,
+              paddingVertical: spacing.md,
+              alignItems: "center",
+              marginTop: spacing.sm,
+              opacity: loading ? 0.7 : 1,
+            }}
             onPress={handleSignUp}
-            loading={loading}
             disabled={loading}
-            style={styles.button}
-          />
+          >
+            <Text
+              style={{
+                fontSize: typography.fontSize.base,
+                fontFamily: "PlusJakartaSans_700Bold",
+                color: "#FFFFFF",
+              }}
+            >
+              {loading ? "Creating Account..." : "Create Account"}
+            </Text>
+          </TouchableOpacity>
         </View>
 
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>Already have an account? </Text>
+        <View style={{ flexDirection: "row", justifyContent: "center" }}>
+          <Text
+            style={{
+              fontSize: typography.fontSize.sm,
+              fontFamily: "PlusJakartaSans_500Medium",
+              color: colors.textSecondary,
+            }}
+          >
+            Already have an account?{" "}
+          </Text>
           <Link href="/(auth)/login" asChild>
             <TouchableOpacity>
-              <Text style={styles.footerLink}>Sign In</Text>
+              <Text
+                style={{
+                  fontSize: typography.fontSize.sm,
+                  fontFamily: "PlusJakartaSans_600SemiBold",
+                  color: colors.primary.main,
+                }}
+              >
+                Sign In
+              </Text>
             </TouchableOpacity>
           </Link>
         </View>
@@ -121,53 +298,3 @@ export default function SignUpScreen() {
     </KeyboardAvoidingView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F2F2F7",
-  },
-  scrollContent: {
-    flexGrow: 1,
-    justifyContent: "center",
-    padding: 24,
-  },
-  header: {
-    marginBottom: 32,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: "bold",
-    color: "#000",
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: "#666",
-  },
-  form: {
-    marginBottom: 24,
-  },
-  button: {
-    marginTop: 8,
-  },
-  error: {
-    color: "#FF3B30",
-    fontSize: 14,
-    marginBottom: 16,
-    textAlign: "center",
-  },
-  footer: {
-    flexDirection: "row",
-    justifyContent: "center",
-  },
-  footerText: {
-    color: "#666",
-    fontSize: 14,
-  },
-  footerLink: {
-    color: "#007AFF",
-    fontSize: 14,
-    fontWeight: "600",
-  },
-});

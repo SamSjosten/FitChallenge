@@ -1,17 +1,20 @@
 // app/challenge/[id].tsx
-// Challenge detail screen with leaderboard and activity logging
+// Challenge detail screen - Design System v1.0
+// Matches mockup: gradient header, progress card, styled leaderboard
 
 import React, { useState } from "react";
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
   RefreshControl,
   Modal,
   Alert,
+  TouchableOpacity,
+  TextInput,
 } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
+import { LinearGradient } from "expo-linear-gradient";
 import { useAuth } from "@/hooks/useAuth";
 import {
   useChallenge,
@@ -23,29 +26,32 @@ import {
 } from "@/hooks/useChallenges";
 import { authService } from "@/services/auth";
 import {
-  Button,
-  Card,
-  Input,
   LoadingScreen,
   ErrorMessage,
   EmptyState,
+  Avatar,
 } from "@/components/ui";
+import { useAppTheme } from "@/providers/ThemeProvider";
 import {
   getEffectiveStatus,
   canLogActivity,
   getStatusLabel,
-  getStatusColor,
 } from "@/lib/challengeStatus";
 import { getServerNow } from "@/lib/serverTime";
+import {
+  ChevronLeftIcon,
+  PlusIcon,
+  XMarkIcon,
+  MagnifyingGlassIcon,
+} from "react-native-heroicons/outline";
 import type { ProfilePublic } from "@/types/database";
 
 export default function ChallengeDetailScreen() {
+  const { colors, spacing, radius, typography, shadows } = useAppTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { profile } = useAuth();
 
   const { data: challenge, isLoading, error, refetch } = useChallenge(id);
-  // Always fetch leaderboard - RLS handles visibility (Rule 2, 6)
-  // Pending users will get empty results due to RLS policy
   const { data: leaderboard, refetch: refetchLeaderboard } = useLeaderboard(id);
   const logActivity = useLogActivity();
   const inviteUser = useInviteUser();
@@ -66,13 +72,11 @@ export default function ChallengeDetailScreen() {
     setRefreshing(false);
   };
 
-  // Handle activity logging
   const handleLogActivity = async () => {
     if (!activityValue || parseInt(activityValue) <= 0) {
       Alert.alert("Invalid Value", "Please enter a positive number");
       return;
     }
-
     if (!challenge) return;
 
     try {
@@ -89,13 +93,11 @@ export default function ChallengeDetailScreen() {
     }
   };
 
-  // Handle user search for invite
   const handleSearch = async () => {
     if (searchQuery.length < 2) return;
     setSearching(true);
     try {
       const results = await authService.searchUsers(searchQuery);
-      // Filter out self
       setSearchResults(results.filter((r) => r.id !== profile?.id));
     } catch (err) {
       console.error("Search failed:", err);
@@ -104,7 +106,6 @@ export default function ChallengeDetailScreen() {
     }
   };
 
-  // Handle invite
   const handleInvite = async (userId: string) => {
     if (!challenge) return;
     try {
@@ -121,13 +122,11 @@ export default function ChallengeDetailScreen() {
     }
   };
 
-  // Handle leaving a challenge
   const handleLeaveChallenge = () => {
     if (!challenge) return;
-
     Alert.alert(
       "Leave Challenge",
-      "Are you sure you want to leave this challenge? Your progress will be lost.",
+      "Are you sure you want to leave? Your progress will be lost.",
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -146,13 +145,11 @@ export default function ChallengeDetailScreen() {
     );
   };
 
-  // Handle cancelling a challenge (creator only)
   const handleCancelChallenge = () => {
     if (!challenge) return;
-
     Alert.alert(
       "Cancel Challenge",
-      "Are you sure you want to cancel this challenge? This will end the challenge for all participants.",
+      "This will end the challenge for all participants.",
       [
         { text: "Keep Challenge", style: "cancel" },
         {
@@ -177,230 +174,402 @@ export default function ChallengeDetailScreen() {
 
   if (error || !challenge) {
     return (
-      <View style={styles.errorContainer}>
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
         <ErrorMessage message="Failed to load challenge" onRetry={refetch} />
       </View>
     );
   }
 
-  // CONTRACT: Authorization is RLS-enforced, not UI-enforced (Rule 2)
-  // UI may reflect database states but not gate on them
   const isCreator = challenge.creator_id === profile?.id;
   const myInviteStatus = challenge.my_participation?.invite_status;
-
-  // Derive status from time bounds (matches DB function)
   const effectiveStatus = getEffectiveStatus(challenge, getServerNow());
-
-  // Leaderboard visibility is determined by RLS - empty results = not authorized
-  // Log activity: RPC will reject if not accepted participant
-  // Use time-derived status, not stored status column
   const challengeAllowsLogging = canLogActivity(challenge, getServerNow());
+  const progress = challenge.my_participation?.current_progress || 0;
+  const progressPercent = Math.min(
+    (progress / challenge.goal_value) * 100,
+    100
+  );
 
-  // Find current user's rank in leaderboard (if visible per RLS)
-  const myRank = leaderboard?.findIndex((e) => e.user_id === profile?.id);
-  const myEntry =
-    myRank !== undefined && myRank >= 0 ? leaderboard?.[myRank] : null;
+  // Calculate days remaining
+  const endDate = new Date(challenge.end_date);
+  const now = new Date();
+  const daysLeft = Math.max(
+    0,
+    Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+  );
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-      }
-    >
-      {/* Challenge Header */}
-      <View style={styles.header}>
-        <Text style={styles.title}>{challenge.title}</Text>
-        <View
-          style={[
-            styles.statusBadge,
-            { backgroundColor: getStatusColor(effectiveStatus) },
-          ]}
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: 100 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#FFFFFF"
+          />
+        }
+      >
+        {/* Gradient Header */}
+        <LinearGradient
+          colors={[colors.primary.main, colors.primary.dark]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={{
+            paddingTop: spacing["2xl"],
+            paddingHorizontal: spacing.lg,
+            paddingBottom: spacing.xl + 40, // Extra padding for overlap
+          }}
         >
-          <Text style={styles.statusText}>
-            {getStatusLabel(effectiveStatus)}
-          </Text>
-        </View>
-      </View>
+          {/* Back Button */}
+          <TouchableOpacity
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              marginBottom: spacing.sm,
+            }}
+            onPress={() => router.back()}
+          >
+            <ChevronLeftIcon size={20} color="rgba(255,255,255,0.8)" />
+          </TouchableOpacity>
 
-      {challenge.description && (
-        <Text style={styles.description}>{challenge.description}</Text>
-      )}
+          {/* Title */}
+          <Text
+            style={{
+              fontSize: typography.fontSize.lg,
+              fontFamily: "PlusJakartaSans_700Bold",
+              color: "#FFFFFF",
+            }}
+          >
+            {challenge.title}
+          </Text>
 
-      {/* Challenge Info */}
-      <Card style={styles.infoCard}>
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Type</Text>
-          <Text style={styles.infoValue}>
-            {challenge.challenge_type.replace("_", " ")}
-          </Text>
-        </View>
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Goal</Text>
-          <Text style={styles.infoValue}>
-            {challenge.goal_value} {challenge.goal_unit}
-          </Text>
-        </View>
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Win Condition</Text>
-          <Text style={styles.infoValue}>
-            {challenge.win_condition.replace("_", " ")}
-          </Text>
-        </View>
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Starts</Text>
-          <Text style={styles.infoValue}>
-            {new Date(challenge.start_date).toLocaleString()}
-          </Text>
-        </View>
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Ends</Text>
-          <Text style={styles.infoValue}>
-            {new Date(challenge.end_date).toLocaleString()}
-          </Text>
-        </View>
-      </Card>
-
-      {/* My Progress - shown for all participants (pending or accepted) */}
-      {/* RLS ensures we only see our own participation row */}
-      {challenge.my_participation && (
-        <Card style={styles.progressCard}>
-          <Text style={styles.cardTitle}>My Progress</Text>
-          {myInviteStatus === "pending" && (
-            <Text style={styles.pendingNote}>
-              Accept the challenge to start competing
-            </Text>
-          )}
-          <View style={styles.progressRow}>
-            <View style={styles.progressStat}>
-              <Text style={styles.progressValue}>
-                {challenge.my_participation?.current_progress || 0}
-              </Text>
-              <Text style={styles.progressLabel}>
-                / {challenge.goal_value} {challenge.goal_unit}
+          {/* Meta Info */}
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: spacing.sm,
+              marginTop: spacing.xs,
+            }}
+          >
+            <View
+              style={{
+                backgroundColor: "rgba(255,255,255,0.2)",
+                paddingHorizontal: spacing.sm,
+                paddingVertical: spacing.xs,
+                borderRadius: radius.tag,
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: typography.fontSize.xs,
+                  fontFamily: "PlusJakartaSans_500Medium",
+                  color: "#FFFFFF",
+                }}
+              >
+                {daysLeft} days left
               </Text>
             </View>
-            {myEntry && (
-              <View style={styles.rankBadge}>
-                <Text style={styles.rankText}>#{myEntry.rank}</Text>
-              </View>
-            )}
-          </View>
-          <View style={styles.progressBar}>
-            <View
-              style={[
-                styles.progressFill,
-                {
-                  width: `${Math.min(
-                    ((challenge.my_participation?.current_progress || 0) /
-                      challenge.goal_value) *
-                      100,
-                    100
-                  )}%`,
-                },
-              ]}
-            />
-          </View>
-          {/* Show log button if challenge allows logging; RPC enforces participation check */}
-          {challengeAllowsLogging && (
-            <Button
-              title="Log Activity"
-              onPress={() => setShowLogModal(true)}
-              style={styles.logButton}
-            />
-          )}
-        </Card>
-      )}
-
-      {/* Leaderboard */}
-      {/* RLS handles visibility - pending users get empty results */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Leaderboard</Text>
-          {isCreator && effectiveStatus === "upcoming" && (
-            <Button
-              title="+ Invite"
-              variant="outline"
-              size="small"
-              onPress={() => setShowInviteModal(true)}
-            />
-          )}
-          {isCreator && effectiveStatus !== "upcoming" && (
-            <Text style={styles.inviteDisabledNote}>Invites closed</Text>
-          )}
-        </View>
-
-        {/* Reflect RLS state: empty results for pending users */}
-        {leaderboard && leaderboard.length > 0 ? (
-          leaderboard.map((entry, index) => (
-            <Card
-              key={entry.user_id}
-              style={[
-                styles.leaderboardEntry,
-                entry.user_id === profile?.id && styles.myEntry,
-              ]}
+            <Text
+              style={{
+                fontSize: typography.fontSize.sm,
+                fontFamily: "PlusJakartaSans_500Medium",
+                color: "rgba(255,255,255,0.8)",
+              }}
             >
-              <View style={styles.leaderboardRank}>
-                <Text style={styles.rankNumber}>
-                  {index === 0
-                    ? "🥇"
-                    : index === 1
-                    ? "🥈"
-                    : index === 2
-                    ? "🥉"
-                    : `#${entry.rank}`}
-                </Text>
-              </View>
-              <View style={styles.leaderboardInfo}>
-                <Text style={styles.leaderboardName}>
-                  {entry.profile.display_name || entry.profile.username}
-                  {entry.user_id === profile?.id && " (You)"}
-                </Text>
-                <Text style={styles.leaderboardProgress}>
-                  {entry.current_progress} {challenge.goal_unit}
-                </Text>
-              </View>
-            </Card>
-          ))
-        ) : myInviteStatus === "pending" ? (
-          // Empty due to RLS blocking pending users
-          <Card style={styles.lockedCard}>
-            <Text style={styles.lockedText}>
-              🔒 Accept the challenge to view the leaderboard
+              • {leaderboard?.length || 0} participants
             </Text>
-          </Card>
-        ) : (
-          // Genuinely empty - no other accepted participants
-          <EmptyState
-            title="No participants yet"
-            message="Invite friends to compete!"
-          />
-        )}
-      </View>
+          </View>
+        </LinearGradient>
 
-      {/* Leave/Cancel Challenge */}
-      {myInviteStatus === "accepted" && (
-        <View style={styles.dangerSection}>
-          {isCreator ? (
-            <Button
-              title="Cancel Challenge"
-              variant="outline"
-              onPress={handleCancelChallenge}
-              loading={cancelChallenge.isPending}
-              style={styles.leaveButton}
-            />
+        {/* Progress Card (overlapping header) */}
+        <View style={{ paddingHorizontal: spacing.lg, marginTop: -40 }}>
+          <View
+            style={{
+              backgroundColor: colors.surface,
+              borderRadius: radius.card,
+              padding: spacing.lg,
+              alignItems: "center",
+              ...shadows.elevated,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: typography.fontSize.xs,
+                fontFamily: "PlusJakartaSans_500Medium",
+                color: colors.textSecondary,
+              }}
+            >
+              Your Progress
+            </Text>
+            <Text
+              style={{
+                fontSize: 32,
+                fontFamily: "PlusJakartaSans_700Bold",
+                color: colors.primary.main,
+                marginVertical: spacing.xs,
+              }}
+            >
+              {progress.toLocaleString()}
+            </Text>
+            <Text
+              style={{
+                fontSize: typography.fontSize.sm,
+                fontFamily: "PlusJakartaSans_500Medium",
+                color: colors.textMuted,
+              }}
+            >
+              of {challenge.goal_value.toLocaleString()} {challenge.goal_unit}
+            </Text>
+
+            {/* Progress Bar */}
+            <View
+              style={{
+                width: "100%",
+                height: 8,
+                backgroundColor: colors.primary.subtle,
+                borderRadius: 4,
+                marginTop: spacing.md,
+                overflow: "hidden",
+              }}
+            >
+              <View
+                style={{
+                  width: `${progressPercent}%`,
+                  height: "100%",
+                  backgroundColor: colors.primary.main,
+                  borderRadius: 4,
+                }}
+              />
+            </View>
+          </View>
+        </View>
+
+        {/* Leaderboard */}
+        <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.xl }}>
+          <Text
+            style={{
+              fontSize: typography.fontSize.xs,
+              fontFamily: "PlusJakartaSans_600SemiBold",
+              color: colors.textSecondary,
+              textTransform: "uppercase",
+              letterSpacing: 0.5,
+              marginBottom: spacing.sm,
+            }}
+          >
+            Leaderboard
+          </Text>
+
+          {leaderboard && leaderboard.length > 0 ? (
+            <View
+              style={{
+                backgroundColor: colors.surface,
+                borderRadius: radius.card,
+                overflow: "hidden",
+                ...shadows.card,
+              }}
+            >
+              {leaderboard.map((entry, index) => {
+                const isMe = entry.user_id === profile?.id;
+                return (
+                  <View
+                    key={entry.user_id}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      padding: spacing.md,
+                      gap: spacing.sm,
+                      borderBottomWidth: index < leaderboard.length - 1 ? 1 : 0,
+                      borderBottomColor: colors.border,
+                      backgroundColor: isMe
+                        ? colors.primary.subtle
+                        : "transparent",
+                    }}
+                  >
+                    {/* Rank Badge */}
+                    <View
+                      style={{
+                        width: 24,
+                        height: 24,
+                        borderRadius: radius.badge,
+                        backgroundColor:
+                          index < 3
+                            ? colors.achievement.main
+                            : colors.textMuted,
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: typography.fontSize.xs,
+                          fontFamily: "PlusJakartaSans_700Bold",
+                          color: "#FFFFFF",
+                        }}
+                      >
+                        {index + 1}
+                      </Text>
+                    </View>
+
+                    {/* Avatar */}
+                    <Avatar
+                      name={
+                        entry.profile.display_name || entry.profile.username
+                      }
+                      size="sm"
+                    />
+
+                    {/* Name */}
+                    <Text
+                      style={{
+                        flex: 1,
+                        fontSize: typography.fontSize.base,
+                        fontFamily: "PlusJakartaSans_500Medium",
+                        color: isMe ? colors.primary.dark : colors.textPrimary,
+                      }}
+                    >
+                      {isMe
+                        ? "You"
+                        : entry.profile.display_name || entry.profile.username}
+                    </Text>
+
+                    {/* Score */}
+                    <Text
+                      style={{
+                        fontSize: typography.fontSize.base,
+                        fontFamily: "PlusJakartaSans_600SemiBold",
+                        color: isMe
+                          ? colors.primary.main
+                          : colors.textSecondary,
+                      }}
+                    >
+                      {entry.current_progress.toLocaleString()}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+          ) : myInviteStatus === "pending" ? (
+            <View
+              style={{
+                backgroundColor: colors.surface,
+                borderRadius: radius.card,
+                padding: spacing.xl,
+                alignItems: "center",
+                ...shadows.card,
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: typography.fontSize.base,
+                  fontFamily: "PlusJakartaSans_500Medium",
+                  color: colors.textMuted,
+                }}
+              >
+                🔒 Accept the challenge to view leaderboard
+              </Text>
+            </View>
           ) : (
-            <Button
-              title="Leave Challenge"
-              variant="outline"
-              onPress={handleLeaveChallenge}
-              loading={leaveChallenge.isPending}
-              style={styles.leaveButton}
+            <EmptyState
+              title="No participants yet"
+              message="Invite friends to compete!"
             />
           )}
         </View>
-      )}
+
+        {/* Log Activity Button */}
+        {challengeAllowsLogging && myInviteStatus === "accepted" && (
+          <View
+            style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.xl }}
+          >
+            <TouchableOpacity
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: spacing.sm,
+                backgroundColor: colors.primary.main,
+                borderRadius: radius.button,
+                paddingVertical: spacing.md,
+              }}
+              onPress={() => setShowLogModal(true)}
+            >
+              <PlusIcon size={18} color="#FFFFFF" />
+              <Text
+                style={{
+                  fontSize: typography.fontSize.base,
+                  fontFamily: "PlusJakartaSans_600SemiBold",
+                  color: "#FFFFFF",
+                }}
+              >
+                Log Activity
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Creator Actions */}
+        {isCreator && effectiveStatus === "upcoming" && (
+          <View
+            style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md }}
+          >
+            <TouchableOpacity
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: spacing.sm,
+                backgroundColor: "transparent",
+                borderWidth: 1,
+                borderColor: colors.primary.main,
+                borderRadius: radius.button,
+                paddingVertical: spacing.md,
+              }}
+              onPress={() => setShowInviteModal(true)}
+            >
+              <Text
+                style={{
+                  fontSize: typography.fontSize.base,
+                  fontFamily: "PlusJakartaSans_600SemiBold",
+                  color: colors.primary.main,
+                }}
+              >
+                + Invite Friends
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Leave/Cancel */}
+        {myInviteStatus === "accepted" && (
+          <View
+            style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.xl }}
+          >
+            <TouchableOpacity
+              style={{
+                backgroundColor: "transparent",
+                borderWidth: 1,
+                borderColor: colors.error,
+                borderRadius: radius.button,
+                paddingVertical: spacing.md,
+              }}
+              onPress={isCreator ? handleCancelChallenge : handleLeaveChallenge}
+            >
+              <Text
+                style={{
+                  fontSize: typography.fontSize.base,
+                  fontFamily: "PlusJakartaSans_600SemiBold",
+                  color: colors.error,
+                  textAlign: "center",
+                }}
+              >
+                {isCreator ? "Cancel Challenge" : "Leave Challenge"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </ScrollView>
 
       {/* Log Activity Modal */}
       <Modal
@@ -409,36 +578,123 @@ export default function ChallengeDetailScreen() {
         transparent
         onRequestClose={() => setShowLogModal(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Log Activity</Text>
-            <Input
-              label={`${challenge.challenge_type.replace("_", " ")} (${
-                challenge.goal_unit
-              })`}
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: colors.overlay,
+            justifyContent: "center",
+            padding: spacing.xl,
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: colors.surface,
+              borderRadius: radius.modal,
+              padding: spacing.xl,
+            }}
+          >
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: spacing.lg,
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: typography.fontSize.lg,
+                  fontFamily: "PlusJakartaSans_700Bold",
+                  color: colors.textPrimary,
+                }}
+              >
+                Log Activity
+              </Text>
+              <TouchableOpacity onPress={() => setShowLogModal(false)}>
+                <XMarkIcon size={24} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <Text
+              style={{
+                fontSize: typography.fontSize.sm,
+                fontFamily: "PlusJakartaSans_500Medium",
+                color: colors.textSecondary,
+                marginBottom: spacing.xs,
+              }}
+            >
+              {challenge.challenge_type.replace("_", " ")} (
+              {challenge.goal_unit})
+            </Text>
+            <TextInput
+              style={{
+                backgroundColor: colors.background,
+                borderRadius: radius.input,
+                paddingHorizontal: spacing.md,
+                paddingVertical: spacing.md,
+                borderWidth: 1,
+                borderColor: colors.border,
+                fontSize: typography.fontSize.base,
+                fontFamily: "PlusJakartaSans_500Medium",
+                color: colors.textPrimary,
+                marginBottom: spacing.lg,
+              }}
               value={activityValue}
               onChangeText={setActivityValue}
-              placeholder={`e.g., ${
-                challenge.challenge_type === "steps" ? "5000" : "30"
-              }`}
+              placeholder={challenge.challenge_type === "steps" ? "5000" : "30"}
+              placeholderTextColor={colors.textMuted}
               keyboardType="number-pad"
+              autoFocus
             />
-            <View style={styles.modalActions}>
-              <Button
-                title="Cancel"
-                variant="outline"
+
+            <View style={{ flexDirection: "row", gap: spacing.sm }}>
+              <TouchableOpacity
+                style={{
+                  flex: 1,
+                  backgroundColor: "transparent",
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  borderRadius: radius.button,
+                  paddingVertical: spacing.md,
+                }}
                 onPress={() => {
                   setShowLogModal(false);
                   setActivityValue("");
                 }}
-                style={styles.modalButton}
-              />
-              <Button
-                title="Log"
+              >
+                <Text
+                  style={{
+                    fontSize: typography.fontSize.base,
+                    fontFamily: "PlusJakartaSans_600SemiBold",
+                    color: colors.textSecondary,
+                    textAlign: "center",
+                  }}
+                >
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={{
+                  flex: 1,
+                  backgroundColor: colors.primary.main,
+                  borderRadius: radius.button,
+                  paddingVertical: spacing.md,
+                  opacity: logActivity.isPending ? 0.7 : 1,
+                }}
                 onPress={handleLogActivity}
-                loading={logActivity.isPending}
-                style={styles.modalButton}
-              />
+                disabled={logActivity.isPending}
+              >
+                <Text
+                  style={{
+                    fontSize: typography.fontSize.base,
+                    fontFamily: "PlusJakartaSans_600SemiBold",
+                    color: "#FFFFFF",
+                    textAlign: "center",
+                  }}
+                >
+                  {logActivity.isPending ? "Logging..." : "Log"}
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
         </View>
@@ -451,310 +707,167 @@ export default function ChallengeDetailScreen() {
         transparent
         onRequestClose={() => setShowInviteModal(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Invite Friend</Text>
-            <View style={styles.searchRow}>
-              <Input
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                placeholder="Search by username"
-                containerStyle={styles.searchInput}
-              />
-              <Button
-                title="Search"
-                size="small"
-                onPress={handleSearch}
-                loading={searching}
-              />
-            </View>
-            {searchResults.map((user) => (
-              <Card key={user.id} style={styles.searchResult}>
-                <View style={styles.searchResultInfo}>
-                  <Text style={styles.searchResultName}>
-                    {user.display_name || user.username}
-                  </Text>
-                  <Text style={styles.searchResultUsername}>
-                    @{user.username}
-                  </Text>
-                </View>
-                <Button
-                  title="Invite"
-                  size="small"
-                  onPress={() => handleInvite(user.id)}
-                  loading={inviteUser.isPending}
-                />
-              </Card>
-            ))}
-            <Button
-              title="Close"
-              variant="outline"
-              onPress={() => {
-                setShowInviteModal(false);
-                setSearchQuery("");
-                setSearchResults([]);
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: colors.overlay,
+            justifyContent: "center",
+            padding: spacing.xl,
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: colors.surface,
+              borderRadius: radius.modal,
+              padding: spacing.xl,
+              maxHeight: "80%",
+            }}
+          >
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: spacing.lg,
               }}
-              style={styles.closeButton}
-            />
+            >
+              <Text
+                style={{
+                  fontSize: typography.fontSize.lg,
+                  fontFamily: "PlusJakartaSans_700Bold",
+                  color: colors.textPrimary,
+                }}
+              >
+                Invite Friends
+              </Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setShowInviteModal(false);
+                  setSearchQuery("");
+                  setSearchResults([]);
+                }}
+              >
+                <XMarkIcon size={24} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <View
+              style={{
+                flexDirection: "row",
+                gap: spacing.sm,
+                marginBottom: spacing.lg,
+              }}
+            >
+              <View
+                style={{
+                  flex: 1,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: spacing.sm,
+                  backgroundColor: colors.background,
+                  borderRadius: radius.input,
+                  paddingHorizontal: spacing.md,
+                  paddingVertical: spacing.md,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                }}
+              >
+                <MagnifyingGlassIcon size={18} color={colors.textMuted} />
+                <TextInput
+                  style={{
+                    flex: 1,
+                    fontSize: typography.fontSize.base,
+                    fontFamily: "PlusJakartaSans_500Medium",
+                    color: colors.textPrimary,
+                  }}
+                  placeholder="Search by username"
+                  placeholderTextColor={colors.textMuted}
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  onSubmitEditing={handleSearch}
+                  returnKeyType="search"
+                />
+              </View>
+              <TouchableOpacity
+                style={{
+                  backgroundColor: colors.primary.main,
+                  paddingHorizontal: spacing.lg,
+                  borderRadius: radius.button,
+                  justifyContent: "center",
+                }}
+                onPress={handleSearch}
+              >
+                <Text
+                  style={{
+                    fontSize: typography.fontSize.sm,
+                    fontFamily: "PlusJakartaSans_600SemiBold",
+                    color: "#FFFFFF",
+                  }}
+                >
+                  Search
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={{ maxHeight: 300 }}>
+              {searchResults.map((user) => (
+                <View
+                  key={user.id}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    padding: spacing.md,
+                    backgroundColor: colors.background,
+                    borderRadius: radius.cardInner,
+                    marginBottom: spacing.sm,
+                  }}
+                >
+                  <Avatar name={user.display_name || user.username} size="sm" />
+                  <View style={{ flex: 1, marginLeft: spacing.sm }}>
+                    <Text
+                      style={{
+                        fontSize: typography.fontSize.base,
+                        fontFamily: "PlusJakartaSans_500Medium",
+                        color: colors.textPrimary,
+                      }}
+                    >
+                      {user.display_name || user.username}
+                    </Text>
+                    <Text
+                      style={{
+                        fontSize: typography.fontSize.sm,
+                        fontFamily: "PlusJakartaSans_500Medium",
+                        color: colors.textMuted,
+                      }}
+                    >
+                      @{user.username}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    style={{
+                      backgroundColor: colors.primary.main,
+                      paddingHorizontal: spacing.md,
+                      paddingVertical: spacing.sm,
+                      borderRadius: radius.button,
+                    }}
+                    onPress={() => handleInvite(user.id)}
+                  >
+                    <Text
+                      style={{
+                        fontSize: typography.fontSize.sm,
+                        fontFamily: "PlusJakartaSans_600SemiBold",
+                        color: "#FFFFFF",
+                      }}
+                    >
+                      Invite
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </ScrollView>
           </View>
         </View>
       </Modal>
-    </ScrollView>
+    </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F2F2F7",
-  },
-  content: {
-    padding: 16,
-    paddingBottom: 32,
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 8,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#000",
-    flex: 1,
-  },
-  statusBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-    marginLeft: 12,
-  },
-  statusActive: {
-    backgroundColor: "#34C759",
-  },
-  statusPending: {
-    backgroundColor: "#FF9500",
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#fff",
-  },
-  description: {
-    fontSize: 14,
-    color: "#666",
-    marginBottom: 16,
-  },
-  infoCard: {
-    marginBottom: 16,
-  },
-  infoRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: "#E5E5EA",
-  },
-  infoLabel: {
-    fontSize: 14,
-    color: "#666",
-  },
-  infoValue: {
-    fontSize: 14,
-    color: "#000",
-    fontWeight: "500",
-    textTransform: "capitalize",
-  },
-  progressCard: {
-    marginBottom: 16,
-    backgroundColor: "#F0F8FF",
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#333",
-    marginBottom: 12,
-  },
-  progressRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  progressStat: {
-    flexDirection: "row",
-    alignItems: "baseline",
-  },
-  progressValue: {
-    fontSize: 32,
-    fontWeight: "bold",
-    color: "#007AFF",
-  },
-  progressLabel: {
-    fontSize: 14,
-    color: "#666",
-    marginLeft: 4,
-  },
-  rankBadge: {
-    backgroundColor: "#007AFF",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-  },
-  rankText: {
-    color: "#fff",
-    fontWeight: "bold",
-    fontSize: 16,
-  },
-  progressBar: {
-    height: 12,
-    backgroundColor: "#E5E5EA",
-    borderRadius: 6,
-    overflow: "hidden",
-    marginBottom: 16,
-  },
-  progressFill: {
-    height: "100%",
-    backgroundColor: "#007AFF",
-    borderRadius: 6,
-  },
-  logButton: {
-    marginTop: 8,
-  },
-  pendingNote: {
-    fontSize: 14,
-    color: "#FF9500",
-    fontStyle: "italic",
-    marginBottom: 12,
-  },
-  section: {
-    marginBottom: 16,
-  },
-  sectionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#333",
-  },
-  lockedCard: {
-    alignItems: "center",
-    padding: 24,
-  },
-  lockedText: {
-    fontSize: 14,
-    color: "#666",
-  },
-  leaderboardEntry: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 8,
-    padding: 12,
-  },
-  myEntry: {
-    backgroundColor: "#F0F8FF",
-    borderWidth: 1,
-    borderColor: "#007AFF",
-  },
-  leaderboardRank: {
-    width: 40,
-    alignItems: "center",
-  },
-  rankNumber: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#333",
-  },
-  leaderboardInfo: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  leaderboardName: {
-    fontSize: 16,
-    fontWeight: "500",
-    color: "#000",
-  },
-  leaderboardProgress: {
-    fontSize: 14,
-    color: "#666",
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "center",
-    padding: 24,
-  },
-  modalContent: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 24,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#000",
-    marginBottom: 16,
-  },
-  modalActions: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  modalButton: {
-    flex: 1,
-  },
-  searchRow: {
-    flexDirection: "row",
-    gap: 12,
-    marginBottom: 16,
-  },
-  searchInput: {
-    flex: 1,
-    marginBottom: 0,
-  },
-  searchResult: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 8,
-    padding: 12,
-  },
-  searchResultInfo: {
-    flex: 1,
-  },
-  searchResultName: {
-    fontSize: 16,
-    fontWeight: "500",
-    color: "#000",
-  },
-  searchResultUsername: {
-    fontSize: 14,
-    color: "#666",
-  },
-  closeButton: {
-    marginTop: 16,
-  },
-  dangerSection: {
-    marginTop: 24,
-    marginBottom: 16,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: "#E5E5EA",
-  },
-  leaveButton: {
-    borderColor: "#FF3B30",
-  },
-  inviteDisabledNote: {
-    fontSize: 12,
-    color: "#999",
-    fontStyle: "italic",
-  },
-});

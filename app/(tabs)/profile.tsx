@@ -1,14 +1,27 @@
 // app/(tabs)/profile.tsx
-// Profile screen - displays user's own profile data
+// Profile screen - Design System v1.0
+// Matches mockup: avatar, stats grid, achievements
 
 import React, { useState } from "react";
-import { View, Text, StyleSheet, ScrollView, Alert, Image } from "react-native";
+import {
+  View,
+  Text,
+  ScrollView,
+  Alert,
+  Image,
+  TouchableOpacity,
+  TextInput,
+  Modal,
+} from "react-native";
 import { router } from "expo-router";
 import { useAuth } from "@/hooks/useAuth";
 import { authService } from "@/services/auth";
-import { Button, Card, Input, LoadingScreen } from "@/components/ui";
+import { LoadingScreen } from "@/components/ui";
+import { useAppTheme } from "@/providers/ThemeProvider";
+import { Cog6ToothIcon, XMarkIcon } from "react-native-heroicons/outline";
 
 export default function ProfileScreen() {
+  const { colors, spacing, radius, typography, shadows } = useAppTheme();
   const { profile, user, loading, signOut, refreshProfile } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [displayName, setDisplayName] = useState(profile?.display_name || "");
@@ -51,231 +64,458 @@ export default function ProfileScreen() {
     return <LoadingScreen />;
   }
 
+  const stats = [
+    { label: "Total XP", value: (profile.xp_total || 0).toLocaleString() },
+    { label: "Challenges", value: "24" }, // TODO: Get from actual data
+    {
+      label: "Longest Streak",
+      value: profile.longest_streak?.toString() || "0",
+    },
+    { label: "Friends", value: "18" }, // TODO: Get from actual data
+  ];
+
+  const achievements = [
+    { icon: "🏆", label: "First Win", unlocked: true },
+    {
+      icon: "🔥",
+      label: "7 Day Streak",
+      unlocked: (profile.longest_streak || 0) >= 7,
+    },
+    { icon: "⭐", label: "Top 3", unlocked: true },
+    { icon: "🎯", label: "10 Challenges", unlocked: false },
+  ];
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      {/* Profile Header */}
-      <View style={styles.header}>
-        <View style={styles.avatar}>
-          {profile.avatar_url ? (
-            <Image
-              source={{ uri: profile.avatar_url }}
-              style={styles.avatarImage}
-            />
-          ) : (
-            <Text style={styles.avatarText}>
-              {(profile.display_name || profile.username)?.[0]?.toUpperCase() ||
-                "?"}
-            </Text>
-          )}
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
+        {/* Header */}
+        <View
+          style={{
+            paddingHorizontal: spacing.lg,
+            paddingTop: spacing.lg,
+            paddingBottom: spacing.md,
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <Text
+            style={{
+              fontSize: typography.fontSize["xl"],
+              fontFamily: "PlusJakartaSans_700Bold",
+              color: colors.textPrimary,
+            }}
+          >
+            Profile
+          </Text>
+          <TouchableOpacity
+            style={{ padding: spacing.sm }}
+            onPress={() => router.push("/settings" as any)}
+          >
+            <Cog6ToothIcon size={22} color={colors.textSecondary} />
+          </TouchableOpacity>
         </View>
-        <Text style={styles.displayName}>
-          {profile.display_name || profile.username}
-        </Text>
-        <Text style={styles.username}>@{profile.username}</Text>
-      </View>
 
-      {/* Stats */}
-      <View style={styles.statsRow}>
-        <Card style={styles.statCard}>
-          <Text style={styles.statValue}>{profile.xp_total}</Text>
-          <Text style={styles.statLabel}>Total XP</Text>
-        </Card>
-        <Card style={styles.statCard}>
-          <Text style={styles.statValue}>{profile.current_streak}</Text>
-          <Text style={styles.statLabel}>Current Streak</Text>
-        </Card>
-        <Card style={styles.statCard}>
-          <Text style={styles.statValue}>{profile.longest_streak}</Text>
-          <Text style={styles.statLabel}>Longest Streak</Text>
-        </Card>
-      </View>
+        {/* Profile Card */}
+        <View
+          style={{
+            paddingHorizontal: spacing.lg,
+            marginBottom: spacing.xl,
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: colors.surface,
+              borderRadius: radius.card,
+              padding: spacing.lg,
+              alignItems: "center",
+              ...shadows.card,
+            }}
+          >
+            {/* Avatar */}
+            <View
+              style={{
+                width: 80,
+                height: 80,
+                borderRadius: 40,
+                backgroundColor: colors.primary.main,
+                justifyContent: "center",
+                alignItems: "center",
+                marginBottom: spacing.md,
+              }}
+            >
+              {profile.avatar_url ? (
+                <Image
+                  source={{ uri: profile.avatar_url }}
+                  style={{ width: 80, height: 80, borderRadius: 40 }}
+                />
+              ) : (
+                <Text
+                  style={{
+                    fontSize: 36,
+                    fontFamily: "PlusJakartaSans_700Bold",
+                    color: "#FFFFFF",
+                  }}
+                >
+                  {(profile.display_name ||
+                    profile.username)?.[0]?.toUpperCase() || "?"}
+                </Text>
+              )}
+            </View>
 
-      {/* Profile Info */}
-      <Card style={styles.infoCard}>
-        <Text style={styles.cardTitle}>Profile Info</Text>
+            {/* Name */}
+            <Text
+              style={{
+                fontSize: typography.fontSize.lg,
+                fontFamily: "PlusJakartaSans_700Bold",
+                color: colors.textPrimary,
+              }}
+            >
+              {profile.display_name || profile.username}
+            </Text>
+            <Text
+              style={{
+                fontSize: typography.fontSize.sm,
+                fontFamily: "PlusJakartaSans_500Medium",
+                color: colors.textSecondary,
+              }}
+            >
+              @{profile.username}
+            </Text>
+            <Text
+              style={{
+                fontSize: typography.fontSize.sm,
+                fontFamily: "PlusJakartaSans_500Medium",
+                color: colors.textMuted,
+                marginTop: spacing.xs,
+              }}
+            >
+              Member since{" "}
+              {profile.created_at
+                ? new Date(profile.created_at).toLocaleDateString("en-US", {
+                    month: "short",
+                    year: "numeric",
+                  })
+                : "—"}
+            </Text>
+          </View>
+        </View>
 
-        {isEditing ? (
-          <>
-            <Input
-              label="Display Name"
-              value={displayName}
-              onChangeText={setDisplayName}
-              placeholder="Your display name"
-            />
-            <View style={styles.editActions}>
-              <Button
-                title="Cancel"
-                variant="outline"
+        {/* Stats Grid */}
+        <View
+          style={{
+            paddingHorizontal: spacing.lg,
+            marginBottom: spacing.xl,
+          }}
+        >
+          <Text
+            style={{
+              fontSize: typography.fontSize.xs,
+              fontFamily: "PlusJakartaSans_600SemiBold",
+              color: colors.textSecondary,
+              textTransform: "uppercase",
+              letterSpacing: 0.5,
+              marginBottom: spacing.sm,
+            }}
+          >
+            Your Stats
+          </Text>
+          <View
+            style={{
+              flexDirection: "row",
+              flexWrap: "wrap",
+              gap: spacing.sm,
+            }}
+          >
+            {stats.map((stat) => (
+              <View
+                key={stat.label}
+                style={{
+                  width: "48%",
+                  backgroundColor: colors.surface,
+                  borderRadius: radius.card,
+                  padding: spacing.md,
+                  alignItems: "center",
+                  ...shadows.card,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: typography.fontSize.lg,
+                    fontFamily: "PlusJakartaSans_700Bold",
+                    color: colors.textPrimary,
+                  }}
+                >
+                  {stat.value}
+                </Text>
+                <Text
+                  style={{
+                    fontSize: typography.fontSize.xs,
+                    fontFamily: "PlusJakartaSans_500Medium",
+                    color: colors.textMuted,
+                  }}
+                >
+                  {stat.label}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        {/* Achievements */}
+        <View
+          style={{ paddingHorizontal: spacing.lg, marginBottom: spacing.xl }}
+        >
+          <Text
+            style={{
+              fontSize: typography.fontSize.xs,
+              fontFamily: "PlusJakartaSans_600SemiBold",
+              color: colors.textSecondary,
+              textTransform: "uppercase",
+              letterSpacing: 0.5,
+              marginBottom: spacing.sm,
+            }}
+          >
+            Achievements
+          </Text>
+          <View
+            style={{
+              flexDirection: "row",
+              gap: spacing.sm,
+            }}
+          >
+            {achievements.map((achievement) => (
+              <View
+                key={achievement.label}
+                style={{
+                  flex: 1,
+                  backgroundColor: achievement.unlocked
+                    ? colors.achievement.subtle
+                    : colors.surface,
+                  borderRadius: radius.card,
+                  padding: spacing.md,
+                  alignItems: "center",
+                  opacity: achievement.unlocked ? 1 : 0.5,
+                  ...shadows.card,
+                }}
+              >
+                <Text style={{ fontSize: 24 }}>{achievement.icon}</Text>
+                <Text
+                  style={{
+                    fontSize: 9,
+                    fontFamily: "PlusJakartaSans_500Medium",
+                    color: colors.textSecondary,
+                    marginTop: spacing.xs,
+                    textAlign: "center",
+                  }}
+                >
+                  {achievement.label}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        {/* Actions */}
+        <View style={{ paddingHorizontal: spacing.lg, gap: spacing.md }}>
+          <TouchableOpacity
+            style={{
+              backgroundColor: colors.surface,
+              borderRadius: radius.card,
+              padding: spacing.lg,
+              ...shadows.card,
+            }}
+            onPress={() => setIsEditing(true)}
+          >
+            <Text
+              style={{
+                fontSize: typography.fontSize.base,
+                fontFamily: "PlusJakartaSans_600SemiBold",
+                color: colors.textPrimary,
+                textAlign: "center",
+              }}
+            >
+              Edit Profile
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={{
+              backgroundColor: colors.surface,
+              borderRadius: radius.card,
+              padding: spacing.lg,
+              ...shadows.card,
+            }}
+            onPress={() => router.push("/friends")}
+          >
+            <Text
+              style={{
+                fontSize: typography.fontSize.base,
+                fontFamily: "PlusJakartaSans_600SemiBold",
+                color: colors.primary.main,
+                textAlign: "center",
+              }}
+            >
+              View Friends
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={{
+              backgroundColor: colors.error,
+              borderRadius: radius.card,
+              padding: spacing.lg,
+            }}
+            onPress={handleSignOut}
+          >
+            <Text
+              style={{
+                fontSize: typography.fontSize.base,
+                fontFamily: "PlusJakartaSans_600SemiBold",
+                color: "#FFFFFF",
+                textAlign: "center",
+              }}
+            >
+              Sign Out
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+
+      {/* Edit Profile Modal */}
+      <Modal
+        visible={isEditing}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setIsEditing(false)}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: colors.overlay,
+            justifyContent: "center",
+            padding: spacing.xl,
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: colors.surface,
+              borderRadius: radius.modal,
+              padding: spacing.xl,
+            }}
+          >
+            {/* Modal Header */}
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: spacing.lg,
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: typography.fontSize.lg,
+                  fontFamily: "PlusJakartaSans_700Bold",
+                  color: colors.textPrimary,
+                }}
+              >
+                Edit Profile
+              </Text>
+              <TouchableOpacity
                 onPress={() => {
                   setIsEditing(false);
                   setDisplayName(profile.display_name || "");
                 }}
-                style={styles.editButton}
+              >
+                <XMarkIcon size={24} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Display Name Input */}
+            <View style={{ marginBottom: spacing.lg }}>
+              <Text
+                style={{
+                  fontSize: typography.fontSize.sm,
+                  fontFamily: "PlusJakartaSans_500Medium",
+                  color: colors.textSecondary,
+                  marginBottom: spacing.xs,
+                }}
+              >
+                Display Name
+              </Text>
+              <TextInput
+                style={{
+                  backgroundColor: colors.background,
+                  borderRadius: radius.input,
+                  paddingHorizontal: spacing.md,
+                  paddingVertical: spacing.md,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  fontSize: typography.fontSize.base,
+                  fontFamily: "PlusJakartaSans_500Medium",
+                  color: colors.textPrimary,
+                }}
+                value={displayName}
+                onChangeText={setDisplayName}
+                placeholder="Your display name"
+                placeholderTextColor={colors.textMuted}
               />
-              <Button
-                title="Save"
+            </View>
+
+            {/* Actions */}
+            <View style={{ flexDirection: "row", gap: spacing.sm }}>
+              <TouchableOpacity
+                style={{
+                  flex: 1,
+                  backgroundColor: "transparent",
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  borderRadius: radius.button,
+                  paddingVertical: spacing.md,
+                }}
+                onPress={() => {
+                  setIsEditing(false);
+                  setDisplayName(profile.display_name || "");
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: typography.fontSize.base,
+                    fontFamily: "PlusJakartaSans_600SemiBold",
+                    color: colors.textSecondary,
+                    textAlign: "center",
+                  }}
+                >
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={{
+                  flex: 1,
+                  backgroundColor: colors.primary.main,
+                  borderRadius: radius.button,
+                  paddingVertical: spacing.md,
+                  opacity: saving ? 0.7 : 1,
+                }}
                 onPress={handleSave}
-                loading={saving}
-                style={styles.editButton}
-              />
+                disabled={saving}
+              >
+                <Text
+                  style={{
+                    fontSize: typography.fontSize.base,
+                    fontFamily: "PlusJakartaSans_600SemiBold",
+                    color: "#FFFFFF",
+                    textAlign: "center",
+                  }}
+                >
+                  {saving ? "Saving..." : "Save"}
+                </Text>
+              </TouchableOpacity>
             </View>
-          </>
-        ) : (
-          <>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Username</Text>
-              <Text style={styles.infoValue}>@{profile.username}</Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Display Name</Text>
-              <Text style={styles.infoValue}>
-                {profile.display_name || "Not set"}
-              </Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Email</Text>
-              <Text style={styles.infoValue}>{user?.email}</Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Member Since</Text>
-              <Text style={styles.infoValue}>
-                {profile.created_at
-                  ? new Date(profile.created_at).toLocaleDateString()
-                  : "—"}
-              </Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Premium</Text>
-              <Text style={styles.infoValue}>
-                {profile.is_premium ? "✓ Active" : "Not active"}
-              </Text>
-            </View>
-            <Button
-              title="Edit Profile"
-              variant="outline"
-              onPress={() => setIsEditing(true)}
-              style={styles.editProfileButton}
-            />
-          </>
-        )}
-      </Card>
-
-      {/* Friends */}
-      <Card style={styles.actionsCard}>
-        <Text style={styles.cardTitle}>Social</Text>
-        <Button
-          title="Friends"
-          variant="outline"
-          onPress={() => router.push("/friends")}
-        />
-      </Card>
-
-      {/* Account Actions */}
-      <Card style={styles.actionsCard}>
-        <Text style={styles.cardTitle}>Account</Text>
-        <Button title="Sign Out" variant="danger" onPress={handleSignOut} />
-      </Card>
-    </ScrollView>
+          </View>
+        </View>
+      </Modal>
+    </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F2F2F7",
-  },
-  content: {
-    padding: 16,
-  },
-  header: {
-    alignItems: "center",
-    marginBottom: 24,
-  },
-  avatar: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    backgroundColor: "#007AFF",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  avatarImage: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-  },
-  avatarText: {
-    fontSize: 36,
-    fontWeight: "bold",
-    color: "#fff",
-  },
-  displayName: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#000",
-  },
-  username: {
-    fontSize: 16,
-    color: "#666",
-  },
-  statsRow: {
-    flexDirection: "row",
-    gap: 12,
-    marginBottom: 16,
-  },
-  statCard: {
-    flex: 1,
-    alignItems: "center",
-    paddingVertical: 12,
-  },
-  statValue: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#007AFF",
-  },
-  statLabel: {
-    fontSize: 12,
-    color: "#666",
-    marginTop: 4,
-  },
-  infoCard: {
-    marginBottom: 16,
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#333",
-    marginBottom: 16,
-  },
-  infoRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#E5E5EA",
-  },
-  infoLabel: {
-    fontSize: 14,
-    color: "#666",
-  },
-  infoValue: {
-    fontSize: 14,
-    color: "#000",
-    fontWeight: "500",
-  },
-  editProfileButton: {
-    marginTop: 16,
-  },
-  editActions: {
-    flexDirection: "row",
-    gap: 12,
-    marginTop: 8,
-  },
-  editButton: {
-    flex: 1,
-  },
-  actionsCard: {
-    marginBottom: 32,
-  },
-});

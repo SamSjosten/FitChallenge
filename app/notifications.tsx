@@ -1,11 +1,10 @@
 // app/notifications.tsx
-// Notifications inbox screen
+// Notifications inbox screen - Design System v1.0
 
 import React from "react";
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
   RefreshControl,
   TouchableOpacity,
@@ -16,9 +15,12 @@ import {
   useMarkNotificationAsRead,
   useMarkAllNotificationsAsRead,
 } from "@/hooks/useNotifications";
-import { Card, LoadingScreen, EmptyState, Button } from "@/components/ui";
+import { LoadingScreen, EmptyState } from "@/components/ui";
+import { useAppTheme } from "@/providers/ThemeProvider";
+import { BellIcon } from "react-native-heroicons/outline";
 
 export default function NotificationsScreen() {
+  const { colors, spacing, radius, typography, shadows } = useAppTheme();
   const { data: notifications, isLoading, refetch } = useNotifications();
   const markAsRead = useMarkNotificationAsRead();
   const markAllAsRead = useMarkAllNotificationsAsRead();
@@ -32,12 +34,10 @@ export default function NotificationsScreen() {
   };
 
   const handleNotificationPress = async (notification: any) => {
-    // Mark as read if unread
     if (!notification.read_at) {
       await markAsRead.mutateAsync(notification.id);
     }
 
-    // Navigate based on notification type
     if (
       notification.type === "challenge_invite_received" &&
       notification.data?.challenge_id
@@ -71,66 +71,175 @@ export default function NotificationsScreen() {
         }}
       />
       <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.content}
+        style={{ flex: 1, backgroundColor: colors.background }}
+        contentContainerStyle={{ padding: spacing.lg }}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.primary.main}
+          />
         }
       >
         {/* Header with Mark All Read */}
         {unreadCount > 0 && (
-          <View style={styles.header}>
-            <Text style={styles.unreadText}>{unreadCount} unread</Text>
-            <Button
-              title="Mark all read"
-              variant="outline"
-              size="small"
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: spacing.lg,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: typography.fontSize.sm,
+                fontFamily: "PlusJakartaSans_500Medium",
+                color: colors.textSecondary,
+              }}
+            >
+              {unreadCount} unread
+            </Text>
+            <TouchableOpacity
+              style={{
+                backgroundColor: "transparent",
+                borderWidth: 1,
+                borderColor: colors.primary.main,
+                borderRadius: radius.button,
+                paddingHorizontal: spacing.md,
+                paddingVertical: spacing.sm,
+                opacity: markAllAsRead.isPending ? 0.7 : 1,
+              }}
               onPress={handleMarkAllAsRead}
-              loading={markAllAsRead.isPending}
-            />
+              disabled={markAllAsRead.isPending}
+            >
+              <Text
+                style={{
+                  fontSize: typography.fontSize.xs,
+                  fontFamily: "PlusJakartaSans_600SemiBold",
+                  color: colors.primary.main,
+                }}
+              >
+                {markAllAsRead.isPending ? "Marking..." : "Mark all read"}
+              </Text>
+            </TouchableOpacity>
           </View>
         )}
 
         {/* Empty State */}
         {notifications && notifications.length === 0 && (
-          <EmptyState
-            title="No notifications"
-            message="You're all caught up!"
-          />
+          <View
+            style={{
+              flex: 1,
+              alignItems: "center",
+              justifyContent: "center",
+              paddingVertical: spacing["2xl"],
+            }}
+          >
+            <BellIcon size={48} color={colors.textMuted} />
+            <Text
+              style={{
+                fontSize: typography.fontSize.lg,
+                fontFamily: "PlusJakartaSans_600SemiBold",
+                color: colors.textPrimary,
+                marginTop: spacing.md,
+              }}
+            >
+              No notifications
+            </Text>
+            <Text
+              style={{
+                fontSize: typography.fontSize.sm,
+                fontFamily: "PlusJakartaSans_500Medium",
+                color: colors.textMuted,
+                marginTop: spacing.xs,
+              }}
+            >
+              You're all caught up!
+            </Text>
+          </View>
         )}
 
         {/* Notifications List */}
-        {notifications?.map((notification) => (
-          <TouchableOpacity
-            key={notification.id}
-            onPress={() => handleNotificationPress(notification)}
-            activeOpacity={0.7}
-          >
-            <Card
-              style={[
-                styles.notificationCard,
-                !notification.read_at && styles.unreadCard,
-              ]}
+        {notifications?.map((notification) => {
+          const isUnread = !notification.read_at;
+          return (
+            <TouchableOpacity
+              key={notification.id}
+              onPress={() => handleNotificationPress(notification)}
+              activeOpacity={0.7}
             >
-              <View style={styles.notificationHeader}>
-                <Text style={styles.notificationTitle}>
-                  {notification.title}
+              <View
+                style={{
+                  backgroundColor: isUnread
+                    ? colors.primary.subtle
+                    : colors.surface,
+                  borderRadius: radius.card,
+                  padding: spacing.lg,
+                  marginBottom: spacing.sm,
+                  borderLeftWidth: isUnread ? 3 : 0,
+                  borderLeftColor: colors.primary.main,
+                  ...shadows.card,
+                }}
+              >
+                <View
+                  style={{
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    marginBottom: spacing.xs,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: typography.fontSize.base,
+                      fontFamily: "PlusJakartaSans_600SemiBold",
+                      color: colors.textPrimary,
+                      flex: 1,
+                    }}
+                  >
+                    {notification.title}
+                  </Text>
+                  {isUnread && (
+                    <View
+                      style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: 4,
+                        backgroundColor: colors.primary.main,
+                        marginLeft: spacing.sm,
+                      }}
+                    />
+                  )}
+                </View>
+                <Text
+                  style={{
+                    fontSize: typography.fontSize.sm,
+                    fontFamily: "PlusJakartaSans_500Medium",
+                    color: colors.textSecondary,
+                    marginBottom: spacing.sm,
+                  }}
+                >
+                  {notification.body}
                 </Text>
-                {!notification.read_at && <View style={styles.unreadDot} />}
+                <Text
+                  style={{
+                    fontSize: typography.fontSize.xs,
+                    fontFamily: "PlusJakartaSans_500Medium",
+                    color: colors.textMuted,
+                  }}
+                >
+                  {formatTimeAgo(notification.created_at ?? "")}
+                </Text>
               </View>
-              <Text style={styles.notificationBody}>{notification.body}</Text>
-              <Text style={styles.notificationTime}>
-                {formatTimeAgo(notification.created_at ?? "")}
-              </Text>
-            </Card>
-          </TouchableOpacity>
-        ))}
+            </TouchableOpacity>
+          );
+        })}
       </ScrollView>
     </>
   );
 }
 
-// Helper function to format relative time
 function formatTimeAgo(dateString: string): string {
   const date = new Date(dateString);
   const now = new Date();
@@ -142,60 +251,3 @@ function formatTimeAgo(dateString: string): string {
   if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
   return date.toLocaleDateString();
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F2F2F7",
-  },
-  content: {
-    padding: 16,
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  unreadText: {
-    fontSize: 14,
-    color: "#666",
-  },
-  notificationCard: {
-    marginBottom: 12,
-  },
-  unreadCard: {
-    backgroundColor: "#F0F8FF",
-    borderLeftWidth: 3,
-    borderLeftColor: "#007AFF",
-  },
-  notificationHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 4,
-  },
-  notificationTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#000",
-    flex: 1,
-  },
-  unreadDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "#007AFF",
-    marginLeft: 8,
-  },
-  notificationBody: {
-    fontSize: 14,
-    color: "#333",
-    marginBottom: 8,
-  },
-  notificationTime: {
-    fontSize: 12,
-    color: "#999",
-  },
-});
-

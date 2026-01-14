@@ -1,33 +1,44 @@
 // app/challenge/create.tsx
-// Create new challenge screen with scheduling options
+// Create new challenge screen - Design System v1.0
+// Matches mockup: activity grid, styled form, summary card
 
 import React, { useState } from "react";
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
   Alert,
   TouchableOpacity,
+  TextInput,
 } from "react-native";
 import DateTimePicker, {
   DateTimePickerEvent,
 } from "@react-native-community/datetimepicker";
 import { router } from "expo-router";
 import { useCreateChallenge } from "@/hooks/useChallenges";
-import { Button, Input, Card } from "@/components/ui";
+import { useAppTheme } from "@/providers/ThemeProvider";
+import { ChevronLeftIcon, XMarkIcon } from "react-native-heroicons/outline";
 import type { ChallengeType } from "@/types/database";
 
-const CHALLENGE_TYPES: { value: ChallengeType; label: string; unit: string }[] =
-  [
-    { value: "steps", label: "Steps", unit: "steps" },
-    { value: "active_minutes", label: "Active Minutes", unit: "minutes" },
-    { value: "workouts", label: "Workouts", unit: "workouts" },
-    { value: "distance", label: "Distance", unit: "km" },
-    { value: "custom", label: "Custom", unit: "units" },
-  ];
+const CHALLENGE_TYPES: {
+  value: ChallengeType;
+  label: string;
+  unit: string;
+  icon: string;
+}[] = [
+  { value: "steps", label: "Steps", unit: "steps", icon: "👟" },
+  {
+    value: "active_minutes",
+    label: "Active Minutes",
+    unit: "minutes",
+    icon: "⏱️",
+  },
+  { value: "workouts", label: "Workouts", unit: "workouts", icon: "💪" },
+  { value: "distance", label: "Distance", unit: "km", icon: "🏃" },
+  { value: "custom", label: "Custom", unit: "units", icon: "✨" },
+];
 
 const DURATION_PRESETS = [
   { label: "7 days", value: 7 },
@@ -39,6 +50,7 @@ const DURATION_PRESETS = [
 type StartMode = "now" | "scheduled";
 
 export default function CreateChallengeScreen() {
+  const { colors, spacing, radius, typography, shadows } = useAppTheme();
   const createChallenge = useCreateChallenge();
 
   // Basic fields
@@ -53,7 +65,6 @@ export default function CreateChallengeScreen() {
   // Scheduling fields
   const [startMode, setStartMode] = useState<StartMode>("now");
   const [scheduledStart, setScheduledStart] = useState<Date>(() => {
-    // Default to tomorrow at 9am
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     tomorrow.setHours(9, 0, 0, 0);
@@ -67,19 +78,13 @@ export default function CreateChallengeScreen() {
   const [customDuration, setCustomDuration] = useState("7");
 
   const selectedType = CHALLENGE_TYPES.find((t) => t.value === challengeType)!;
-
-  // For custom type, use user-provided values
   const displayUnit =
     challengeType === "custom" ? customUnit || "units" : selectedType.unit;
-
-  // Get effective duration
   const effectiveDuration =
     durationPreset === 0 ? parseInt(customDuration) || 0 : durationPreset;
 
-  // Get timezone abbreviation for display
   const getTimezoneLabel = () => {
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    // Get short timezone name (e.g., "CST", "EST")
     const shortTz = new Date()
       .toLocaleTimeString("en-US", { timeZoneName: "short" })
       .split(" ")
@@ -87,10 +92,9 @@ export default function CreateChallengeScreen() {
     return `${shortTz} (${tz})`;
   };
 
-  // Calculate start and end dates
   const getStartDate = (): Date => {
     if (startMode === "now") {
-      return new Date(Date.now() + 60000); // Start in 1 minute
+      return new Date(Date.now() + 60000);
     }
     return scheduledStart;
   };
@@ -100,7 +104,6 @@ export default function CreateChallengeScreen() {
     return new Date(start.getTime() + effectiveDuration * 24 * 60 * 60 * 1000);
   };
 
-  // Date picker handlers
   const handleDateChange = (
     event: DateTimePickerEvent,
     selectedDate?: Date
@@ -109,14 +112,11 @@ export default function CreateChallengeScreen() {
       setShowDatePicker(false);
     }
     if (event.type === "set" && selectedDate) {
-      // Preserve the time, update the date
       const newDate = new Date(scheduledStart);
       newDate.setFullYear(selectedDate.getFullYear());
       newDate.setMonth(selectedDate.getMonth());
       newDate.setDate(selectedDate.getDate());
       setScheduledStart(newDate);
-
-      // On Android, show time picker after date is selected
       if (Platform.OS === "android") {
         setTimeout(() => setShowTimePicker(true), 100);
       }
@@ -131,7 +131,6 @@ export default function CreateChallengeScreen() {
       setShowTimePicker(false);
     }
     if (event.type === "set" && selectedTime) {
-      // Preserve the date, update the time
       const newDate = new Date(scheduledStart);
       newDate.setHours(selectedTime.getHours());
       newDate.setMinutes(selectedTime.getMinutes());
@@ -142,7 +141,6 @@ export default function CreateChallengeScreen() {
   const handleCreate = async () => {
     setError(null);
 
-    // Basic validation
     if (!title.trim()) {
       setError("Title is required");
       return;
@@ -167,7 +165,6 @@ export default function CreateChallengeScreen() {
     const startDate = getStartDate();
     const endDate = getEndDate();
 
-    // Validate scheduled start is in the future
     if (startMode === "scheduled" && startDate <= new Date()) {
       setError("Scheduled start must be in the future");
       return;
@@ -194,12 +191,7 @@ export default function CreateChallengeScreen() {
       Alert.alert(
         "Challenge Created! 🎉",
         `Your challenge is ready, ${startMsg}. Invite friends to join!`,
-        [
-          {
-            text: "OK",
-            onPress: () => router.back(),
-          },
-        ]
+        [{ text: "OK", onPress: () => router.back() }]
       );
     } catch (err: any) {
       setError(err.message || "Failed to create challenge");
@@ -208,139 +200,379 @@ export default function CreateChallengeScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={{ flex: 1, backgroundColor: colors.background }}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={{ padding: spacing.lg, paddingBottom: 100 }}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.header}>Create a Challenge</Text>
+        {/* Header */}
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            marginBottom: spacing.xl,
+          }}
+        >
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={{ marginRight: spacing.sm }}
+          >
+            <ChevronLeftIcon size={24} color={colors.textSecondary} />
+          </TouchableOpacity>
+          <Text
+            style={{
+              fontSize: typography.fontSize.xl,
+              fontFamily: "PlusJakartaSans_700Bold",
+              color: colors.textPrimary,
+            }}
+          >
+            Create Challenge
+          </Text>
+        </View>
 
-        {/* Title */}
-        <Input
-          label="Challenge Title"
+        {/* Title Input */}
+        <Text
+          style={{
+            fontSize: typography.fontSize.sm,
+            fontFamily: "PlusJakartaSans_600SemiBold",
+            color: colors.textSecondary,
+            marginBottom: spacing.xs,
+          }}
+        >
+          Challenge Title
+        </Text>
+        <TextInput
+          style={{
+            backgroundColor: colors.surface,
+            borderRadius: radius.input,
+            paddingHorizontal: spacing.md,
+            paddingVertical: spacing.md,
+            borderWidth: 1,
+            borderColor: colors.border,
+            fontSize: typography.fontSize.base,
+            fontFamily: "PlusJakartaSans_500Medium",
+            color: colors.textPrimary,
+            marginBottom: spacing.lg,
+          }}
           value={title}
           onChangeText={setTitle}
           placeholder="e.g., Summer Step Challenge"
+          placeholderTextColor={colors.textMuted}
           maxLength={100}
         />
 
         {/* Description */}
-        <Input
-          label="Description (optional)"
+        <Text
+          style={{
+            fontSize: typography.fontSize.sm,
+            fontFamily: "PlusJakartaSans_600SemiBold",
+            color: colors.textSecondary,
+            marginBottom: spacing.xs,
+          }}
+        >
+          Description (optional)
+        </Text>
+        <TextInput
+          style={{
+            backgroundColor: colors.surface,
+            borderRadius: radius.input,
+            paddingHorizontal: spacing.md,
+            paddingVertical: spacing.md,
+            borderWidth: 1,
+            borderColor: colors.border,
+            fontSize: typography.fontSize.base,
+            fontFamily: "PlusJakartaSans_500Medium",
+            color: colors.textPrimary,
+            marginBottom: spacing.lg,
+            minHeight: 80,
+            textAlignVertical: "top",
+          }}
           value={description}
           onChangeText={setDescription}
           placeholder="What's this challenge about?"
+          placeholderTextColor={colors.textMuted}
           multiline
           numberOfLines={3}
           maxLength={500}
         />
 
-        {/* Challenge Type */}
-        <Text style={styles.label}>Challenge Type</Text>
-        <View style={styles.typeGrid}>
-          {CHALLENGE_TYPES.map((type) => (
-            <TouchableOpacity
-              key={type.value}
-              style={[
-                styles.typeCard,
-                challengeType === type.value && styles.typeCardSelected,
-              ]}
-              onPress={() => setChallengeType(type.value)}
-            >
-              <Text style={styles.typeLabel}>{type.label}</Text>
-            </TouchableOpacity>
-          ))}
+        {/* Activity Type Grid */}
+        <Text
+          style={{
+            fontSize: typography.fontSize.sm,
+            fontFamily: "PlusJakartaSans_600SemiBold",
+            color: colors.textSecondary,
+            marginBottom: spacing.sm,
+          }}
+        >
+          Activity Type
+        </Text>
+        <View
+          style={{
+            flexDirection: "row",
+            flexWrap: "wrap",
+            gap: spacing.sm,
+            marginBottom: spacing.lg,
+          }}
+        >
+          {CHALLENGE_TYPES.map((type) => {
+            const isSelected = challengeType === type.value;
+            return (
+              <TouchableOpacity
+                key={type.value}
+                style={{
+                  width: "48%",
+                  backgroundColor: isSelected
+                    ? colors.primary.subtle
+                    : colors.surface,
+                  borderRadius: radius.card,
+                  padding: spacing.md,
+                  borderWidth: 2,
+                  borderColor: isSelected ? colors.primary.main : "transparent",
+                  alignItems: "center",
+                  ...shadows.card,
+                }}
+                onPress={() => setChallengeType(type.value)}
+              >
+                <Text style={{ fontSize: 24, marginBottom: spacing.xs }}>
+                  {type.icon}
+                </Text>
+                <Text
+                  style={{
+                    fontSize: typography.fontSize.sm,
+                    fontFamily: "PlusJakartaSans_600SemiBold",
+                    color: isSelected
+                      ? colors.primary.main
+                      : colors.textPrimary,
+                  }}
+                >
+                  {type.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
         {/* Custom Activity Fields */}
         {challengeType === "custom" && (
-          <View style={styles.customFields}>
-            <Input
-              label="Activity Name"
+          <View style={{ marginBottom: spacing.lg }}>
+            <Text
+              style={{
+                fontSize: typography.fontSize.sm,
+                fontFamily: "PlusJakartaSans_600SemiBold",
+                color: colors.textSecondary,
+                marginBottom: spacing.xs,
+              }}
+            >
+              Activity Name
+            </Text>
+            <TextInput
+              style={{
+                backgroundColor: colors.surface,
+                borderRadius: radius.input,
+                paddingHorizontal: spacing.md,
+                paddingVertical: spacing.md,
+                borderWidth: 1,
+                borderColor: colors.border,
+                fontSize: typography.fontSize.base,
+                fontFamily: "PlusJakartaSans_500Medium",
+                color: colors.textPrimary,
+                marginBottom: spacing.md,
+              }}
               value={customActivityName}
               onChangeText={setCustomActivityName}
-              placeholder="e.g., Pushups, Meditation, Glasses of Water"
+              placeholder="e.g., Pushups, Meditation"
+              placeholderTextColor={colors.textMuted}
               maxLength={50}
             />
-            <Input
-              label="Unit"
+            <Text
+              style={{
+                fontSize: typography.fontSize.sm,
+                fontFamily: "PlusJakartaSans_600SemiBold",
+                color: colors.textSecondary,
+                marginBottom: spacing.xs,
+              }}
+            >
+              Unit
+            </Text>
+            <TextInput
+              style={{
+                backgroundColor: colors.surface,
+                borderRadius: radius.input,
+                paddingHorizontal: spacing.md,
+                paddingVertical: spacing.md,
+                borderWidth: 1,
+                borderColor: colors.border,
+                fontSize: typography.fontSize.base,
+                fontFamily: "PlusJakartaSans_500Medium",
+                color: colors.textPrimary,
+              }}
               value={customUnit}
               onChangeText={setCustomUnit}
-              placeholder="e.g., reps, minutes, glasses"
+              placeholder="e.g., reps, minutes"
+              placeholderTextColor={colors.textMuted}
               maxLength={20}
             />
           </View>
         )}
 
-        {/* Goal */}
-        <Input
-          label={`Goal (${displayUnit})`}
+        {/* Goal Input */}
+        <Text
+          style={{
+            fontSize: typography.fontSize.sm,
+            fontFamily: "PlusJakartaSans_600SemiBold",
+            color: colors.textSecondary,
+            marginBottom: spacing.xs,
+          }}
+        >
+          Goal ({displayUnit})
+        </Text>
+        <TextInput
+          style={{
+            backgroundColor: colors.surface,
+            borderRadius: radius.input,
+            paddingHorizontal: spacing.md,
+            paddingVertical: spacing.md,
+            borderWidth: 1,
+            borderColor: colors.border,
+            fontSize: typography.fontSize.base,
+            fontFamily: "PlusJakartaSans_500Medium",
+            color: colors.textPrimary,
+            marginBottom: spacing.lg,
+          }}
           value={goalValue}
           onChangeText={setGoalValue}
-          placeholder={`e.g., 10000`}
+          placeholder="e.g., 10000"
+          placeholderTextColor={colors.textMuted}
           keyboardType="number-pad"
         />
 
         {/* Start Mode Toggle */}
-        <Text style={styles.label}>When to Start</Text>
-        <View style={styles.toggleContainer}>
+        <Text
+          style={{
+            fontSize: typography.fontSize.sm,
+            fontFamily: "PlusJakartaSans_600SemiBold",
+            color: colors.textSecondary,
+            marginBottom: spacing.sm,
+          }}
+        >
+          When to Start
+        </Text>
+        <View
+          style={{
+            flexDirection: "row",
+            backgroundColor: colors.surface,
+            borderRadius: radius.button,
+            padding: spacing.xs,
+            marginBottom: spacing.lg,
+          }}
+        >
           <TouchableOpacity
-            style={[
-              styles.toggleButton,
-              startMode === "now" && styles.toggleButtonSelected,
-            ]}
+            style={{
+              flex: 1,
+              paddingVertical: spacing.sm,
+              alignItems: "center",
+              borderRadius: radius.button - 4,
+              backgroundColor:
+                startMode === "now" ? colors.primary.main : "transparent",
+            }}
             onPress={() => setStartMode("now")}
           >
             <Text
-              style={[
-                styles.toggleText,
-                startMode === "now" && styles.toggleTextSelected,
-              ]}
+              style={{
+                fontSize: typography.fontSize.sm,
+                fontFamily: "PlusJakartaSans_600SemiBold",
+                color: startMode === "now" ? "#FFFFFF" : colors.textSecondary,
+              }}
             >
               Start Now
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[
-              styles.toggleButton,
-              startMode === "scheduled" && styles.toggleButtonSelected,
-            ]}
+            style={{
+              flex: 1,
+              paddingVertical: spacing.sm,
+              alignItems: "center",
+              borderRadius: radius.button - 4,
+              backgroundColor:
+                startMode === "scheduled" ? colors.primary.main : "transparent",
+            }}
             onPress={() => setStartMode("scheduled")}
           >
             <Text
-              style={[
-                styles.toggleText,
-                startMode === "scheduled" && styles.toggleTextSelected,
-              ]}
+              style={{
+                fontSize: typography.fontSize.sm,
+                fontFamily: "PlusJakartaSans_600SemiBold",
+                color:
+                  startMode === "scheduled" ? "#FFFFFF" : colors.textSecondary,
+              }}
             >
-              Schedule Start
+              Schedule
             </Text>
           </TouchableOpacity>
         </View>
 
-        {/* Scheduled Start Date/Time Picker */}
+        {/* Schedule Picker */}
         {startMode === "scheduled" && (
-          <Card style={styles.schedulePicker}>
-            <Text style={styles.scheduleLabel}>Start Date & Time</Text>
+          <View
+            style={{
+              backgroundColor: colors.surface,
+              borderRadius: radius.card,
+              padding: spacing.lg,
+              marginBottom: spacing.lg,
+              ...shadows.card,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: typography.fontSize.sm,
+                fontFamily: "PlusJakartaSans_600SemiBold",
+                color: colors.textPrimary,
+                marginBottom: spacing.md,
+              }}
+            >
+              Choose start date & time
+            </Text>
 
-            {/* Date Button */}
             <TouchableOpacity
-              style={styles.dateTimeButton}
+              style={{
+                backgroundColor: colors.background,
+                padding: spacing.md,
+                borderRadius: radius.input,
+                marginBottom: spacing.sm,
+              }}
               onPress={() => setShowDatePicker(true)}
             >
-              <Text style={styles.dateTimeButtonText}>
+              <Text
+                style={{
+                  fontSize: typography.fontSize.base,
+                  fontFamily: "PlusJakartaSans_500Medium",
+                  color: colors.primary.main,
+                  textAlign: "center",
+                }}
+              >
                 📅 {scheduledStart.toLocaleDateString()}
               </Text>
             </TouchableOpacity>
 
-            {/* Time Button */}
             <TouchableOpacity
-              style={styles.dateTimeButton}
+              style={{
+                backgroundColor: colors.background,
+                padding: spacing.md,
+                borderRadius: radius.input,
+              }}
               onPress={() => setShowTimePicker(true)}
             >
-              <Text style={styles.dateTimeButtonText}>
+              <Text
+                style={{
+                  fontSize: typography.fontSize.base,
+                  fontFamily: "PlusJakartaSans_500Medium",
+                  color: colors.primary.main,
+                  textAlign: "center",
+                }}
+              >
                 🕐{" "}
                 {scheduledStart.toLocaleTimeString([], {
                   hour: "2-digit",
@@ -349,9 +581,9 @@ export default function CreateChallengeScreen() {
               </Text>
             </TouchableOpacity>
 
-            {/* iOS shows inline pickers */}
+            {/* iOS Inline Pickers */}
             {Platform.OS === "ios" && showDatePicker && (
-              <View style={styles.pickerContainer}>
+              <View style={{ marginTop: spacing.md, alignItems: "center" }}>
                 <DateTimePicker
                   value={scheduledStart}
                   mode="date"
@@ -359,33 +591,63 @@ export default function CreateChallengeScreen() {
                   onChange={handleDateChange}
                   minimumDate={new Date()}
                 />
-                <Button
-                  title="Done"
-                  size="small"
+                <TouchableOpacity
+                  style={{
+                    backgroundColor: colors.primary.main,
+                    paddingHorizontal: spacing.lg,
+                    paddingVertical: spacing.sm,
+                    borderRadius: radius.button,
+                    marginTop: spacing.sm,
+                  }}
                   onPress={() => setShowDatePicker(false)}
-                />
+                >
+                  <Text
+                    style={{
+                      fontSize: typography.fontSize.sm,
+                      fontFamily: "PlusJakartaSans_600SemiBold",
+                      color: "#FFFFFF",
+                    }}
+                  >
+                    Done
+                  </Text>
+                </TouchableOpacity>
               </View>
             )}
 
             {Platform.OS === "ios" && showTimePicker && (
-              <View style={styles.pickerContainer}>
+              <View style={{ marginTop: spacing.md, alignItems: "center" }}>
                 <DateTimePicker
                   value={scheduledStart}
                   mode="time"
                   display="spinner"
                   onChange={handleTimeChange}
                 />
-                <Button
-                  title="Done"
-                  size="small"
+                <TouchableOpacity
+                  style={{
+                    backgroundColor: colors.primary.main,
+                    paddingHorizontal: spacing.lg,
+                    paddingVertical: spacing.sm,
+                    borderRadius: radius.button,
+                    marginTop: spacing.sm,
+                  }}
                   onPress={() => setShowTimePicker(false)}
-                />
+                >
+                  <Text
+                    style={{
+                      fontSize: typography.fontSize.sm,
+                      fontFamily: "PlusJakartaSans_600SemiBold",
+                      color: "#FFFFFF",
+                    }}
+                  >
+                    Done
+                  </Text>
+                </TouchableOpacity>
               </View>
             )}
-          </Card>
+          </View>
         )}
 
-        {/* Android modal pickers */}
+        {/* Android Pickers */}
         {Platform.OS === "android" && showDatePicker && (
           <DateTimePicker
             value={scheduledStart}
@@ -395,7 +657,6 @@ export default function CreateChallengeScreen() {
             minimumDate={new Date()}
           />
         )}
-
         {Platform.OS === "android" && showTimePicker && (
           <DateTimePicker
             value={scheduledStart}
@@ -405,270 +666,241 @@ export default function CreateChallengeScreen() {
           />
         )}
 
-        {/* Duration Presets */}
-        <Text style={styles.label}>Duration</Text>
-        <View style={styles.presetGrid}>
-          {DURATION_PRESETS.map((preset) => (
-            <TouchableOpacity
-              key={preset.value}
-              style={[
-                styles.presetButton,
-                durationPreset === preset.value && styles.presetButtonSelected,
-              ]}
-              onPress={() => setDurationPreset(preset.value)}
-            >
-              <Text
-                style={[
-                  styles.presetText,
-                  durationPreset === preset.value && styles.presetTextSelected,
-                ]}
+        {/* Duration */}
+        <Text
+          style={{
+            fontSize: typography.fontSize.sm,
+            fontFamily: "PlusJakartaSans_600SemiBold",
+            color: colors.textSecondary,
+            marginBottom: spacing.sm,
+          }}
+        >
+          Duration
+        </Text>
+        <View
+          style={{
+            flexDirection: "row",
+            gap: spacing.sm,
+            marginBottom: spacing.lg,
+          }}
+        >
+          {DURATION_PRESETS.map((preset) => {
+            const isSelected = durationPreset === preset.value;
+            return (
+              <TouchableOpacity
+                key={preset.value}
+                style={{
+                  flex: 1,
+                  paddingVertical: spacing.sm,
+                  backgroundColor: isSelected
+                    ? colors.primary.main
+                    : colors.surface,
+                  borderRadius: radius.button,
+                  alignItems: "center",
+                  ...shadows.card,
+                }}
+                onPress={() => setDurationPreset(preset.value)}
               >
-                {preset.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
+                <Text
+                  style={{
+                    fontSize: typography.fontSize.xs,
+                    fontFamily: "PlusJakartaSans_600SemiBold",
+                    color: isSelected ? "#FFFFFF" : colors.textSecondary,
+                  }}
+                >
+                  {preset.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
-        {/* Custom Duration Input */}
+        {/* Custom Duration */}
         {durationPreset === 0 && (
-          <Input
-            label="Custom Duration (days)"
+          <TextInput
+            style={{
+              backgroundColor: colors.surface,
+              borderRadius: radius.input,
+              paddingHorizontal: spacing.md,
+              paddingVertical: spacing.md,
+              borderWidth: 1,
+              borderColor: colors.border,
+              fontSize: typography.fontSize.base,
+              fontFamily: "PlusJakartaSans_500Medium",
+              color: colors.textPrimary,
+              marginBottom: spacing.lg,
+            }}
             value={customDuration}
             onChangeText={setCustomDuration}
-            placeholder="e.g., 21"
+            placeholder="Number of days"
+            placeholderTextColor={colors.textMuted}
             keyboardType="number-pad"
           />
         )}
 
-        {/* Summary */}
-        <Card style={styles.summary}>
-          <Text style={styles.summaryTitle}>Challenge Summary</Text>
-          <Text style={styles.summaryText}>
+        {/* Summary Card */}
+        <View
+          style={{
+            backgroundColor: colors.primary.subtle,
+            borderRadius: radius.card,
+            padding: spacing.lg,
+            marginBottom: spacing.lg,
+            borderWidth: 1,
+            borderColor: colors.primary.main,
+          }}
+        >
+          <Text
+            style={{
+              fontSize: typography.fontSize.sm,
+              fontFamily: "PlusJakartaSans_700Bold",
+              color: colors.primary.dark,
+              marginBottom: spacing.sm,
+            }}
+          >
+            Challenge Summary
+          </Text>
+          <Text
+            style={{
+              fontSize: typography.fontSize.base,
+              fontFamily: "PlusJakartaSans_500Medium",
+              color: colors.textPrimary,
+              marginBottom: spacing.md,
+            }}
+          >
             {title || "Your challenge"} • {goalValue || "?"} {displayUnit} in{" "}
             {effectiveDuration || "?"} days
           </Text>
-          <View style={styles.summaryDates}>
-            <Text style={styles.summaryDateLabel}>Starts:</Text>
-            <Text style={styles.summaryDateValue}>
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              marginBottom: spacing.xs,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: typography.fontSize.sm,
+                fontFamily: "PlusJakartaSans_500Medium",
+                color: colors.textMuted,
+              }}
+            >
+              Starts:
+            </Text>
+            <Text
+              style={{
+                fontSize: typography.fontSize.sm,
+                fontFamily: "PlusJakartaSans_600SemiBold",
+                color: colors.textPrimary,
+              }}
+            >
               {startMode === "now"
                 ? "In 1 minute"
                 : scheduledStart.toLocaleString()}
             </Text>
           </View>
-          <View style={styles.summaryDates}>
-            <Text style={styles.summaryDateLabel}>Ends:</Text>
-            <Text style={styles.summaryDateValue}>
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              marginBottom: spacing.sm,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: typography.fontSize.sm,
+                fontFamily: "PlusJakartaSans_500Medium",
+                color: colors.textMuted,
+              }}
+            >
+              Ends:
+            </Text>
+            <Text
+              style={{
+                fontSize: typography.fontSize.sm,
+                fontFamily: "PlusJakartaSans_600SemiBold",
+                color: colors.textPrimary,
+              }}
+            >
               {effectiveDuration > 0
                 ? getEndDate().toLocaleString()
                 : "Set duration"}
             </Text>
           </View>
-          <Text style={styles.timezoneLabel}>
+          <Text
+            style={{
+              fontSize: typography.fontSize.xs,
+              fontFamily: "PlusJakartaSans_500Medium",
+              color: colors.textMuted,
+              textAlign: "center",
+              fontStyle: "italic",
+            }}
+          >
             Times in {getTimezoneLabel()}
           </Text>
-        </Card>
+        </View>
 
         {/* Error */}
-        {error && <Text style={styles.error}>{error}</Text>}
+        {error && (
+          <Text
+            style={{
+              fontSize: typography.fontSize.sm,
+              fontFamily: "PlusJakartaSans_500Medium",
+              color: colors.error,
+              textAlign: "center",
+              marginBottom: spacing.md,
+            }}
+          >
+            {error}
+          </Text>
+        )}
 
         {/* Create Button */}
-        <Button
-          title="Create Challenge"
+        <TouchableOpacity
+          style={{
+            backgroundColor: colors.primary.main,
+            borderRadius: radius.button,
+            paddingVertical: spacing.md,
+            alignItems: "center",
+            opacity: createChallenge.isPending ? 0.7 : 1,
+          }}
           onPress={handleCreate}
-          loading={createChallenge.isPending}
           disabled={createChallenge.isPending}
-          size="large"
-        />
+        >
+          <Text
+            style={{
+              fontSize: typography.fontSize.base,
+              fontFamily: "PlusJakartaSans_700Bold",
+              color: "#FFFFFF",
+            }}
+          >
+            {createChallenge.isPending ? "Creating..." : "Create Challenge"}
+          </Text>
+        </TouchableOpacity>
 
         {/* Cancel */}
-        <Button
-          title="Cancel"
-          variant="outline"
+        <TouchableOpacity
+          style={{
+            backgroundColor: "transparent",
+            borderWidth: 1,
+            borderColor: colors.border,
+            borderRadius: radius.button,
+            paddingVertical: spacing.md,
+            alignItems: "center",
+            marginTop: spacing.sm,
+          }}
           onPress={() => router.back()}
-          style={styles.cancelButton}
-        />
+        >
+          <Text
+            style={{
+              fontSize: typography.fontSize.base,
+              fontFamily: "PlusJakartaSans_600SemiBold",
+              color: colors.textSecondary,
+            }}
+          >
+            Cancel
+          </Text>
+        </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F2F2F7",
-  },
-  content: {
-    padding: 16,
-    paddingBottom: 32,
-  },
-  header: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#000",
-    marginBottom: 24,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: "#333",
-    marginBottom: 8,
-  },
-  typeGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-    marginBottom: 16,
-  },
-  typeCard: {
-    flex: 1,
-    minWidth: "45%",
-    padding: 16,
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: "transparent",
-    alignItems: "center",
-  },
-  typeCardSelected: {
-    borderColor: "#007AFF",
-    backgroundColor: "#F0F8FF",
-  },
-  typeLabel: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: "#333",
-  },
-  customFields: {
-    marginBottom: 8,
-  },
-  // Start Mode Toggle
-  toggleContainer: {
-    flexDirection: "row",
-    backgroundColor: "#E5E5EA",
-    borderRadius: 8,
-    padding: 4,
-    marginBottom: 16,
-  },
-  toggleButton: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: "center",
-    borderRadius: 6,
-  },
-  toggleButtonSelected: {
-    backgroundColor: "#fff",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  toggleText: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: "#666",
-  },
-  toggleTextSelected: {
-    color: "#007AFF",
-  },
-  // Schedule Picker
-  schedulePicker: {
-    marginBottom: 16,
-    padding: 16,
-  },
-  scheduleLabel: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#333",
-    marginBottom: 12,
-  },
-  dateTimeButton: {
-    backgroundColor: "#F2F2F7",
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 8,
-  },
-  dateTimeButtonText: {
-    fontSize: 16,
-    color: "#007AFF",
-    textAlign: "center",
-  },
-  pickerContainer: {
-    marginTop: 8,
-    alignItems: "center",
-  },
-  // Duration Presets
-  presetGrid: {
-    flexDirection: "row",
-    gap: 8,
-    marginBottom: 16,
-  },
-  presetButton: {
-    flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    backgroundColor: "#fff",
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: "transparent",
-    alignItems: "center",
-  },
-  presetButtonSelected: {
-    borderColor: "#007AFF",
-    backgroundColor: "#F0F8FF",
-  },
-  presetText: {
-    fontSize: 13,
-    fontWeight: "500",
-    color: "#666",
-  },
-  presetTextSelected: {
-    color: "#007AFF",
-  },
-  // Summary
-  summary: {
-    marginBottom: 16,
-    backgroundColor: "#F0F8FF",
-  },
-  summaryTitle: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#007AFF",
-    marginBottom: 8,
-  },
-  summaryText: {
-    fontSize: 14,
-    color: "#333",
-    marginBottom: 12,
-  },
-  summaryDates: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 4,
-  },
-  summaryDateLabel: {
-    fontSize: 13,
-    color: "#666",
-  },
-  summaryDateValue: {
-    fontSize: 13,
-    fontWeight: "500",
-    color: "#333",
-  },
-  timezoneLabel: {
-    fontSize: 11,
-    color: "#999",
-    marginTop: 8,
-    textAlign: "center",
-    fontStyle: "italic",
-  },
-  error: {
-    color: "#FF3B30",
-    fontSize: 14,
-    marginBottom: 16,
-    textAlign: "center",
-  },
-  cancelButton: {
-    marginTop: 12,
-  },
-});
