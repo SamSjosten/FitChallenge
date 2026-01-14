@@ -199,7 +199,7 @@ export default function TabLayout() {
           tabBarIcon: ({ focused, color }) => (
             <TabIcon name="compete" focused={focused} color={color} />
           ),
-          headerTitle: "Challenges",
+          headerShown: false,
         }}
       />
       <Tabs.Screen

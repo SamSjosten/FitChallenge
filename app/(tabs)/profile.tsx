@@ -1,12 +1,12 @@
 // app/(tabs)/profile.tsx
 // Profile screen - Design System v1.0
+// REFACTORED: Using ScreenContainer for unified layout
 // Matches mockup: avatar, stats grid, achievements
 
 import React, { useState } from "react";
 import {
   View,
   Text,
-  ScrollView,
   Alert,
   Image,
   TouchableOpacity,
@@ -16,12 +16,18 @@ import {
 import { router } from "expo-router";
 import { useAuth } from "@/hooks/useAuth";
 import { authService } from "@/services/auth";
-import { LoadingScreen } from "@/components/ui";
+import {
+  ScreenContainer,
+  ScreenHeader,
+  ScreenSection,
+  LoadingScreen,
+} from "@/components/ui";
 import { useAppTheme } from "@/providers/ThemeProvider";
 import { Cog6ToothIcon, XMarkIcon } from "react-native-heroicons/outline";
 
 export default function ProfileScreen() {
-  const { colors, spacing, radius, typography, shadows } = useAppTheme();
+  const { colors, spacing, radius, typography, shadows, iconSize } =
+    useAppTheme();
   const { profile, user, loading, signOut, refreshProfile } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [displayName, setDisplayName] = useState(profile?.display_name || "");
@@ -86,43 +92,25 @@ export default function ProfileScreen() {
   ];
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
-        {/* Header */}
-        <View
-          style={{
-            paddingHorizontal: spacing.lg,
-            paddingTop: spacing.lg,
-            paddingBottom: spacing.md,
-            flexDirection: "row",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
-        >
-          <Text
-            style={{
-              fontSize: typography.fontSize["xl"],
-              fontFamily: "PlusJakartaSans_700Bold",
-              color: colors.textPrimary,
-            }}
-          >
-            Profile
-          </Text>
-          <TouchableOpacity
-            style={{ padding: spacing.sm }}
-            onPress={() => router.push("/settings" as any)}
-          >
-            <Cog6ToothIcon size={22} color={colors.textSecondary} />
-          </TouchableOpacity>
-        </View>
-
+    <>
+      <ScreenContainer
+        edges={["top"]}
+        header={
+          <ScreenHeader
+            title="Profile"
+            rightAction={
+              <TouchableOpacity
+                style={{ padding: spacing.sm }}
+                onPress={() => router.push("/settings" as any)}
+              >
+                <Cog6ToothIcon size={22} color={colors.textSecondary} />
+              </TouchableOpacity>
+            }
+          />
+        }
+      >
         {/* Profile Card */}
-        <View
-          style={{
-            paddingHorizontal: spacing.lg,
-            marginBottom: spacing.xl,
-          }}
-        >
+        <ScreenSection>
           <View
             style={{
               backgroundColor: colors.surface,
@@ -199,15 +187,10 @@ export default function ProfileScreen() {
                 : "—"}
             </Text>
           </View>
-        </View>
+        </ScreenSection>
 
         {/* Stats Grid */}
-        <View
-          style={{
-            paddingHorizontal: spacing.lg,
-            marginBottom: spacing.xl,
-          }}
-        >
+        <ScreenSection>
           <Text
             style={{
               fontSize: typography.fontSize.xs,
@@ -260,12 +243,10 @@ export default function ProfileScreen() {
               </View>
             ))}
           </View>
-        </View>
+        </ScreenSection>
 
         {/* Achievements */}
-        <View
-          style={{ paddingHorizontal: spacing.lg, marginBottom: spacing.xl }}
-        >
+        <ScreenSection>
           <Text
             style={{
               fontSize: typography.fontSize.xs,
@@ -314,10 +295,10 @@ export default function ProfileScreen() {
               </View>
             ))}
           </View>
-        </View>
+        </ScreenSection>
 
         {/* Actions */}
-        <View style={{ paddingHorizontal: spacing.lg, gap: spacing.md }}>
+        <ScreenSection spaced={false} style={{ gap: spacing.md }}>
           <TouchableOpacity
             style={{
               backgroundColor: colors.surface,
@@ -379,8 +360,8 @@ export default function ProfileScreen() {
               Sign Out
             </Text>
           </TouchableOpacity>
-        </View>
-      </ScrollView>
+        </ScreenSection>
+      </ScreenContainer>
 
       {/* Edit Profile Modal */}
       <Modal
@@ -516,6 +497,6 @@ export default function ProfileScreen() {
           </View>
         </View>
       </Modal>
-    </View>
+    </>
   );
 }

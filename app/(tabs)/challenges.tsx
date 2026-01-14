@@ -1,15 +1,10 @@
 // app/(tabs)/challenges.tsx
 // Challenges list screen - Design System v1.0
+// REFACTORED: Using ScreenContainer for unified layout
 // Shows all active and completed challenges with progress
 
 import React from "react";
-import {
-  View,
-  Text,
-  ScrollView,
-  RefreshControl,
-  TouchableOpacity,
-} from "react-native";
+import { View, Text, TouchableOpacity } from "react-native";
 import { useAppTheme } from "@/providers/ThemeProvider";
 import { router, useFocusEffect } from "expo-router";
 import {
@@ -17,7 +12,14 @@ import {
   useCompletedChallenges,
   usePendingInvites,
 } from "@/hooks/useChallenges";
-import { LoadingScreen, ProgressBar, Badge } from "@/components/ui";
+import {
+  ScreenContainer,
+  ScreenHeader,
+  ScreenSection,
+  LoadingScreen,
+  ProgressBar,
+  Badge,
+} from "@/components/ui";
 import { ChevronRightIcon } from "react-native-heroicons/outline";
 import { TrophyIcon as TrophyIconSolid } from "react-native-heroicons/solid";
 
@@ -35,8 +37,6 @@ export default function ChallengesScreen() {
   } = useCompletedChallenges();
   const { data: pendingInvites, refetch: refetchPending } = usePendingInvites();
 
-  const [refreshing, setRefreshing] = React.useState(false);
-
   useFocusEffect(
     React.useCallback(() => {
       refetchActive();
@@ -45,116 +45,23 @@ export default function ChallengesScreen() {
     }, [refetchActive, refetchCompleted, refetchPending])
   );
 
-  const onRefresh = async () => {
-    setRefreshing(true);
+  const handleRefresh = async () => {
     await Promise.all([refetchActive(), refetchCompleted(), refetchPending()]);
-    setRefreshing(false);
   };
 
-  if (loadingActive && loadingCompleted && !refreshing) {
+  if (loadingActive && loadingCompleted) {
     return <LoadingScreen />;
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <ScrollView
-        contentContainerStyle={{ paddingBottom: 100 }}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={colors.primary.main}
-          />
-        }
-      >
-        {/* Header */}
-        <View
-          style={{
-            paddingHorizontal: spacing.lg,
-            paddingTop: spacing.lg,
-            paddingBottom: spacing.md,
-          }}
-        >
-          <Text
-            style={{
-              fontSize: typography.fontSize["xl"],
-              fontFamily: "PlusJakartaSans_700Bold",
-              color: colors.textPrimary,
-            }}
-          >
-            Challenges
-          </Text>
-        </View>
-
-        {/* Pending Invites */}
-        {pendingInvites && pendingInvites.length > 0 && (
-          <View
-            style={{ paddingHorizontal: spacing.lg, marginBottom: spacing.xl }}
-          >
-            <Text
-              style={{
-                fontSize: typography.fontSize.xs,
-                fontFamily: "PlusJakartaSans_600SemiBold",
-                color: colors.textSecondary,
-                textTransform: "uppercase",
-                letterSpacing: 0.5,
-                marginBottom: spacing.sm,
-              }}
-            >
-              Pending Invites ({pendingInvites.length})
-            </Text>
-            {pendingInvites.map((invite) => (
-              <TouchableOpacity
-                key={invite.challenge.id}
-                style={{
-                  backgroundColor: colors.energy.subtle,
-                  borderRadius: radius.card,
-                  padding: spacing.lg,
-                  marginBottom: spacing.sm,
-                  borderWidth: 1,
-                  borderColor: colors.energy.main,
-                }}
-                onPress={() => router.push(`/challenge/${invite.challenge.id}`)}
-              >
-                <View
-                  style={{
-                    flexDirection: "row",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                  }}
-                >
-                  <View style={{ flex: 1 }}>
-                    <Text
-                      style={{
-                        fontSize: typography.fontSize.md,
-                        fontFamily: "PlusJakartaSans_600SemiBold",
-                        color: colors.textPrimary,
-                      }}
-                    >
-                      {invite.challenge.title}
-                    </Text>
-                    <Text
-                      style={{
-                        fontSize: typography.fontSize.sm,
-                        fontFamily: "PlusJakartaSans_500Medium",
-                        color: colors.energy.dark,
-                        marginTop: spacing.xs,
-                      }}
-                    >
-                      Tap to view & accept
-                    </Text>
-                  </View>
-                  <Badge variant="energy">New</Badge>
-                </View>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-
-        {/* Active Challenges */}
-        <View
-          style={{ paddingHorizontal: spacing.lg, marginBottom: spacing.xl }}
-        >
+    <ScreenContainer
+      onRefresh={handleRefresh}
+      edges={["top"]}
+      header={<ScreenHeader title="Challenges" />}
+    >
+      {/* Pending Invites */}
+      {pendingInvites && pendingInvites.length > 0 && (
+        <ScreenSection>
           <Text
             style={{
               fontSize: typography.fontSize.xs,
@@ -165,172 +72,113 @@ export default function ChallengesScreen() {
               marginBottom: spacing.sm,
             }}
           >
-            Active ({activeChallenges?.length || 0})
+            Pending Invites ({pendingInvites.length})
           </Text>
-
-          {activeChallenges && activeChallenges.length === 0 ? (
-            <View
+          {pendingInvites.map((invite) => (
+            <TouchableOpacity
+              key={invite.challenge.id}
               style={{
-                backgroundColor: colors.surface,
+                backgroundColor: colors.energy.subtle,
                 borderRadius: radius.card,
-                padding: spacing.xl,
-                alignItems: "center",
-                ...shadows.card,
+                padding: spacing.lg,
+                marginBottom: spacing.sm,
+                borderWidth: 1,
+                borderColor: colors.energy.main,
               }}
+              onPress={() => router.push(`/challenge/${invite.challenge.id}`)}
             >
-              <TrophyIconSolid size={40} color={colors.textMuted} />
-              <Text
+              <View
                 style={{
-                  fontSize: typography.fontSize.md,
-                  fontFamily: "PlusJakartaSans_600SemiBold",
-                  color: colors.textPrimary,
-                  marginTop: spacing.md,
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  alignItems: "center",
                 }}
               >
-                No active challenges
-              </Text>
-              <Text
-                style={{
-                  fontSize: typography.fontSize.sm,
-                  fontFamily: "PlusJakartaSans_500Medium",
-                  color: colors.textMuted,
-                  textAlign: "center",
-                  marginTop: spacing.xs,
-                }}
-              >
-                Create one to get started!
-              </Text>
-            </View>
-          ) : (
-            activeChallenges?.map((challenge) => {
-              const progress =
-                challenge.my_participation?.current_progress || 0;
-              const progressPercent = Math.min(
-                (progress / challenge.goal_value) * 100,
-                100
-              );
-
-              return (
-                <TouchableOpacity
-                  key={challenge.id}
-                  style={{
-                    backgroundColor: colors.surface,
-                    borderRadius: radius.card,
-                    padding: spacing.lg,
-                    marginBottom: spacing.sm,
-                    ...shadows.card,
-                  }}
-                  onPress={() => router.push(`/challenge/${challenge.id}`)}
-                >
-                  <View
+                <View style={{ flex: 1 }}>
+                  <Text
                     style={{
-                      flexDirection: "row",
-                      justifyContent: "space-between",
-                      alignItems: "flex-start",
-                      marginBottom: spacing.sm,
+                      fontSize: typography.fontSize.md,
+                      fontFamily: "PlusJakartaSans_600SemiBold",
+                      color: colors.textPrimary,
                     }}
                   >
-                    <View style={{ flex: 1, marginRight: spacing.sm }}>
-                      <Text
-                        style={{
-                          fontSize: typography.fontSize.md,
-                          fontFamily: "PlusJakartaSans_600SemiBold",
-                          color: colors.textPrimary,
-                        }}
-                      >
-                        {challenge.title}
-                      </Text>
-                      <Text
-                        style={{
-                          fontSize: typography.fontSize.sm,
-                          fontFamily: "PlusJakartaSans_500Medium",
-                          color: colors.textSecondary,
-                          marginTop: spacing.xs,
-                        }}
-                      >
-                        {challenge.challenge_type.replace("_", " ")}
-                      </Text>
-                    </View>
-                    <Badge variant="primary">Active</Badge>
-                  </View>
-
-                  {/* Progress */}
-                  <View style={{ marginBottom: spacing.sm }}>
-                    <View
-                      style={{
-                        flexDirection: "row",
-                        justifyContent: "space-between",
-                        marginBottom: spacing.xs,
-                      }}
-                    >
-                      <Text
-                        style={{
-                          fontSize: typography.fontSize.xs,
-                          fontFamily: "PlusJakartaSans_500Medium",
-                          color: colors.textMuted,
-                        }}
-                      >
-                        Progress
-                      </Text>
-                      <Text
-                        style={{
-                          fontSize: typography.fontSize.xs,
-                          fontFamily: "PlusJakartaSans_600SemiBold",
-                          color: colors.primary.main,
-                        }}
-                      >
-                        {progress.toLocaleString()} /{" "}
-                        {challenge.goal_value.toLocaleString()}
-                      </Text>
-                    </View>
-                    <ProgressBar
-                      progress={progressPercent}
-                      variant="primary"
-                      size="small"
-                    />
-                  </View>
-
-                  <View
+                    {invite.challenge.title}
+                  </Text>
+                  <Text
                     style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      justifyContent: "flex-end",
+                      fontSize: typography.fontSize.sm,
+                      fontFamily: "PlusJakartaSans_500Medium",
+                      color: colors.energy.dark,
+                      marginTop: spacing.xs,
                     }}
                   >
-                    <Text
-                      style={{
-                        fontSize: typography.fontSize.sm,
-                        fontFamily: "PlusJakartaSans_500Medium",
-                        color: colors.primary.main,
-                      }}
-                    >
-                      View details
-                    </Text>
-                    <ChevronRightIcon size={16} color={colors.primary.main} />
-                  </View>
-                </TouchableOpacity>
-              );
-            })
-          )}
-        </View>
+                    Tap to view & accept
+                  </Text>
+                </View>
+                <Badge variant="energy">New</Badge>
+              </View>
+            </TouchableOpacity>
+          ))}
+        </ScreenSection>
+      )}
 
-        {/* Completed Challenges */}
-        {completedChallenges && completedChallenges.length > 0 && (
-          <View style={{ paddingHorizontal: spacing.lg }}>
+      {/* Active Challenges */}
+      <ScreenSection>
+        <Text
+          style={{
+            fontSize: typography.fontSize.xs,
+            fontFamily: "PlusJakartaSans_600SemiBold",
+            color: colors.textSecondary,
+            textTransform: "uppercase",
+            letterSpacing: 0.5,
+            marginBottom: spacing.sm,
+          }}
+        >
+          Active ({activeChallenges?.length || 0})
+        </Text>
+
+        {activeChallenges && activeChallenges.length === 0 ? (
+          <View
+            style={{
+              backgroundColor: colors.surface,
+              borderRadius: radius.card,
+              padding: spacing.xl,
+              alignItems: "center",
+              ...shadows.card,
+            }}
+          >
+            <TrophyIconSolid size={40} color={colors.textMuted} />
             <Text
               style={{
-                fontSize: typography.fontSize.xs,
+                fontSize: typography.fontSize.md,
                 fontFamily: "PlusJakartaSans_600SemiBold",
-                color: colors.textSecondary,
-                textTransform: "uppercase",
-                letterSpacing: 0.5,
-                marginBottom: spacing.sm,
+                color: colors.textPrimary,
+                marginTop: spacing.md,
               }}
             >
-              Completed ({completedChallenges.length})
+              No active challenges
             </Text>
+            <Text
+              style={{
+                fontSize: typography.fontSize.sm,
+                fontFamily: "PlusJakartaSans_500Medium",
+                color: colors.textMuted,
+                textAlign: "center",
+                marginTop: spacing.xs,
+              }}
+            >
+              Create one to get started!
+            </Text>
+          </View>
+        ) : (
+          activeChallenges?.map((challenge) => {
+            const progress = challenge.my_participation?.current_progress || 0;
+            const progressPercent = Math.min(
+              (progress / challenge.goal_value) * 100,
+              100
+            );
 
-            {completedChallenges.map((challenge) => (
+            return (
               <TouchableOpacity
                 key={challenge.id}
                 style={{
@@ -338,7 +186,6 @@ export default function ChallengesScreen() {
                   borderRadius: radius.card,
                   padding: spacing.lg,
                   marginBottom: spacing.sm,
-                  opacity: 0.8,
                   ...shadows.card,
                 }}
                 onPress={() => router.push(`/challenge/${challenge.id}`)}
@@ -347,10 +194,11 @@ export default function ChallengesScreen() {
                   style={{
                     flexDirection: "row",
                     justifyContent: "space-between",
-                    alignItems: "center",
+                    alignItems: "flex-start",
+                    marginBottom: spacing.sm,
                   }}
                 >
-                  <View style={{ flex: 1 }}>
+                  <View style={{ flex: 1, marginRight: spacing.sm }}>
                     <Text
                       style={{
                         fontSize: typography.fontSize.md,
@@ -371,13 +219,132 @@ export default function ChallengesScreen() {
                       {challenge.challenge_type.replace("_", " ")}
                     </Text>
                   </View>
-                  <Badge variant="achievement">✓ Done</Badge>
+                  <Badge variant="primary">Active</Badge>
+                </View>
+
+                {/* Progress */}
+                <View style={{ marginBottom: spacing.sm }}>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      justifyContent: "space-between",
+                      marginBottom: spacing.xs,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: typography.fontSize.xs,
+                        fontFamily: "PlusJakartaSans_500Medium",
+                        color: colors.textMuted,
+                      }}
+                    >
+                      Progress
+                    </Text>
+                    <Text
+                      style={{
+                        fontSize: typography.fontSize.xs,
+                        fontFamily: "PlusJakartaSans_600SemiBold",
+                        color: colors.primary.main,
+                      }}
+                    >
+                      {progress.toLocaleString()} /{" "}
+                      {challenge.goal_value.toLocaleString()}
+                    </Text>
+                  </View>
+                  <ProgressBar
+                    progress={progressPercent}
+                    variant="primary"
+                    size="small"
+                  />
+                </View>
+
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "flex-end",
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: typography.fontSize.sm,
+                      fontFamily: "PlusJakartaSans_500Medium",
+                      color: colors.primary.main,
+                    }}
+                  >
+                    View details
+                  </Text>
+                  <ChevronRightIcon size={16} color={colors.primary.main} />
                 </View>
               </TouchableOpacity>
-            ))}
-          </View>
+            );
+          })
         )}
-      </ScrollView>
-    </View>
+      </ScreenSection>
+
+      {/* Completed Challenges */}
+      {completedChallenges && completedChallenges.length > 0 && (
+        <ScreenSection spaced={false}>
+          <Text
+            style={{
+              fontSize: typography.fontSize.xs,
+              fontFamily: "PlusJakartaSans_600SemiBold",
+              color: colors.textSecondary,
+              textTransform: "uppercase",
+              letterSpacing: 0.5,
+              marginBottom: spacing.sm,
+            }}
+          >
+            Completed ({completedChallenges.length})
+          </Text>
+
+          {completedChallenges.map((challenge) => (
+            <TouchableOpacity
+              key={challenge.id}
+              style={{
+                backgroundColor: colors.surface,
+                borderRadius: radius.card,
+                padding: spacing.lg,
+                marginBottom: spacing.sm,
+                opacity: 0.8,
+                ...shadows.card,
+              }}
+              onPress={() => router.push(`/challenge/${challenge.id}`)}
+            >
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={{
+                      fontSize: typography.fontSize.md,
+                      fontFamily: "PlusJakartaSans_600SemiBold",
+                      color: colors.textPrimary,
+                    }}
+                  >
+                    {challenge.title}
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: typography.fontSize.sm,
+                      fontFamily: "PlusJakartaSans_500Medium",
+                      color: colors.textSecondary,
+                      marginTop: spacing.xs,
+                    }}
+                  >
+                    {challenge.challenge_type.replace("_", " ")}
+                  </Text>
+                </View>
+                <Badge variant="achievement">✓ Done</Badge>
+              </View>
+            </TouchableOpacity>
+          ))}
+        </ScreenSection>
+      )}
+    </ScreenContainer>
   );
 }

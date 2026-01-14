@@ -1,18 +1,18 @@
 // app/(tabs)/friends.tsx
 // Friends screen - Design System v1.0
+// REFACTORED: Using ScreenContainer for unified layout
 // Matches mockup: search, requests, friends list with online status
 
 import React, { useState } from "react";
 import {
   View,
   Text,
-  ScrollView,
-  RefreshControl,
   Modal,
   Alert,
   TextInput,
   TouchableOpacity,
   Pressable,
+  ScrollView,
 } from "react-native";
 import { useFocusEffect } from "expo-router";
 import {
@@ -24,7 +24,13 @@ import {
   useSendFriendRequest,
 } from "@/hooks/useFriends";
 import { authService } from "@/services/auth";
-import { Button, Card, LoadingScreen, Avatar } from "@/components/ui";
+import {
+  ScreenContainer,
+  ScreenHeader,
+  ScreenSection,
+  LoadingScreen,
+  Avatar,
+} from "@/components/ui";
 import { useAppTheme } from "@/providers/ThemeProvider";
 import {
   MagnifyingGlassIcon,
@@ -53,7 +59,6 @@ export default function FriendsScreen() {
   const removeFriend = useRemoveFriend();
   const sendRequest = useSendFriendRequest();
 
-  const [refreshing, setRefreshing] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<ProfilePublic[]>([]);
@@ -67,10 +72,8 @@ export default function FriendsScreen() {
     }, [refetchFriends, refetchRequests])
   );
 
-  const onRefresh = async () => {
-    setRefreshing(true);
+  const handleRefresh = async () => {
     await Promise.all([refetchFriends(), refetchRequests()]);
-    setRefreshing(false);
   };
 
   const handleSearch = async () => {
@@ -140,48 +143,19 @@ export default function FriendsScreen() {
     );
   };
 
-  if (loadingFriends && loadingRequests && !refreshing) {
+  if (loadingFriends && loadingRequests) {
     return <LoadingScreen />;
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <ScrollView
-        contentContainerStyle={{ paddingBottom: 100 }}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={colors.primary.main}
-          />
-        }
+    <>
+      <ScreenContainer
+        onRefresh={handleRefresh}
+        edges={["top"]}
+        header={<ScreenHeader title="Friends" />}
       >
-        {/* Header */}
-        <View
-          style={{
-            paddingHorizontal: spacing.lg,
-            paddingTop: spacing.lg,
-            paddingBottom: spacing.md,
-          }}
-        >
-          <Text
-            style={{
-              fontSize: typography.fontSize["xl"],
-              fontFamily: "PlusJakartaSans_700Bold",
-              color: colors.textPrimary,
-            }}
-          >
-            Friends
-          </Text>
-        </View>
-
         {/* Search Bar */}
-        <View
-          style={{
-            paddingHorizontal: spacing.lg,
-            marginBottom: spacing.xl,
-          }}
-        >
+        <ScreenSection>
           <View
             style={{
               flexDirection: "row",
@@ -211,16 +185,11 @@ export default function FriendsScreen() {
               returnKeyType="search"
             />
           </View>
-        </View>
+        </ScreenSection>
 
         {/* Friend Requests */}
         {pendingRequests && pendingRequests.length > 0 && (
-          <View
-            style={{
-              paddingHorizontal: spacing.lg,
-              marginBottom: spacing.xl,
-            }}
-          >
+          <ScreenSection>
             <Text
               style={{
                 fontSize: typography.fontSize.xs,
@@ -333,11 +302,11 @@ export default function FriendsScreen() {
                 </View>
               ))}
             </View>
-          </View>
+          </ScreenSection>
         )}
 
         {/* Friends List */}
-        <View style={{ paddingHorizontal: spacing.lg }}>
+        <ScreenSection spaced={false}>
           <Text
             style={{
               fontSize: typography.fontSize.xs,
@@ -478,15 +447,10 @@ export default function FriendsScreen() {
               ))}
             </View>
           )}
-        </View>
+        </ScreenSection>
 
         {/* Add Friend Button */}
-        <View
-          style={{
-            paddingHorizontal: spacing.lg,
-            paddingTop: spacing.xl,
-          }}
-        >
+        <ScreenSection style={{ paddingTop: spacing.xl }}>
           <TouchableOpacity
             style={{
               flexDirection: "row",
@@ -512,8 +476,8 @@ export default function FriendsScreen() {
               Add Friends
             </Text>
           </TouchableOpacity>
-        </View>
-      </ScrollView>
+        </ScreenSection>
+      </ScreenContainer>
 
       {/* Add Friend Modal */}
       <Modal
@@ -703,6 +667,6 @@ export default function FriendsScreen() {
           </View>
         </View>
       </Modal>
-    </View>
+    </>
   );
 }
