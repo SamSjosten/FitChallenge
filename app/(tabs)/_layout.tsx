@@ -4,9 +4,11 @@
 
 import React from "react";
 import { Tabs, router } from "expo-router";
-import { View, Pressable, Text } from "react-native";
+import { View, Pressable, Text, Platform } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useUnreadNotificationCount } from "@/hooks/useNotifications";
 import { useAppTheme } from "@/providers/ThemeProvider";
+import { componentSize } from "@/constants/theme";
 import {
   HomeIcon,
   TrophyIcon,
@@ -34,7 +36,10 @@ function TabIcon({
 }) {
   const iconSize = 22;
 
-  const icons: Record<string, { outline: React.ReactNode; solid: React.ReactNode }> = {
+  const icons: Record<
+    string,
+    { outline: React.ReactNode; solid: React.ReactNode }
+  > = {
     home: {
       outline: <HomeIcon size={iconSize} color={color} />,
       solid: <HomeIconSolid size={iconSize} color={color} />,
@@ -143,6 +148,10 @@ function CreateButton() {
 
 export default function TabLayout() {
   const { colors } = useAppTheme();
+  const insets = useSafeAreaInsets();
+
+  // Tab bar height: base height + bottom safe area
+  const tabBarHeight = componentSize.tabBar.height + insets.bottom;
 
   return (
     <Tabs
@@ -153,9 +162,10 @@ export default function TabLayout() {
           backgroundColor: colors.surface,
           borderTopWidth: 1,
           borderTopColor: colors.border,
-          paddingBottom: 8,
+          // Use calculated height based on safe area
+          height: tabBarHeight,
+          paddingBottom: insets.bottom,
           paddingTop: 8,
-          height: 60,
         },
         tabBarLabelStyle: {
           fontSize: 11,
@@ -228,4 +238,3 @@ export default function TabLayout() {
     </Tabs>
   );
 }
-

@@ -3,6 +3,15 @@
 // Updated to use design system theme tokens
 
 import React from "react";
+
+// Re-export layout components for unified imports
+export {
+  ScreenContainer,
+  ScreenHeader,
+  ScreenSection,
+  useScreenLayout,
+  LAYOUT,
+} from "./ScreenContainer";
 import {
   StyleProp,
   TouchableOpacity,

@@ -1,14 +1,9 @@
 // app/(tabs)/index.tsx
 // Home/Dashboard screen - Design System v1.0
+// REFACTORED: Using ScreenContainer for unified layout
 
 import React from "react";
-import {
-  View,
-  Text,
-  ScrollView,
-  RefreshControl,
-  TouchableOpacity,
-} from "react-native";
+import { View, Text, TouchableOpacity } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAuth } from "@/hooks/useAuth";
@@ -19,19 +14,21 @@ import {
   useRespondToInvite,
 } from "@/hooks/useChallenges";
 import {
+  ScreenContainer,
+  ScreenHeader,
+  ScreenSection,
   Card,
   LoadingScreen,
-  ErrorMessage,
   Badge,
   ProgressBar,
-  Avatar,
 } from "@/components/ui";
 import { useAppTheme } from "@/providers/ThemeProvider";
 import {
   TrophyIcon,
   ChevronRightIcon,
-  BellIcon,
   PlusIcon,
+  CheckIcon,
+  XMarkIcon,
 } from "react-native-heroicons/outline";
 import {
   FireIcon as FireIconSolid,
@@ -57,8 +54,6 @@ export default function HomeScreen() {
   const { data: completedChallenges, refetch: refetchCompleted } =
     useCompletedChallenges();
 
-  const [refreshing, setRefreshing] = React.useState(false);
-
   // Auto-refresh when screen comes into focus
   useFocusEffect(
     React.useCallback(() => {
@@ -68,10 +63,8 @@ export default function HomeScreen() {
     }, [refetchActive, refetchPending, refetchCompleted])
   );
 
-  const onRefresh = async () => {
-    setRefreshing(true);
+  const handleRefresh = async () => {
     await Promise.all([refetchActive(), refetchPending(), refetchCompleted()]);
-    setRefreshing(false);
   };
 
   const handleAcceptInvite = async (challengeId: string) => {
@@ -96,69 +89,31 @@ export default function HomeScreen() {
     }
   };
 
-  if (loadingActive && loadingPending && !refreshing) {
+  if (loadingActive && loadingPending) {
     return <LoadingScreen />;
   }
 
   const currentStreak = profile?.current_streak || 0;
   const xpTotal = profile?.xp_total || 0;
   const displayName = profile?.display_name || profile?.username || "Athlete";
-
-  // Get the first active challenge for featured display
   const featuredChallenge = activeChallenges?.[0];
   const totalChallenges =
     (activeChallenges?.length || 0) + (completedChallenges?.length || 0);
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: colors.background }}
-      contentContainerStyle={{ paddingBottom: 100 }}
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={onRefresh}
-          tintColor={colors.primary.main}
+    <ScreenContainer
+      onRefresh={handleRefresh}
+      edges={["top"]}
+      header={
+        <ScreenHeader
+          title="FitChallenge"
+          subtitle={`Hello, ${displayName}!`}
+          showNotifications
         />
       }
     >
-      {/* ===== HEADER ===== */}
-      <View
-        style={{
-          paddingHorizontal: spacing.lg,
-          paddingTop: spacing.lg,
-          paddingBottom: spacing.md,
-          flexDirection: "row",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
-      >
-        <View>
-          <Text
-            style={{
-              fontSize: typography.textStyles.display.fontSize,
-              fontFamily: "PlusJakartaSans_700Bold",
-              color: colors.textPrimary,
-            }}
-          >
-            FitChallenge
-          </Text>
-          <Text
-            style={{
-              fontSize: typography.textStyles.body.fontSize,
-              fontFamily: "PlusJakartaSans_500Medium",
-              color: colors.textSecondary,
-            }}
-          >
-            Hello, {displayName}!
-          </Text>
-        </View>
-        <TouchableOpacity style={{ padding: spacing.sm }}>
-          <BellIcon size={iconSize.md} color={colors.textSecondary} />
-        </TouchableOpacity>
-      </View>
-
       {/* ===== STREAK BANNER ===== */}
-      <View style={{ paddingHorizontal: spacing.lg, marginBottom: spacing.md }}>
+      <ScreenSection>
         <TouchableOpacity activeOpacity={0.9}>
           <LinearGradient
             colors={[colors.energy.main, colors.energy.dark]}
@@ -201,13 +156,11 @@ export default function HomeScreen() {
             <ChevronRightIcon size={20} color="rgba(255,255,255,0.7)" />
           </LinearGradient>
         </TouchableOpacity>
-      </View>
+      </ScreenSection>
 
       {/* ===== PENDING INVITES ===== */}
       {pendingInvites && pendingInvites.length > 0 && (
-        <View
-          style={{ paddingHorizontal: spacing.lg, marginBottom: spacing.lg }}
-        >
+        <ScreenSection>
           <View
             style={{
               flexDirection: "row",
@@ -254,19 +207,7 @@ export default function HomeScreen() {
                   >
                     {invite.challenge.title}
                   </Text>
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      gap: spacing.sm,
-                    }}
-                  >
-                    <Avatar
-                      name={
-                        invite.creator.display_name || invite.creator.username
-                      }
-                      size="xs"
-                    />
+                  <View style={{ flexDirection: "row", alignItems: "center" }}>
                     <Text
                       style={{
                         fontSize: typography.textStyles.caption.fontSize,
@@ -274,12 +215,13 @@ export default function HomeScreen() {
                         color: colors.textSecondary,
                       }}
                     >
-                      from{" "}
-                      {invite.creator.display_name || invite.creator.username}
+                      From @
+                      {invite.creator?.username ||
+                        invite.challenge.creator_id?.slice(0, 8)}
                     </Text>
                   </View>
                 </View>
-                <Badge variant="energy">Invite</Badge>
+                <Badge variant="energy">New</Badge>
               </View>
 
               <View style={{ flexDirection: "row", gap: spacing.sm }}>
@@ -289,10 +231,14 @@ export default function HomeScreen() {
                     backgroundColor: colors.primary.main,
                     paddingVertical: spacing.sm,
                     borderRadius: radius.button,
+                    flexDirection: "row",
                     alignItems: "center",
+                    justifyContent: "center",
+                    gap: spacing.xs,
                   }}
                   onPress={() => handleAcceptInvite(invite.challenge.id)}
                 >
+                  <CheckIcon size={16} color="white" />
                   <Text
                     style={{
                       fontSize: typography.textStyles.label.fontSize,
@@ -306,13 +252,17 @@ export default function HomeScreen() {
                 <TouchableOpacity
                   style={{
                     flex: 1,
-                    backgroundColor: colors.background,
+                    backgroundColor: colors.surfacePressed,
                     paddingVertical: spacing.sm,
                     borderRadius: radius.button,
+                    flexDirection: "row",
                     alignItems: "center",
+                    justifyContent: "center",
+                    gap: spacing.xs,
                   }}
                   onPress={() => handleDeclineInvite(invite.challenge.id)}
                 >
+                  <XMarkIcon size={16} color={colors.textSecondary} />
                   <Text
                     style={{
                       fontSize: typography.textStyles.label.fontSize,
@@ -326,84 +276,50 @@ export default function HomeScreen() {
               </View>
             </Card>
           ))}
-        </View>
+        </ScreenSection>
       )}
 
-      {/* ===== ACTIVE CHALLENGE (Featured) ===== */}
-      <View style={{ paddingHorizontal: spacing.lg, marginBottom: spacing.lg }}>
-        <View
+      {/* ===== FEATURED CHALLENGE ===== */}
+      <ScreenSection>
+        <Text
           style={{
-            flexDirection: "row",
-            justifyContent: "space-between",
-            alignItems: "center",
+            fontSize: typography.textStyles.label.fontSize,
+            fontFamily: "PlusJakartaSans_600SemiBold",
+            color: colors.textPrimary,
             marginBottom: spacing.sm,
           }}
         >
-          <Text
-            style={{
-              fontSize: typography.textStyles.label.fontSize,
-              fontFamily: "PlusJakartaSans_600SemiBold",
-              color: colors.textPrimary,
-            }}
+          Active Challenge
+        </Text>
+
+        {!featuredChallenge ? (
+          <Card
+            style={{ alignItems: "center", paddingVertical: spacing.xl }}
+            onPress={() => router.push("/challenge/create")}
           >
-            Active Challenge
-          </Text>
-          {activeChallenges && activeChallenges.length > 1 && (
-            <TouchableOpacity onPress={() => router.push("/challenges")}>
-              <Text
-                style={{
-                  fontSize: typography.textStyles.caption.fontSize,
-                  fontFamily: "PlusJakartaSans_600SemiBold",
-                  color: colors.primary.main,
-                }}
-              >
-                See all →
-              </Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {activeError && (
-          <ErrorMessage
-            message="Failed to load challenges"
-            onRetry={refetchActive}
-          />
-        )}
-
-        {(!activeChallenges || activeChallenges.length === 0) &&
-          !activeError && (
-            <Card>
-              <View
-                style={{ alignItems: "center", paddingVertical: spacing.lg }}
-              >
-                <TrophyIcon size={48} color={colors.textMuted} />
-                <Text
-                  style={{
-                    fontSize: typography.textStyles.body.fontSize,
-                    fontFamily: "PlusJakartaSans_500Medium",
-                    color: colors.textMuted,
-                    marginTop: spacing.md,
-                    textAlign: "center",
-                  }}
-                >
-                  No active challenges
-                </Text>
-                <Text
-                  style={{
-                    fontSize: typography.textStyles.caption.fontSize,
-                    fontFamily: "PlusJakartaSans_500Medium",
-                    color: colors.textMuted,
-                    marginTop: spacing.xs,
-                    textAlign: "center",
-                  }}
-                >
-                  Create one or accept an invite to get started
-                </Text>
-              </View>
-            </Card>
-          )}
-
-        {featuredChallenge && (
+            <TrophyIcon size={40} color={colors.textMuted} />
+            <Text
+              style={{
+                fontSize: typography.textStyles.title.fontSize,
+                fontFamily: "PlusJakartaSans_600SemiBold",
+                color: colors.textPrimary,
+                marginTop: spacing.md,
+              }}
+            >
+              No Active Challenges
+            </Text>
+            <Text
+              style={{
+                fontSize: typography.textStyles.caption.fontSize,
+                fontFamily: "PlusJakartaSans_500Medium",
+                color: colors.textSecondary,
+                marginTop: spacing.xs,
+              }}
+            >
+              Create one to get started
+            </Text>
+          </Card>
+        ) : (
           <Card
             onPress={() => router.push(`/challenge/${featuredChallenge.id}`)}
           >
@@ -415,11 +331,11 @@ export default function HomeScreen() {
                 marginBottom: spacing.md,
               }}
             >
-              <View style={{ flex: 1 }}>
+              <View style={{ flex: 1, marginRight: spacing.sm }}>
                 <Text
                   style={{
-                    fontSize: typography.textStyles.title.fontSize,
-                    fontFamily: "PlusJakartaSans_600SemiBold",
+                    fontSize: typography.textStyles.headline.fontSize,
+                    fontFamily: "PlusJakartaSans_700Bold",
                     color: colors.textPrimary,
                     marginBottom: spacing.xs,
                   }}
@@ -509,10 +425,10 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </Card>
         )}
-      </View>
+      </ScreenSection>
 
       {/* ===== QUICK STATS ===== */}
-      <View style={{ paddingHorizontal: spacing.lg, marginBottom: spacing.lg }}>
+      <ScreenSection>
         <Text
           style={{
             fontSize: typography.textStyles.label.fontSize,
@@ -635,11 +551,11 @@ export default function HomeScreen() {
             </Text>
           </View>
         </View>
-      </View>
+      </ScreenSection>
 
       {/* ===== COMPLETED CHALLENGES LINK ===== */}
       {completedChallenges && completedChallenges.length > 0 && (
-        <View style={{ paddingHorizontal: spacing.lg }}>
+        <ScreenSection spaced={false}>
           <TouchableOpacity
             style={{
               flexDirection: "row",
@@ -679,8 +595,8 @@ export default function HomeScreen() {
             </View>
             <ChevronRightIcon size={iconSize.sm} color={colors.textMuted} />
           </TouchableOpacity>
-        </View>
+        </ScreenSection>
       )}
-    </ScrollView>
+    </ScreenContainer>
   );
 }
