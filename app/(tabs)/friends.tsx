@@ -386,6 +386,24 @@ export default function FriendsScreen() {
                       index < (friends?.length || 0) - 1 ? 1 : 0,
                     borderBottomColor: colors.border,
                   }}
+                  onPress={() => {
+                    const friendName =
+                      friend.friend_profile.display_name ||
+                      friend.friend_profile.username;
+                    Alert.alert(
+                      friendName,
+                      `@${friend.friend_profile.username}`,
+                      [
+                        {
+                          text: "Remove Friend",
+                          style: "destructive",
+                          onPress: () =>
+                            handleRemoveFriend(friend.id, friendName),
+                        },
+                        { text: "Cancel", style: "cancel" },
+                      ]
+                    );
+                  }}
                   onLongPress={() =>
                     handleRemoveFriend(
                       friend.id,
@@ -403,7 +421,7 @@ export default function FriendsScreen() {
                       }
                       size="md"
                     />
-                    {/* Online indicator - random for demo */}
+                    {/* Online indicator - static until real status implemented */}
                     <View
                       style={{
                         position: "absolute",
@@ -412,10 +430,7 @@ export default function FriendsScreen() {
                         width: 12,
                         height: 12,
                         borderRadius: 6,
-                        backgroundColor:
-                          Math.random() > 0.5
-                            ? colors.success
-                            : colors.textMuted,
+                        backgroundColor: colors.textMuted,
                         borderWidth: 2,
                         borderColor: colors.surface,
                       }}
@@ -439,7 +454,7 @@ export default function FriendsScreen() {
                         color: colors.textMuted,
                       }}
                     >
-                      {Math.floor(Math.random() * 5) + 1} mutual challenges
+                      @{friend.friend_profile.username}
                     </Text>
                   </View>
                   <ChevronRightIcon size={18} color={colors.textMuted} />

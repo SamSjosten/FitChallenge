@@ -15,6 +15,11 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import { useAuth } from "@/hooks/useAuth";
+import { useFriends } from "@/hooks/useFriends";
+import {
+  useActiveChallenges,
+  useCompletedChallenges,
+} from "@/hooks/useChallenges";
 import { authService } from "@/services/auth";
 import {
   ScreenContainer,
@@ -29,6 +34,12 @@ export default function ProfileScreen() {
   const { colors, spacing, radius, typography, shadows, iconSize } =
     useAppTheme();
   const { profile, user, loading, signOut, refreshProfile } = useAuth();
+
+  // Fetch real counts for stats
+  const { data: friends } = useFriends();
+  const { data: activeChallenges } = useActiveChallenges();
+  const { data: completedChallenges } = useCompletedChallenges();
+
   const [isEditing, setIsEditing] = useState(false);
   const [displayName, setDisplayName] = useState(profile?.display_name || "");
   const [saving, setSaving] = useState(false);
@@ -70,14 +81,19 @@ export default function ProfileScreen() {
     return <LoadingScreen />;
   }
 
+  // Calculate real stats
+  const challengeCount =
+    (activeChallenges?.length || 0) + (completedChallenges?.length || 0);
+  const friendCount = friends?.length || 0;
+
   const stats = [
     { label: "Total XP", value: (profile.xp_total || 0).toLocaleString() },
-    { label: "Challenges", value: "24" }, // TODO: Get from actual data
+    { label: "Challenges", value: challengeCount.toString() },
     {
       label: "Longest Streak",
       value: profile.longest_streak?.toString() || "0",
     },
-    { label: "Friends", value: "18" }, // TODO: Get from actual data
+    { label: "Friends", value: friendCount.toString() },
   ];
 
   const achievements = [
@@ -101,7 +117,7 @@ export default function ProfileScreen() {
             rightAction={
               <TouchableOpacity
                 style={{ padding: spacing.sm }}
-                onPress={() => router.push("/settings" as any)}
+                onPress={() => router.push("/settings")}
               >
                 <Cog6ToothIcon size={22} color={colors.textSecondary} />
               </TouchableOpacity>
