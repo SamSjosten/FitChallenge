@@ -3,7 +3,14 @@
 // Shows: Streak Banner, Pending Invites, Active Challenges (expanded + collapsed), Completed
 
 import React, { useState } from "react";
-import { View, Text, TouchableOpacity } from "react-native";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  LayoutAnimation,
+  Platform,
+  UIManager,
+} from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAuth } from "@/hooks/useAuth";
@@ -83,6 +90,58 @@ export default function HomeScreen() {
   const { colors, spacing, radius, typography } = useAppTheme();
   const { profile } = useAuth();
   const [completedExpanded, setCompletedExpanded] = useState(false);
+  const [expandedChallengeId, setExpandedChallengeId] = useState<string | null>(
+    null
+  );
+
+  // Enable LayoutAnimation on Android
+  if (
+    Platform.OS === "android" &&
+    UIManager.setLayoutAnimationEnabledExperimental
+  ) {
+    UIManager.setLayoutAnimationEnabledExperimental(true);
+  }
+
+  // Toggle accordion expansion - only one can be expanded at a time
+  const toggleAccordion = (challengeId: string) => {
+    // Animate the layout change
+    LayoutAnimation.configureNext({
+      duration: 250,
+      create: {
+        type: LayoutAnimation.Types.easeInEaseOut,
+        property: LayoutAnimation.Properties.opacity,
+      },
+      update: {
+        type: LayoutAnimation.Types.easeInEaseOut,
+      },
+      delete: {
+        type: LayoutAnimation.Types.easeInEaseOut,
+        property: LayoutAnimation.Properties.opacity,
+      },
+    });
+    setExpandedChallengeId((prev) =>
+      prev === challengeId ? null : challengeId
+    );
+  };
+
+  // Toggle completed section with animation
+  const toggleCompleted = () => {
+    LayoutAnimation.configureNext({
+      duration: 250,
+      create: {
+        type: LayoutAnimation.Types.easeInEaseOut,
+        property: LayoutAnimation.Properties.opacity,
+      },
+      update: {
+        type: LayoutAnimation.Types.easeInEaseOut,
+      },
+      delete: {
+        type: LayoutAnimation.Types.easeInEaseOut,
+        property: LayoutAnimation.Properties.opacity,
+      },
+    });
+    setCompletedExpanded(!completedExpanded);
+  };
 
   const {
     data: activeChallenges,
@@ -100,6 +159,13 @@ export default function HomeScreen() {
     useCompletedChallenges();
 
   const respondToInvite = useRespondToInvite();
+
+  // Auto-expand first challenge when data loads
+  React.useEffect(() => {
+    if (activeChallenges?.length && expandedChallengeId === null) {
+      setExpandedChallengeId(activeChallenges[0].id);
+    }
+  }, [activeChallenges]);
 
   // Auto-refresh when screen comes into focus
   useFocusEffect(
@@ -142,10 +208,6 @@ export default function HomeScreen() {
 
   const currentStreak = profile?.current_streak || 0;
   const displayName = profile?.display_name || profile?.username || "Athlete";
-
-  // Split active challenges: first one expanded, rest collapsed
-  const featuredChallenge = activeChallenges?.[0];
-  const otherChallenges = activeChallenges?.slice(1) || [];
 
   return (
     <ScreenContainer
@@ -380,22 +442,13 @@ export default function HomeScreen() {
           </Card>
         ) : (
           <>
-            {/* Featured Challenge (Expanded) */}
-            {featuredChallenge && (
-              <ExpandedChallengeCard
-                challenge={featuredChallenge}
-                colors={colors}
-                spacing={spacing}
-                radius={radius}
-                typography={typography}
-              />
-            )}
-
-            {/* Other Challenges (Collapsed) */}
-            {otherChallenges.map((challenge) => (
-              <CollapsedChallengeCard
+            {/* All Challenges as Accordions (only one expanded at a time) */}
+            {activeChallenges.map((challenge) => (
+              <AccordionChallengeCard
                 key={challenge.id}
                 challenge={challenge}
+                isExpanded={expandedChallengeId === challenge.id}
+                onToggle={() => toggleAccordion(challenge.id)}
                 colors={colors}
                 spacing={spacing}
                 radius={radius}
@@ -423,7 +476,7 @@ export default function HomeScreen() {
                 alignItems: "center",
                 paddingVertical: spacing.xs,
               }}
-              onPress={() => setCompletedExpanded(!completedExpanded)}
+              onPress={toggleCompleted}
               activeOpacity={0.7}
             >
               <View
@@ -492,49 +545,88 @@ interface ChallengeCardProps {
 }
 
 /**
- * Expanded challenge card (for featured/first challenge)
- * Shows: title, meta, rank badge with medal, progress bar, CTA button
+ * Accordion challenge card (all active challenges)
+ * Collapsed: title, meta, text rank, chevron
+ * Expanded: rank badge, progress bar, View Challenge button
+ * Only one can be expanded at a time
  */
-function ExpandedChallengeCard({
+interface AccordionChallengeCardProps extends ChallengeCardProps {
+  isExpanded: boolean;
+  onToggle: () => void;
+}
+
+function AccordionChallengeCard({
   challenge,
+  isExpanded,
+  onToggle,
   colors,
   spacing,
   radius,
   typography,
-}: ChallengeCardProps) {
+}: AccordionChallengeCardProps) {
   const daysLeft = getDaysRemaining(challenge.end_date);
   const friendCount = Math.max(0, (challenge.participant_count || 1) - 1);
   const rank = challenge.my_rank || 1;
   const progress = challenge.my_participation?.current_progress || 0;
   const progressPercent = (progress / challenge.goal_value) * 100;
 
+  // Rank colors for text display
+  const rankTextColor =
+    rank === 1
+      ? "#fbbf24" // gold text
+      : rank === 2
+      ? "#9ca3af" // silver text
+      : rank === 3
+      ? "#cd7c2f" // bronze text
+      : colors.primary.main;
+
+  // Rank colors for badge background
+  const rankBadgeColor =
+    rank === 1
+      ? "#d97706"
+      : rank === 2
+      ? "#6b7280"
+      : rank === 3
+      ? "#a85d1e"
+      : colors.primary.main;
+
   return (
-    <Card style={{ marginBottom: spacing.sm }}>
-      {/* Header: Title + Rank Badge */}
-      <View
+    <View
+      style={{
+        backgroundColor: colors.surface,
+        borderRadius: radius.card,
+        borderWidth: isExpanded ? 1.5 : 1,
+        borderColor: isExpanded ? colors.primary.main : colors.border,
+        marginBottom: spacing.sm,
+        overflow: "hidden",
+      }}
+    >
+      {/* Accordion Header (always visible) */}
+      <TouchableOpacity
         style={{
           flexDirection: "row",
-          justifyContent: "space-between",
-          alignItems: "flex-start",
-          marginBottom: spacing.md,
+          alignItems: "center",
+          padding: spacing.md,
         }}
+        onPress={onToggle}
+        activeOpacity={0.7}
       >
-        <View style={{ flex: 1, marginRight: spacing.sm }}>
+        <View style={{ flex: 1, marginRight: spacing.md }}>
           <Text
             style={{
-              fontSize: typography.textStyles.headline.fontSize,
-              fontFamily: "PlusJakartaSans_700Bold",
+              fontSize: typography.textStyles.body.fontSize,
+              fontFamily: "PlusJakartaSans_600SemiBold",
               color: colors.textPrimary,
-              marginBottom: spacing.xs,
+              marginBottom: 2,
             }}
           >
             {challenge.title}
           </Text>
           <Text
             style={{
-              fontSize: typography.textStyles.caption.fontSize,
+              fontSize: typography.textStyles.caption.fontSize - 1,
               fontFamily: "PlusJakartaSans_500Medium",
-              color: colors.textSecondary,
+              color: colors.textMuted,
             }}
           >
             {friendCount > 0
@@ -544,184 +636,137 @@ function ExpandedChallengeCard({
           </Text>
         </View>
 
-        {/* Rank Badge with Medal */}
-        <View
-          style={{
-            backgroundColor:
-              rank === 1
-                ? "#d97706"
-                : rank === 2
-                ? "#6b7280"
-                : rank === 3
-                ? "#a85d1e"
-                : colors.primary.main,
-            paddingHorizontal: spacing.sm,
-            paddingVertical: spacing.xs,
-            borderRadius: radius.badge,
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 4,
-          }}
-        >
-          {rank <= 3 && (
-            <Text style={{ fontSize: 12 }}>{getRankMedal(rank)}</Text>
-          )}
-          <Text
-            style={{
-              fontSize: typography.textStyles.caption.fontSize,
-              fontFamily: "PlusJakartaSans_600SemiBold",
-              color: "white",
-            }}
-          >
-            {getRankText(rank)}
-          </Text>
-        </View>
-      </View>
-
-      {/* Progress */}
-      <View style={{ marginBottom: spacing.lg }}>
-        <View
-          style={{
-            flexDirection: "row",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: spacing.sm,
-          }}
-        >
-          <Text
-            style={{
-              fontSize: typography.textStyles.caption.fontSize,
-              fontFamily: "PlusJakartaSans_500Medium",
-              color: colors.textSecondary,
-            }}
-          >
-            Progress
-          </Text>
-          <Text
-            style={{
-              fontSize: typography.textStyles.caption.fontSize,
-              fontFamily: "PlusJakartaSans_600SemiBold",
-              color: colors.primary.main,
-            }}
-          >
-            {progress.toLocaleString()} /{" "}
-            {challenge.goal_value.toLocaleString()}
-          </Text>
-        </View>
-        <ProgressBar
-          progress={progressPercent}
-          variant="primary"
-          size="medium"
-        />
-      </View>
-
-      {/* CTA Button */}
-      <TouchableOpacity
-        style={{
-          backgroundColor: colors.primary.main,
-          paddingVertical: spacing.md,
-          borderRadius: radius.button,
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: spacing.sm,
-        }}
-        onPress={() => router.push(`/challenge/${challenge.id}`)}
-      >
-        <ChevronRightIcon size={18} color="white" />
+        {/* Text Rank */}
         <Text
           style={{
-            fontSize: typography.textStyles.label.fontSize,
+            fontSize: typography.textStyles.caption.fontSize,
             fontFamily: "PlusJakartaSans_600SemiBold",
-            color: "white",
+            color: rankTextColor,
+            marginRight: spacing.sm,
           }}
         >
-          View Challenge
+          {getRankText(rank)}
+        </Text>
+
+        {/* Chevron (rotates when expanded) */}
+        <Text
+          style={{
+            fontSize: 16,
+            color: colors.textMuted,
+            transform: [{ rotate: isExpanded ? "90deg" : "0deg" }],
+          }}
+        >
+          ›
         </Text>
       </TouchableOpacity>
-    </Card>
-  );
-}
 
-/**
- * Collapsed challenge card (for non-featured challenges)
- * Shows: title, meta, text rank, chevron
- */
-function CollapsedChallengeCard({
-  challenge,
-  colors,
-  spacing,
-  radius,
-  typography,
-}: ChallengeCardProps) {
-  const daysLeft = getDaysRemaining(challenge.end_date);
-  const friendCount = Math.max(0, (challenge.participant_count || 1) - 1);
-  const rank = challenge.my_rank || 1;
-
-  // Rank color: gold, silver, bronze, or primary
-  const rankColor =
-    rank === 1
-      ? "#fbbf24"
-      : rank === 2
-      ? "#9ca3af"
-      : rank === 3
-      ? "#cd7c2f"
-      : colors.primary.main;
-
-  return (
-    <TouchableOpacity
-      style={{
-        flexDirection: "row",
-        alignItems: "center",
-        padding: spacing.md,
-        backgroundColor: colors.surface,
-        borderRadius: radius.card,
-        borderWidth: 1,
-        borderColor: colors.border,
-        marginBottom: spacing.sm,
-      }}
-      onPress={() => router.push(`/challenge/${challenge.id}`)}
-      activeOpacity={0.7}
-    >
-      <View style={{ flex: 1, marginRight: spacing.md }}>
-        <Text
+      {/* Accordion Content (visible when expanded) */}
+      {isExpanded && (
+        <View
           style={{
-            fontSize: typography.textStyles.body.fontSize,
-            fontFamily: "PlusJakartaSans_600SemiBold",
-            color: colors.textPrimary,
-            marginBottom: 2,
+            borderTopWidth: 1,
+            borderTopColor: colors.border,
+            padding: spacing.md,
           }}
         >
-          {challenge.title}
-        </Text>
-        <Text
-          style={{
-            fontSize: typography.textStyles.caption.fontSize - 1,
-            fontFamily: "PlusJakartaSans_500Medium",
-            color: colors.textMuted,
-          }}
-        >
-          {friendCount > 0
-            ? `vs ${friendCount} friend${friendCount > 1 ? "s" : ""}`
-            : "Solo"}{" "}
-          • {daysLeft} day{daysLeft !== 1 ? "s" : ""} left
-        </Text>
-      </View>
+          {/* Rank Badge with Medal */}
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "flex-end",
+              marginBottom: spacing.md,
+            }}
+          >
+            <View
+              style={{
+                backgroundColor: rankBadgeColor,
+                paddingHorizontal: spacing.sm,
+                paddingVertical: spacing.xs,
+                borderRadius: radius.badge,
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 4,
+              }}
+            >
+              {rank <= 3 && (
+                <Text style={{ fontSize: 12 }}>{getRankMedal(rank)}</Text>
+              )}
+              <Text
+                style={{
+                  fontSize: typography.textStyles.caption.fontSize,
+                  fontFamily: "PlusJakartaSans_600SemiBold",
+                  color: "white",
+                }}
+              >
+                {getRankText(rank)}
+              </Text>
+            </View>
+          </View>
 
-      {/* Text Rank (no medal) */}
-      <Text
-        style={{
-          fontSize: typography.textStyles.caption.fontSize,
-          fontFamily: "PlusJakartaSans_600SemiBold",
-          color: rankColor,
-          marginRight: spacing.sm,
-        }}
-      >
-        {getRankText(rank)}
-      </Text>
+          {/* Progress */}
+          <View style={{ marginBottom: spacing.lg }}>
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: spacing.sm,
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: typography.textStyles.caption.fontSize,
+                  fontFamily: "PlusJakartaSans_500Medium",
+                  color: colors.textSecondary,
+                }}
+              >
+                Progress
+              </Text>
+              <Text
+                style={{
+                  fontSize: typography.textStyles.caption.fontSize,
+                  fontFamily: "PlusJakartaSans_600SemiBold",
+                  color: colors.primary.main,
+                }}
+              >
+                {progress.toLocaleString()} /{" "}
+                {challenge.goal_value.toLocaleString()}
+              </Text>
+            </View>
+            <ProgressBar
+              progress={progressPercent}
+              variant="primary"
+              size="large"
+            />
+          </View>
 
-      <Text style={{ fontSize: 16, color: colors.textMuted }}>›</Text>
-    </TouchableOpacity>
+          {/* View Challenge Button */}
+          <TouchableOpacity
+            style={{
+              backgroundColor: colors.primary.main,
+              paddingVertical: spacing.md,
+              borderRadius: radius.button,
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: spacing.sm,
+            }}
+            onPress={() => router.push(`/challenge/${challenge.id}`)}
+          >
+            <Text style={{ fontSize: 14, color: "white" }}>›</Text>
+            <Text
+              style={{
+                fontSize: typography.textStyles.label.fontSize,
+                fontFamily: "PlusJakartaSans_600SemiBold",
+                color: "white",
+              }}
+            >
+              View Challenge
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+    </View>
   );
 }
 
