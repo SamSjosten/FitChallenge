@@ -34,6 +34,8 @@ export interface MyParticipation {
 
 export interface ChallengeWithParticipation extends Challenge {
   my_participation?: MyParticipation;
+  participant_count?: number; // Total accepted participants
+  my_rank?: number; // User's rank (1-indexed)
 }
 
 export interface LeaderboardEntry {
@@ -118,6 +120,7 @@ export const challengeService = {
 
   /**
    * Get challenges where current user is an accepted participant
+   * Includes participant_count and my_rank for home screen display
    */
   async getMyActiveChallenges(): Promise<ChallengeWithParticipation[]> {
     return withAuth(async (userId) => {
@@ -145,17 +148,60 @@ export const challengeService = {
 
       if (error) throw error;
 
-      // Flatten via destructuring, coalesce numeric nulls
-      return (data || []).map(({ challenge_participants, ...challenge }) => ({
-        ...challenge,
-        my_participation: mapParticipation(challenge_participants?.[0]),
-      }));
+      const challenges = data || [];
+
+      // Batch fetch all participants for these challenges to get counts and ranks
+      const challengeIds = challenges.map((c) => c.id);
+
+      let participantData: {
+        challenge_id: string;
+        user_id: string;
+        current_progress: number;
+      }[] = [];
+      if (challengeIds.length > 0) {
+        const { data: participants } = await supabase
+          .from("challenge_participants")
+          .select("challenge_id, user_id, current_progress")
+          .in("challenge_id", challengeIds)
+          .eq("invite_status", "accepted")
+          .order("current_progress", { ascending: false });
+
+        // Coalesce nulls at service boundary (explicit to avoid spread type issues)
+        participantData = (participants || []).map((p) => ({
+          challenge_id: p.challenge_id,
+          user_id: p.user_id,
+          current_progress: p.current_progress ?? 0,
+        }));
+      }
+
+      // Group participants by challenge and calculate rank
+      const challengeParticipants = new Map<string, typeof participantData>();
+      for (const p of participantData) {
+        if (!challengeParticipants.has(p.challenge_id)) {
+          challengeParticipants.set(p.challenge_id, []);
+        }
+        challengeParticipants.get(p.challenge_id)!.push(p);
+      }
+
+      // Flatten via destructuring, coalesce numeric nulls, add counts and ranks
+      return challenges.map(({ challenge_participants, ...challenge }) => {
+        const participants = challengeParticipants.get(challenge.id) || [];
+        const myRankIndex = participants.findIndex((p) => p.user_id === userId);
+
+        return {
+          ...challenge,
+          my_participation: mapParticipation(challenge_participants?.[0]),
+          participant_count: participants.length,
+          my_rank: myRankIndex >= 0 ? myRankIndex + 1 : undefined,
+        };
+      });
     });
   },
 
   /**
    * Get completed challenges for current user
    * CONTRACT: Uses time-derived status - challenges where end_date has passed
+   * Includes participant_count and my_rank for historical display
    */
   async getCompletedChallenges(): Promise<ChallengeWithParticipation[]> {
     return withAuth(async (userId) => {
@@ -181,11 +227,53 @@ export const challengeService = {
 
       if (error) throw error;
 
-      // Flatten via destructuring, coalesce numeric nulls
-      return (data || []).map(({ challenge_participants, ...challenge }) => ({
-        ...challenge,
-        my_participation: mapParticipation(challenge_participants?.[0]),
-      }));
+      const challenges = data || [];
+
+      // Batch fetch all participants for these challenges to get counts and ranks
+      const challengeIds = challenges.map((c) => c.id);
+
+      let participantData: {
+        challenge_id: string;
+        user_id: string;
+        current_progress: number;
+      }[] = [];
+      if (challengeIds.length > 0) {
+        const { data: participants } = await supabase
+          .from("challenge_participants")
+          .select("challenge_id, user_id, current_progress")
+          .in("challenge_id", challengeIds)
+          .eq("invite_status", "accepted")
+          .order("current_progress", { ascending: false });
+
+        // Coalesce nulls at service boundary (explicit to avoid spread type issues)
+        participantData = (participants || []).map((p) => ({
+          challenge_id: p.challenge_id,
+          user_id: p.user_id,
+          current_progress: p.current_progress ?? 0,
+        }));
+      }
+
+      // Group participants by challenge and calculate rank
+      const challengeParticipants = new Map<string, typeof participantData>();
+      for (const p of participantData) {
+        if (!challengeParticipants.has(p.challenge_id)) {
+          challengeParticipants.set(p.challenge_id, []);
+        }
+        challengeParticipants.get(p.challenge_id)!.push(p);
+      }
+
+      // Flatten via destructuring, coalesce numeric nulls, add counts and ranks
+      return challenges.map(({ challenge_participants, ...challenge }) => {
+        const participants = challengeParticipants.get(challenge.id) || [];
+        const myRankIndex = participants.findIndex((p) => p.user_id === userId);
+
+        return {
+          ...challenge,
+          my_participation: mapParticipation(challenge_participants?.[0]),
+          participant_count: participants.length,
+          my_rank: myRankIndex >= 0 ? myRankIndex + 1 : undefined,
+        };
+      });
     });
   },
 
