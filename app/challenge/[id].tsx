@@ -87,7 +87,6 @@ export default function ChallengeDetailScreen() {
       });
       setShowLogModal(false);
       setActivityValue("");
-      Alert.alert("Activity Logged! 🎉", "Your progress has been updated");
     } catch (err: any) {
       Alert.alert("Error", err.message || "Failed to log activity");
     }
@@ -541,8 +540,8 @@ export default function ChallengeDetailScreen() {
           </View>
         )}
 
-        {/* Leave/Cancel */}
-        {myInviteStatus === "accepted" && (
+        {/* Leave/Cancel - Hidden for completed challenges */}
+        {myInviteStatus === "accepted" && effectiveStatus !== "completed" && (
           <View
             style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.xl }}
           >

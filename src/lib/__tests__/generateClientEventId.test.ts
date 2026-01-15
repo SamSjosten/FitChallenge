@@ -1,6 +1,12 @@
 // src/lib/__tests__/generateClientEventId.test.ts
 // Tests for cryptographically secure UUID generation
 
+// Mock expo-crypto to simulate React Native not being available
+// This lets the function fall through to Web Crypto API (available in Node.js 19+)
+jest.mock("expo-crypto", () => ({
+  randomUUID: undefined, // Simulate expo-crypto not available
+}));
+
 import { generateClientEventId } from "../uuid";
 
 describe("generateClientEventId", () => {

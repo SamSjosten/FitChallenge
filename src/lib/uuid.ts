@@ -1,22 +1,29 @@
 // src/lib/uuid.ts
 // Cryptographically secure UUID generation for idempotency keys
 
+import * as ExpoCrypto from "expo-crypto";
+
 /**
  * Generate a cryptographically secure UUID v4 for client_event_id
  * This is the idempotency key for activity logging
  *
- * Uses crypto.randomUUID() which provides:
- * - Cryptographically secure random number generation
- * - Proper entropy for collision resistance
- * - Native implementation (fast, no external deps)
+ * Priority:
+ * 1. expo-crypto (React Native)
+ * 2. Web Crypto API (browsers, Node 19+)
+ * 3. crypto.getRandomValues fallback
+ * 4. Error (no insecure fallback)
  *
  * @returns UUID v4 string (e.g., "550e8400-e29b-41d4-a716-446655440000")
  */
 export function generateClientEventId(): string {
-  // crypto.randomUUID() is available in:
-  // - React Native 0.64+ with Hermes
-  // - Modern browsers
-  // - Node.js 19+ (or 14.17+ with --experimental-global-webcrypto)
+  // Option 1: expo-crypto (React Native)
+  // This is the primary path for the mobile app
+  if (typeof ExpoCrypto?.randomUUID === "function") {
+    return ExpoCrypto.randomUUID();
+  }
+
+  // Option 2: Web Crypto API (browsers, Node.js 19+)
+  // Fallback for web builds or test environments
   if (
     typeof crypto !== "undefined" &&
     typeof crypto.randomUUID === "function"
@@ -24,9 +31,8 @@ export function generateClientEventId(): string {
     return crypto.randomUUID();
   }
 
-  // Fallback for environments without crypto.randomUUID
-  // This should rarely be hit in practice with modern React Native
-  // Uses crypto.getRandomValues for secure randomness
+  // Option 3: crypto.getRandomValues fallback
+  // For older environments with partial Web Crypto support
   if (
     typeof crypto !== "undefined" &&
     typeof crypto.getRandomValues === "function"
@@ -49,9 +55,10 @@ export function generateClientEventId(): string {
     )}-${hex.slice(16, 20)}-${hex.slice(20)}`;
   }
 
-  // Final fallback - throw error rather than use insecure Math.random()
+  // No secure random source available - fail rather than use Math.random()
   throw new Error(
-    "crypto.randomUUID or crypto.getRandomValues not available. " +
-      "Ensure you are running in a secure environment (React Native with Hermes, modern browser, or Node.js 19+)."
+    "No secure random source available. " +
+      "Ensure expo-crypto is installed for React Native, " +
+      "or run in an environment with Web Crypto API support."
   );
 }
