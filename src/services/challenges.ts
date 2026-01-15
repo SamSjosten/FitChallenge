@@ -476,12 +476,16 @@ export const challengeService = {
     const userIds = participants.map((p) => p.user_id);
 
     // Fetch profiles from profiles_public (not profiles!)
-    const { data: profiles } = await supabase
-      .from("profiles_public")
-      .select("*")
-      .in("id", userIds);
+    // Guard against empty array to prevent PostgREST error
+    let profileMap = new Map<string, ProfilePublic>();
+    if (userIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from("profiles_public")
+        .select("*")
+        .in("id", userIds);
 
-    const profileMap = new Map(profiles?.map((p) => [p.id, p]) || []);
+      profileMap = new Map(profiles?.map((p) => [p.id, p]) || []);
+    }
 
     // Coalesce numeric nulls to 0
     return participants.map((p, index) => ({

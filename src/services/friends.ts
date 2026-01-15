@@ -68,12 +68,16 @@ export const friendsService = {
       );
 
       // Fetch profiles from profiles_public
-      const { data: profiles } = await supabase
-        .from("profiles_public")
-        .select("*")
-        .in("id", otherUserIds);
+      // Guard against empty array to prevent PostgREST error
+      let profileMap = new Map<string, ProfilePublic>();
+      if (otherUserIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from("profiles_public")
+          .select("*")
+          .in("id", otherUserIds);
 
-      const profileMap = new Map(profiles?.map((p) => [p.id, p]) || []);
+        profileMap = new Map(profiles?.map((p) => [p.id, p]) || []);
+      }
 
       return friends.map((f) => {
         const otherId =
@@ -110,12 +114,16 @@ export const friendsService = {
       const requesterIds = requests.map((r) => r.requested_by);
 
       // Fetch requester profiles
-      const { data: profiles } = await supabase
-        .from("profiles_public")
-        .select("*")
-        .in("id", requesterIds);
+      // Guard against empty array to prevent PostgREST error
+      let profileMap = new Map<string, ProfilePublic>();
+      if (requesterIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from("profiles_public")
+          .select("*")
+          .in("id", requesterIds);
 
-      const profileMap = new Map(profiles?.map((p) => [p.id, p]) || []);
+        profileMap = new Map(profiles?.map((p) => [p.id, p]) || []);
+      }
 
       return requests.map((r) => ({
         id: r.id,
