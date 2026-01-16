@@ -627,8 +627,11 @@ export default function ChallengeDetailScreen() {
                 marginBottom: spacing.xs,
               }}
             >
-              {challenge.challenge_type.replace("_", " ")} (
-              {challenge.goal_unit})
+              {challenge.challenge_type === "custom" &&
+              challenge.custom_activity_name
+                ? challenge.custom_activity_name
+                : challenge.challenge_type.replace("_", " ")}{" "}
+              ({challenge.goal_unit})
             </Text>
             <TextInput
               style={{

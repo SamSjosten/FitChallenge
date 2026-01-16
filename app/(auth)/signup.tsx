@@ -45,8 +45,14 @@ export default function SignupScreen() {
 
     if (!password) {
       errors.password = "Password is required";
-    } else if (password.length < 6) {
-      errors.password = "Password must be at least 6 characters";
+    } else if (password.length < 8) {
+      errors.password = "Password must be at least 8 characters";
+    } else if (!/[A-Z]/.test(password)) {
+      errors.password = "Password must contain an uppercase letter";
+    } else if (!/[a-z]/.test(password)) {
+      errors.password = "Password must contain a lowercase letter";
+    } else if (!/[0-9]/.test(password)) {
+      errors.password = "Password must contain a number";
     }
 
     if (Object.keys(errors).length > 0) {
@@ -211,14 +217,27 @@ export default function SignupScreen() {
               fontSize: typography.fontSize.base,
               fontFamily: "PlusJakartaSans_500Medium",
               color: colors.textPrimary,
-              marginBottom: fieldErrors.password ? spacing.xs : spacing.md,
+              marginBottom: spacing.xs,
             }}
             value={password}
             onChangeText={setPassword}
-            placeholder="Min 6 characters"
+            placeholder="8+ chars, upper, lower, number"
             placeholderTextColor={colors.textMuted}
             secureTextEntry
           />
+          {/* Password requirements hint */}
+          {!fieldErrors.password && (
+            <Text
+              style={{
+                fontSize: typography.fontSize.xs,
+                fontFamily: "PlusJakartaSans_500Medium",
+                color: colors.textMuted,
+                marginBottom: spacing.md,
+              }}
+            >
+              Must be 8+ characters with uppercase, lowercase, and number
+            </Text>
+          )}
           {fieldErrors.password && (
             <Text
               style={{

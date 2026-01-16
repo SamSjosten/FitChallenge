@@ -175,6 +175,8 @@ export default function CreateChallengeScreen() {
         title: title.trim(),
         description: description.trim() || undefined,
         challenge_type: challengeType,
+        custom_activity_name:
+          challengeType === "custom" ? customActivityName.trim() : undefined,
         goal_value: parseInt(goalValue),
         goal_unit:
           challengeType === "custom" ? customUnit.trim() : selectedType.unit,

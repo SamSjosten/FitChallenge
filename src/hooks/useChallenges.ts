@@ -93,6 +93,7 @@ export function useCreateChallenge() {
       title: string;
       description?: string;
       challenge_type: ChallengeType;
+      custom_activity_name?: string;
       goal_value: number;
       goal_unit: string;
       start_date: string;

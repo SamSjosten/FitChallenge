@@ -1,7 +1,7 @@
 // src/lib/validation.ts
 // Input validation schemas using Zod
 
-import { z } from 'zod';
+import { z } from "zod";
 
 // =============================================================================
 // PRIMITIVE SCHEMAS
@@ -9,24 +9,24 @@ import { z } from 'zod';
 
 export const usernameSchema = z
   .string()
-  .min(3, 'Username must be at least 3 characters')
-  .max(20, 'Username must be 20 characters or less')
-  .regex(/^[a-zA-Z0-9_]+$/, 'Letters, numbers, and underscores only')
+  .min(3, "Username must be at least 3 characters")
+  .max(20, "Username must be 20 characters or less")
+  .regex(/^[a-zA-Z0-9_]+$/, "Letters, numbers, and underscores only")
   .transform((v) => v.toLowerCase());
 
 export const emailSchema = z
   .string()
-  .email('Invalid email address')
+  .email("Invalid email address")
   .transform((v) => v.toLowerCase().trim());
 
 export const passwordSchema = z
   .string()
-  .min(8, 'Password must be at least 8 characters')
-  .regex(/[A-Z]/, 'Must contain an uppercase letter')
-  .regex(/[a-z]/, 'Must contain a lowercase letter')
-  .regex(/[0-9]/, 'Must contain a number');
+  .min(8, "Password must be at least 8 characters")
+  .regex(/[A-Z]/, "Must contain an uppercase letter")
+  .regex(/[a-z]/, "Must contain a lowercase letter")
+  .regex(/[0-9]/, "Must contain a number");
 
-export const uuidSchema = z.string().uuid('Invalid ID format');
+export const uuidSchema = z.string().uuid("Invalid ID format");
 
 // =============================================================================
 // AUTH SCHEMAS
@@ -40,13 +40,13 @@ export const signUpSchema = z.object({
 
 export const signInSchema = z.object({
   email: emailSchema,
-  password: z.string().min(1, 'Password is required'),
+  password: z.string().min(1, "Password is required"),
 });
 
 export const updateProfileSchema = z.object({
   username: usernameSchema.optional(),
-  display_name: z.string().max(50, 'Display name too long').optional(),
-  avatar_url: z.string().url('Invalid avatar URL').optional().nullable(),
+  display_name: z.string().max(50, "Display name too long").optional(),
+  avatar_url: z.string().url("Invalid avatar URL").optional().nullable(),
 });
 
 // =============================================================================
@@ -54,46 +54,56 @@ export const updateProfileSchema = z.object({
 // =============================================================================
 
 export const challengeTypeSchema = z.enum([
-  'steps',
-  'active_minutes',
-  'workouts',
-  'distance',
-  'custom',
+  "steps",
+  "active_minutes",
+  "workouts",
+  "distance",
+  "custom",
 ]);
 
 export const winConditionSchema = z.enum([
-  'highest_total',
-  'first_to_goal',
-  'longest_streak',
-  'all_complete',
+  "highest_total",
+  "first_to_goal",
+  "longest_streak",
+  "all_complete",
 ]);
 
 export const createChallengeSchema = z
   .object({
     title: z
       .string()
-      .min(3, 'Title must be at least 3 characters')
-      .max(100, 'Title too long'),
-    description: z.string().max(500, 'Description too long').optional(),
+      .min(3, "Title must be at least 3 characters")
+      .max(100, "Title too long"),
+    description: z.string().max(500, "Description too long").optional(),
     challenge_type: challengeTypeSchema,
+    custom_activity_name: z
+      .string()
+      .min(2, "Activity name must be at least 2 characters")
+      .max(50, "Activity name too long")
+      .optional(),
     goal_value: z
       .number()
-      .int('Must be a whole number')
-      .positive('Must be positive')
-      .max(10000000, 'Goal too large'),
-    goal_unit: z.string().min(1).max(20, 'Unit too long'),
-    win_condition: winConditionSchema.default('highest_total'),
-    daily_target: z
-      .number()
-      .int()
-      .positive()
-      .optional(),
-    start_date: z.string().datetime({ message: 'Invalid start date' }),
-    end_date: z.string().datetime({ message: 'Invalid end date' }),
+      .int("Must be a whole number")
+      .positive("Must be positive")
+      .max(10000000, "Goal too large"),
+    goal_unit: z.string().min(1).max(20, "Unit too long"),
+    win_condition: winConditionSchema.default("highest_total"),
+    daily_target: z.number().int().positive().optional(),
+    start_date: z.string().datetime({ message: "Invalid start date" }),
+    end_date: z.string().datetime({ message: "Invalid end date" }),
   })
+  .refine(
+    (d) =>
+      d.challenge_type !== "custom" ||
+      (d.custom_activity_name && d.custom_activity_name.trim().length >= 2),
+    {
+      message: "Custom activity name is required for custom challenges",
+      path: ["custom_activity_name"],
+    }
+  )
   .refine((d) => new Date(d.end_date) > new Date(d.start_date), {
-    message: 'End date must be after start date',
-    path: ['end_date'],
+    message: "End date must be after start date",
+    path: ["end_date"],
   })
   .refine(
     (d) => {
@@ -102,7 +112,7 @@ export const createChallengeSchema = z
         86400000;
       return days >= 1 && days <= 365;
     },
-    { message: 'Duration must be 1-365 days', path: ['end_date'] }
+    { message: "Duration must be 1-365 days", path: ["end_date"] }
   );
 
 // =============================================================================
@@ -114,9 +124,9 @@ export const logActivitySchema = z.object({
   activity_type: challengeTypeSchema,
   value: z
     .number()
-    .int('Must be a whole number')
-    .positive('Must be positive')
-    .max(1000000, 'Value too large'),
+    .int("Must be a whole number")
+    .positive("Must be positive")
+    .max(1000000, "Value too large"),
   client_event_id: uuidSchema,
   recorded_at: z.string().datetime().optional(),
 });
@@ -131,7 +141,7 @@ export const sendFriendRequestSchema = z.object({
 
 export const respondToFriendRequestSchema = z.object({
   friendship_id: uuidSchema,
-  action: z.enum(['accept', 'decline', 'block']),
+  action: z.enum(["accept", "decline", "block"]),
 });
 
 // =============================================================================
@@ -145,7 +155,7 @@ export const inviteParticipantSchema = z.object({
 
 export const respondToInviteSchema = z.object({
   challenge_id: uuidSchema,
-  response: z.enum(['accepted', 'declined']),
+  response: z.enum(["accepted", "declined"]),
 });
 
 // =============================================================================
@@ -154,12 +164,12 @@ export const respondToInviteSchema = z.object({
 
 export class ValidationError extends Error {
   constructor(public errors: Array<{ field: string; message: string }>) {
-    super('Validation failed');
-    this.name = 'ValidationError';
+    super("Validation failed");
+    this.name = "ValidationError";
   }
 
   get firstError(): string {
-    return this.errors[0]?.message || 'Validation failed';
+    return this.errors[0]?.message || "Validation failed";
   }
 
   getFieldError(field: string): string | undefined {
@@ -176,7 +186,7 @@ export function validate<T>(schema: z.ZodSchema<T>, data: unknown): T {
   if (!result.success) {
     throw new ValidationError(
       result.error.errors.map((e) => ({
-        field: e.path.join('.'),
+        field: e.path.join("."),
         message: e.message,
       }))
     );
@@ -187,7 +197,10 @@ export function validate<T>(schema: z.ZodSchema<T>, data: unknown): T {
 /**
  * Try to validate, returning null on failure instead of throwing
  */
-export function tryValidate<T>(schema: z.ZodSchema<T>, data: unknown): T | null {
+export function tryValidate<T>(
+  schema: z.ZodSchema<T>,
+  data: unknown
+): T | null {
   const result = schema.safeParse(data);
   return result.success ? result.data : null;
 }

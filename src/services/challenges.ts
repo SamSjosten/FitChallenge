@@ -90,6 +90,10 @@ export const challengeService = {
           title: validated.title,
           description: validated.description,
           challenge_type: validated.challenge_type,
+          custom_activity_name:
+            validated.challenge_type === "custom"
+              ? validated.custom_activity_name
+              : null,
           goal_value: validated.goal_value,
           goal_unit: validated.goal_unit,
           win_condition: validated.win_condition,
