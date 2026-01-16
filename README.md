@@ -27,6 +27,8 @@ A working end-to-end implementation of the FitChallenge app proving the core flo
    supabase/migrations/010_activity_summary_rpc.sql
    supabase/migrations/011_enforce_server_time_activity_logging.sql
    supabase/migrations/012_get_server_time.sql
+   supabase/migrations/013_custom_activity_name.sql
+   supabase/migrations/014_create_challenge_atomic.sql
    ```
 3. Copy your project URL and anon key from Settings → API
 
@@ -251,15 +253,37 @@ export default function Screen() {
 - Duplicate submissions (retry) are safely ignored
 - Progress counter updated atomically with log insertion
 
-### ✅ Directional Friends (prepared for future)
+### ✅ Directional Friends
 
 - Schema supports `requested_by` / `requested_to`
-- Only recipient can accept (not implemented in UI yet)
+- Only recipient can accept (RLS enforced)
+- UI exists in `app/(tabs)/friends.tsx` (experimental; see `docs/SCOPE.md`)
 
 ### ✅ Server Time Enforcement
 
 - Activity logging uses server time via `get_server_time()` RPC
 - Prevents client-side time manipulation
+- Client syncs offset on auth events (`src/lib/serverTime.ts`)
+
+### ✅ Derived Challenge Status
+
+- Status computed from timestamps, not stored
+- `challenge_effective_status()` uses half-open interval `[start, end)`
+- No scheduled jobs needed; always consistent
+- Client mirror: `src/lib/challengeStatus.ts`
+
+### ✅ Atomic Operations
+
+- Challenge creation uses `create_challenge_with_participant()` RPC
+- Activity logging uses `log_activity()` RPC
+- Both prevent partial state via single-transaction execution
+
+---
+
+## Implementation Reference
+
+For detailed implementation patterns (server time sync, activity logging
+signature, derived status logic), see `docs/SCOPE.md` § Implementation Notes.
 
 ---
 
@@ -317,7 +341,8 @@ src/
 │   ├── activities.ts        # Activity logging (RPC)
 │   ├── challenges.ts        # Challenge CRUD
 │   ├── friends.ts           # Friends operations
-│   └── notifications.ts     # Notifications service
+│   ├── notifications.ts     # Notifications service
+│   └── pushTokens.ts        # Push token management
 ├── types/
 │   ├── database.ts          # TypeScript types
 │   └── react-native-heroicons.d.ts  # Heroicons type defs
@@ -332,7 +357,7 @@ src/
         └── challenges.test.ts
 
 supabase/
-└── migrations/              # Database migrations (001-012)
+└── migrations/              # Database migrations (001-014)
 
 docs/
 └── SCOPE.md                 # Feature scope documentation
@@ -377,15 +402,25 @@ The Electric Mint design system is applied to these screens:
 | Leaderboard            | ✅     | Reads from aggregated counters  |
 | Visibility enforcement | ✅     | Pending can't see leaderboard   |
 
-## Not Implemented or Not Yet Supported
+## Not Yet Implemented
+
+These features do not exist in the codebase:
 
 - Apple Sign-In (requires Apple Developer account)
-- Push notifications (requires setup)
-- Offline queue (infrastructure only)
-- Friends system UI (experimental / partial)
-- Notifications inbox UI (experimental; no delivery guarantees)
-- Health sync (HealthKit/Google Fit)
+- Push notification delivery (Edge Function not deployed)
+- Health sync (HealthKit/Google Fit integration)
 - Data export / account deletion UI
+- Offline queue processing
+
+## Experimental Features
+
+The following features exist but are **not part of the validated vertical slice**.
+They may change or be removed. See `docs/SCOPE.md` for details.
+
+- Friends system UI
+- Notifications inbox UI
+- Completed challenges display
+- Realtime subscriptions
 
 ---
 
