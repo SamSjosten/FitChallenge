@@ -19,6 +19,7 @@ import DateTimePicker, {
 import { router } from "expo-router";
 import { useCreateChallenge } from "@/hooks/useChallenges";
 import { useAppTheme } from "@/providers/ThemeProvider";
+import { pushTokenService } from "@/services/pushTokens";
 import { getServerNow } from "@/lib/serverTime";
 import { ChevronLeftIcon, XMarkIcon } from "react-native-heroicons/outline";
 import type { ChallengeType } from "@/types/database";
@@ -186,6 +187,12 @@ export default function CreateChallengeScreen() {
         end_date: endDate.toISOString(),
         win_condition: "highest_total",
       });
+
+      // Request notification permission contextually (non-blocking)
+      // User just created a challenge, they'll want updates about participants
+      pushTokenService
+        .requestAndRegister()
+        .catch((err) => console.warn("Push notification setup failed:", err));
 
       const startMsg =
         startMode === "now"

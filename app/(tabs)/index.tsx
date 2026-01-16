@@ -38,6 +38,7 @@ import {
 } from "react-native-heroicons/outline";
 import { FireIcon as FireIconSolid } from "react-native-heroicons/solid";
 import { getDaysRemaining } from "@/lib/serverTime";
+import { pushTokenService } from "@/services/pushTokens";
 import type { ChallengeWithParticipation } from "@/services/challenges";
 
 // =============================================================================
@@ -178,6 +179,12 @@ export default function HomeScreen() {
         challenge_id: challengeId,
         response: "accepted",
       });
+
+      // Request notification permission contextually (non-blocking)
+      // User just joined a challenge, they'll want activity reminders
+      pushTokenService
+        .requestAndRegister()
+        .catch((err) => console.warn("Push notification setup failed:", err));
     } catch (err) {
       console.error("Failed to accept invite:", err);
     }

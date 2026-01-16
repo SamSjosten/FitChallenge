@@ -12,6 +12,7 @@ import React, {
 import { Session, User, AuthError } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import { authService } from "@/services/auth";
+import { pushTokenService } from "@/services/pushTokens";
 import { syncServerTime } from "@/lib/serverTime";
 import type { Profile } from "@/types/database";
 
@@ -96,6 +97,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
                 loading: false,
                 error: null,
               });
+
+              // Register push token if permission already granted (non-blocking)
+              pushTokenService
+                .registerToken()
+                .catch((err) =>
+                  console.warn("Push token registration failed:", err)
+                );
             }
           } catch (profileError) {
             if (mounted) {
@@ -164,6 +172,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
               loading: false,
               error: null,
             });
+
+            // Register push token if permission already granted (non-blocking)
+            pushTokenService
+              .registerToken()
+              .catch((err) =>
+                console.warn("Push token registration failed:", err)
+              );
           }
         } catch (err) {
           if (mounted) {
@@ -216,6 +231,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const signOut = useCallback(async () => {
     try {
+      // Disable push token before signing out (needs auth context)
+      await pushTokenService.disableCurrentToken();
       await authService.signOut();
       // Auth state change listener will handle the rest
     } catch (err) {
