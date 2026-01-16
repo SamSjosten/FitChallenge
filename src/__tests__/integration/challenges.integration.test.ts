@@ -52,17 +52,39 @@ describe("Challenge Visibility Integration Tests", () => {
       expect(challenge.title).toBe("Test Challenge Creation");
     });
 
-    it("should auto-create creator as participant", async () => {
-      const challenge = await createTestChallenge(user1.client);
+    it("should atomically create creator as participant via RPC", async () => {
+      // Use the create_challenge_with_participant RPC directly
+      const now = new Date();
+      const startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000); // Yesterday
+      const endDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // +7 days
+
+      const { data: challenge, error } = await user1.client.rpc(
+        "create_challenge_with_participant",
+        {
+          // Required parameters
+          p_title: "Atomic Creation Test",
+          p_challenge_type: "steps",
+          p_goal_value: 10000,
+          p_goal_unit: "steps",
+          p_start_date: startDate.toISOString(),
+          p_end_date: endDate.toISOString(),
+          // Optional parameters
+          p_description: "Testing atomic challenge creation",
+          p_custom_activity_name: null,
+          p_win_condition: "highest_total",
+          p_daily_target: null,
+        }
+      );
+
+      if (error) throw error;
+      expect(challenge).toBeDefined();
       challengeId = requireId(challenge.id);
 
-      // Add creator as participant manually (some setups do this via trigger)
-      await user1.client.from("challenge_participants").insert({
-        challenge_id: challengeId,
-        user_id: user1.id,
-        invite_status: "accepted",
-      });
+      // Verify the challenge was created
+      expect(challenge.creator_id).toBe(user1.id);
+      expect(challenge.title).toBe("Atomic Creation Test");
 
+      // Verify the creator was automatically added as an accepted participant
       const { data: participants } = await user1.client
         .from("challenge_participants")
         .select()

@@ -76,50 +76,57 @@ function mapParticipation(
 export const challengeService = {
   /**
    * Create a new challenge
-   * CONTRACT: Creator auto-added as accepted participant
+   * CONTRACT: Creator auto-added as accepted participant (atomic via RPC)
+   *
+   * Uses create_challenge_with_participant RPC to ensure both the challenge
+   * and creator participation are created in a single transaction.
+   * If either insert fails, the entire operation is rolled back.
    */
   async create(input: unknown): Promise<Challenge> {
     const validated = validate(createChallengeSchema, input);
 
-    return withAuth(async (userId) => {
-      // Insert challenge
-      const { data: challenge, error: challengeError } = await supabase
-        .from("challenges")
-        .insert({
-          creator_id: userId,
-          title: validated.title,
-          description: validated.description,
-          challenge_type: validated.challenge_type,
-          custom_activity_name:
-            validated.challenge_type === "custom"
-              ? validated.custom_activity_name
-              : null,
-          goal_value: validated.goal_value,
-          goal_unit: validated.goal_unit,
-          win_condition: validated.win_condition,
-          daily_target: validated.daily_target,
-          start_date: validated.start_date,
-          end_date: validated.end_date,
-          status: "pending",
-        })
-        .select()
-        .single();
+    // Call atomic RPC - no withAuth needed as RPC uses auth.uid() internally
+    // Parameter order: required params first, optional params last
+    const { data: challenge, error } = await supabase.rpc(
+      "create_challenge_with_participant",
+      {
+        // Required parameters
+        p_title: validated.title,
+        p_challenge_type: validated.challenge_type,
+        p_goal_value: validated.goal_value,
+        p_goal_unit: validated.goal_unit,
+        p_start_date: validated.start_date,
+        p_end_date: validated.end_date,
+        // Optional parameters
+        p_description: validated.description ?? null,
+        p_custom_activity_name:
+          validated.challenge_type === "custom"
+            ? validated.custom_activity_name
+            : null,
+        p_win_condition: validated.win_condition,
+        p_daily_target: validated.daily_target ?? null,
+      }
+    );
 
-      if (challengeError) throw challengeError;
+    if (error) {
+      // Map RPC errors to more descriptive messages
+      if (error.message?.includes("authentication_required")) {
+        throw new Error("Authentication required to create a challenge");
+      }
+      if (error.message?.includes("invalid_dates")) {
+        throw new Error("End date must be after start date");
+      }
+      if (error.message?.includes("invalid_goal_value")) {
+        throw new Error("Goal value must be positive");
+      }
+      throw error;
+    }
 
-      // Auto-add creator as accepted participant
-      const { error: participantError } = await supabase
-        .from("challenge_participants")
-        .insert({
-          challenge_id: challenge.id,
-          user_id: userId,
-          invite_status: "accepted",
-        });
+    if (!challenge) {
+      throw new Error("Failed to create challenge: no data returned");
+    }
 
-      if (participantError) throw participantError;
-
-      return challenge;
-    });
+    return challenge as Challenge;
   },
 
   /**
