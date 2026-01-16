@@ -1,21 +1,15 @@
 // app/_layout.tsx
 // Root layout with providers and auth routing
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { StatusBar } from "expo-status-bar";
-import {
-  View,
-  ActivityIndicator,
-  StyleSheet,
-  useColorScheme,
-} from "react-native";
-import { supabase } from "@/lib/supabase";
-import type { Session } from "@supabase/supabase-js";
+import { View, ActivityIndicator, StyleSheet } from "react-native";
 import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
-import { syncServerTime } from "@/lib/serverTime";
 import { ThemeProvider, useAppTheme } from "@/providers/ThemeProvider";
+import { AuthProvider, useAuth } from "@/providers/AuthProvider";
+import type { Session } from "@supabase/supabase-js";
 
 // Create a client
 const queryClient = new QueryClient({
@@ -49,39 +43,8 @@ function useProtectedRoute(session: Session | null, isLoading: boolean) {
 
 function RootLayoutNav() {
   const { colors, isDark } = useAppTheme();
-  const [session, setSession] = useState<Session | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setIsLoading(false);
-
-      // Sync server time once authenticated
-      if (session) {
-        syncServerTime().catch((err) =>
-          console.warn("Initial server time sync failed:", err)
-        );
-      }
-    });
-
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-
-      // Re-sync server time on auth state change (e.g., fresh login)
-      if (session) {
-        syncServerTime().catch((err) =>
-          console.warn("Server time sync on auth change failed:", err)
-        );
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
+  // Use centralized auth state - NO MORE DUPLICATE SUBSCRIPTION
+  const { session, loading: isLoading } = useAuth();
 
   useProtectedRoute(session, isLoading);
 
@@ -156,9 +119,11 @@ function RootLayoutNav() {
 export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
-        <RootLayoutNav />
-      </ThemeProvider>
+      <AuthProvider>
+        <ThemeProvider>
+          <RootLayoutNav />
+        </ThemeProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }
