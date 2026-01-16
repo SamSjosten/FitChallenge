@@ -37,22 +37,12 @@ import {
   XMarkIcon,
 } from "react-native-heroicons/outline";
 import { FireIcon as FireIconSolid } from "react-native-heroicons/solid";
+import { getDaysRemaining } from "@/lib/serverTime";
 import type { ChallengeWithParticipation } from "@/services/challenges";
 
 // =============================================================================
 // HELPER FUNCTIONS
 // =============================================================================
-
-/**
- * Calculate days remaining until end_date
- */
-function getDaysRemaining(endDate: string): number {
-  const end = new Date(endDate);
-  const now = new Date();
-  const diffMs = end.getTime() - now.getTime();
-  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-  return Math.max(0, diffDays);
-}
 
 /**
  * Get rank display text (e.g., "1st", "2nd", "3rd", "4th")

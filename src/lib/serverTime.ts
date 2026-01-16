@@ -128,3 +128,24 @@ export function setOffsetMs(offsetMs: number): void {
   cachedOffsetMs = offsetMs;
   lastSyncAt = Date.now();
 }
+
+// =============================================================================
+// TIME CALCULATION HELPERS
+// =============================================================================
+
+/**
+ * Calculate days remaining until a given end date using server time
+ *
+ * Uses getServerNow() to ensure consistent time calculations across
+ * devices with clock drift.
+ *
+ * @param endDate - ISO date string or Date object
+ * @returns Number of days remaining (0 if already past)
+ */
+export function getDaysRemaining(endDate: string | Date): number {
+  const end = typeof endDate === "string" ? new Date(endDate) : endDate;
+  const now = getServerNow();
+  const diffMs = end.getTime() - now.getTime();
+  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+  return Math.max(0, diffDays);
+}

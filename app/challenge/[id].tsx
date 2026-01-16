@@ -194,9 +194,9 @@ export default function ChallengeDetailScreen() {
     100
   );
 
-  // Calculate days remaining
+  // Calculate days remaining using server time
   const endDate = new Date(challenge.end_date);
-  const now = new Date();
+  const now = getServerNow();
   const daysLeft = Math.max(
     0,
     Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
