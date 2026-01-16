@@ -57,9 +57,26 @@ Scan the QR code with Expo Go (iOS/Android) or press `w` for web.
 ```bash
 npm test              # Unit tests only
 npm run test:unit     # Unit tests only
-npm run test:integration  # Integration tests
+npm run test:integration  # Integration tests (requires .env.test)
 npm run test:all      # All tests
 ```
+
+#### Integration Tests Setup
+
+Integration tests run against a real Supabase instance. Before running them:
+
+```bash
+cp .env.test.example .env.test
+# Edit .env.test with your Supabase credentials
+```
+
+Required variables (from Supabase Dashboard → Settings → API):
+
+- `SUPABASE_URL` - Your project URL
+- `SUPABASE_ANON_KEY` - Public anon key
+- `SUPABASE_SERVICE_ROLE_KEY` - Service role key (for test cleanup)
+
+⚠️ **Never commit `.env.test`** - the service role key bypasses RLS.
 
 ---
 

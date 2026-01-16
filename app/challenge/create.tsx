@@ -19,6 +19,7 @@ import DateTimePicker, {
 import { router } from "expo-router";
 import { useCreateChallenge } from "@/hooks/useChallenges";
 import { useAppTheme } from "@/providers/ThemeProvider";
+import { getServerNow } from "@/lib/serverTime";
 import { ChevronLeftIcon, XMarkIcon } from "react-native-heroicons/outline";
 import type { ChallengeType } from "@/types/database";
 
@@ -94,7 +95,8 @@ export default function CreateChallengeScreen() {
 
   const getStartDate = (): Date => {
     if (startMode === "now") {
-      return new Date(Date.now() + 60000);
+      // Use server time to ensure consistency with challenge visibility queries
+      return new Date(getServerNow().getTime() + 60000);
     }
     return scheduledStart;
   };
@@ -165,7 +167,7 @@ export default function CreateChallengeScreen() {
     const startDate = getStartDate();
     const endDate = getEndDate();
 
-    if (startMode === "scheduled" && startDate <= new Date()) {
+    if (startMode === "scheduled" && startDate <= getServerNow()) {
       setError("Scheduled start must be in the future");
       return;
     }
