@@ -44,7 +44,7 @@ export default function NotificationsScreen() {
     ) {
       router.push(`/challenge/${notification.data.challenge_id}`);
     } else if (notification.type === "friend_request_received") {
-      router.push("/friends");
+      router.push("/(tabs)/friends");
     }
   };
 

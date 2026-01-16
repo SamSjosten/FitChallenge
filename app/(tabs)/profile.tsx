@@ -343,7 +343,7 @@ export default function ProfileScreen() {
               padding: spacing.lg,
               ...shadows.card,
             }}
-            onPress={() => router.push("/friends")}
+            onPress={() => router.push("/(tabs)/friends")}
           >
             <Text
               style={{
