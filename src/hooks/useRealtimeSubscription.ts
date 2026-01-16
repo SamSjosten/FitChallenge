@@ -12,6 +12,9 @@ import { challengeKeys } from "@/hooks/useChallenges";
 /**
  * Subscribe to realtime updates for the current user
  * Invalidates React Query cache when relevant changes occur
+ *
+ * NOTE: Leaderboard updates are handled by useLeaderboardSubscription
+ * in the challenge detail screen (scoped to specific challenge_id)
  */
 export function useRealtimeSubscription() {
   const queryClient = useQueryClient();
@@ -60,7 +63,7 @@ export function useRealtimeSubscription() {
           queryClient.invalidateQueries({ queryKey: friendsKeys.all });
         }
       )
-      // Challenge participants: changes for current user
+      // Challenge participants: changes for current user only
       .on(
         "postgres_changes",
         {
@@ -73,59 +76,6 @@ export function useRealtimeSubscription() {
           queryClient.invalidateQueries({ queryKey: challengeKeys.all });
         }
       )
-      // Challenge participants: all changes (for leaderboard updates)
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "challenge_participants",
-        },
-        (payload) => {
-          // Invalidate specific challenge leaderboard
-          if (payload.new && "challenge_id" in payload.new) {
-            queryClient.invalidateQueries({
-              queryKey: challengeKeys.leaderboard(
-                payload.new.challenge_id as string
-              ),
-            });
-          }
-        }
-      )
-      // Challenges: status changes
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "challenges",
-        },
-        () => {
-          queryClient.invalidateQueries({ queryKey: challengeKeys.all });
-        }
-      )
-      // Activity logs: new entries (for leaderboard)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "activity_logs",
-        },
-        (payload) => {
-          if (
-            payload.new &&
-            "challenge_id" in payload.new &&
-            payload.new.challenge_id
-          ) {
-            queryClient.invalidateQueries({
-              queryKey: challengeKeys.leaderboard(
-                payload.new.challenge_id as string
-              ),
-            });
-          }
-        }
-      )
       .subscribe();
 
     // Cleanup on unmount
@@ -133,4 +83,55 @@ export function useRealtimeSubscription() {
       supabase.removeChannel(channel);
     };
   }, [user?.id, queryClient]);
+}
+
+/**
+ * Subscribe to leaderboard updates for a specific challenge
+ * Use this on screens that display a challenge leaderboard
+ */
+export function useLeaderboardSubscription(challengeId: string | undefined) {
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (!challengeId) return;
+
+    const channel = supabase
+      .channel(`leaderboard-${challengeId}`)
+      // Challenge participants: progress updates for this challenge
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "challenge_participants",
+          filter: `challenge_id=eq.${challengeId}`,
+        },
+        () => {
+          queryClient.invalidateQueries({
+            queryKey: challengeKeys.leaderboard(challengeId),
+          });
+        }
+      )
+      // Activity logs: new entries for this challenge
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "activity_logs",
+          filter: `challenge_id=eq.${challengeId}`,
+        },
+        () => {
+          queryClient.invalidateQueries({
+            queryKey: challengeKeys.leaderboard(challengeId),
+          });
+        }
+      )
+      .subscribe();
+
+    // Cleanup on unmount or challengeId change
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [challengeId, queryClient]);
 }

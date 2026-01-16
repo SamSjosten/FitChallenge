@@ -24,6 +24,7 @@ import {
   useLeaveChallenge,
   useCancelChallenge,
 } from "@/hooks/useChallenges";
+import { useLeaderboardSubscription } from "@/hooks/useRealtimeSubscription";
 import { authService } from "@/services/auth";
 import {
   LoadingScreen,
@@ -53,6 +54,10 @@ export default function ChallengeDetailScreen() {
 
   const { data: challenge, isLoading, error, refetch } = useChallenge(id);
   const { data: leaderboard, refetch: refetchLeaderboard } = useLeaderboard(id);
+
+  // Subscribe to realtime leaderboard updates for this challenge
+  useLeaderboardSubscription(id);
+
   const logActivity = useLogActivity();
   const inviteUser = useInviteUser();
   const leaveChallenge = useLeaveChallenge();
