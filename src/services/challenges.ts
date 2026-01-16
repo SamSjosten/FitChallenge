@@ -461,46 +461,49 @@ export const challengeService = {
    * Get leaderboard for a challenge
    * CONTRACT: Uses profiles_public for participant identity
    * CONTRACT: Only accepted participants visible (RLS enforced)
+   * Defense-in-depth: Requires auth before querying
    */
   async getLeaderboard(challengeId: string): Promise<LeaderboardEntry[]> {
-    const { data, error } = await supabase
-      .from("challenge_participants")
-      .select("user_id, current_progress, current_streak")
-      .eq("challenge_id", challengeId)
-      .eq("invite_status", "accepted")
-      .order("current_progress", { ascending: false });
+    return withAuth(async () => {
+      const { data, error } = await supabase
+        .from("challenge_participants")
+        .select("user_id, current_progress, current_streak")
+        .eq("challenge_id", challengeId)
+        .eq("invite_status", "accepted")
+        .order("current_progress", { ascending: false });
 
-    if (error) throw error;
+      if (error) throw error;
 
-    const participants = data || [];
-    const userIds = participants.map((p) => p.user_id);
+      const participants = data || [];
+      const userIds = participants.map((p) => p.user_id);
 
-    // Fetch profiles from profiles_public (not profiles!)
-    // Guard against empty array to prevent PostgREST error
-    let profileMap = new Map<string, ProfilePublic>();
-    if (userIds.length > 0) {
-      const { data: profiles } = await supabase
-        .from("profiles_public")
-        .select("*")
-        .in("id", userIds);
+      // Fetch profiles from profiles_public (not profiles!)
+      // Guard against empty array to prevent PostgREST error
+      let profileMap = new Map<string, ProfilePublic>();
+      if (userIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from("profiles_public")
+          .select("*")
+          .in("id", userIds);
 
-      profileMap = new Map(profiles?.map((p) => [p.id, p]) || []);
-    }
+        profileMap = new Map(profiles?.map((p) => [p.id, p]) || []);
+      }
 
-    // Coalesce numeric nulls to 0
-    return participants.map((p, index) => ({
-      user_id: p.user_id,
-      current_progress: p.current_progress ?? 0,
-      current_streak: p.current_streak ?? 0,
-      rank: index + 1,
-      profile: profileMap.get(p.user_id) || {
-        id: p.user_id,
-        username: "Unknown",
-        display_name: null,
-        avatar_url: null,
-        updated_at: "",
-      },
-    }));
+      // Coalesce numeric nulls to 0
+      return participants.map((p, index) => ({
+        user_id: p.user_id,
+        current_progress: p.current_progress ?? 0,
+        current_streak: p.current_streak ?? 0,
+        rank: index + 1,
+        profile: profileMap.get(p.user_id) || {
+          id: p.user_id,
+          username: "Unknown",
+          display_name: null,
+          avatar_url: null,
+          updated_at: "",
+        },
+      }));
+    });
   },
 
   /**

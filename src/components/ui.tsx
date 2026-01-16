@@ -414,17 +414,20 @@ export function ProgressBar({
   const { colors } = useTheme();
   const animatedWidth = React.useRef(new Animated.Value(0)).current;
 
+  // Clamp progress to 0-100 range to prevent overflow
+  const clampedProgress = Math.min(100, Math.max(0, progress));
+
   React.useEffect(() => {
     if (animated) {
       Animated.timing(animatedWidth, {
-        toValue: Math.min(100, Math.max(0, progress)),
+        toValue: clampedProgress,
         duration: 300,
         useNativeDriver: false,
       }).start();
     } else {
-      animatedWidth.setValue(progress);
+      animatedWidth.setValue(clampedProgress);
     }
-  }, [progress, animated]);
+  }, [clampedProgress, animated]);
 
   const getVariantColor = () => {
     switch (variant) {

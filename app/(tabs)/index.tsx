@@ -94,13 +94,15 @@ export default function HomeScreen() {
     null
   );
 
-  // Enable LayoutAnimation on Android
-  if (
-    Platform.OS === "android" &&
-    UIManager.setLayoutAnimationEnabledExperimental
-  ) {
-    UIManager.setLayoutAnimationEnabledExperimental(true);
-  }
+  // Enable LayoutAnimation on Android (one-time setup)
+  React.useEffect(() => {
+    if (
+      Platform.OS === "android" &&
+      UIManager.setLayoutAnimationEnabledExperimental
+    ) {
+      UIManager.setLayoutAnimationEnabledExperimental(true);
+    }
+  }, []);
 
   // Toggle accordion expansion - only one can be expanded at a time
   const toggleAccordion = (challengeId: string) => {
