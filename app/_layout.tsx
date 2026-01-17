@@ -5,7 +5,13 @@ import React, { useEffect, useRef } from "react";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { StatusBar } from "expo-status-bar";
-import { View, ActivityIndicator, StyleSheet, Platform, Text } from "react-native";
+import {
+  View,
+  ActivityIndicator,
+  StyleSheet,
+  Platform,
+  Text,
+} from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import * as Notifications from "expo-notifications";
