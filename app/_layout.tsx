@@ -162,26 +162,28 @@ function RootLayoutNav() {
           headerShadowVisible: false,
         }}
       >
+        {/* Root redirect screen */}
         <Stack.Screen
-          name="(auth)/login"
+          name="index"
           options={{
-            title: "Sign In",
             headerShown: false,
           }}
         />
+        {/* Auth group - the group's _layout.tsx handles individual screens */}
         <Stack.Screen
-          name="(auth)/signup"
+          name="(auth)"
           options={{
-            title: "Sign Up",
             headerShown: false,
           }}
         />
+        {/* Main tabs */}
         <Stack.Screen
           name="(tabs)"
           options={{
             headerShown: false,
           }}
         />
+        {/* Challenge screens */}
         <Stack.Screen
           name="challenge/create"
           options={{
@@ -193,6 +195,20 @@ function RootLayoutNav() {
           name="challenge/[id]"
           options={{
             title: "Challenge",
+          }}
+        />
+        {/* Notifications screen */}
+        <Stack.Screen
+          name="notifications"
+          options={{
+            title: "Notifications",
+          }}
+        />
+        {/* Settings screen */}
+        <Stack.Screen
+          name="settings"
+          options={{
+            title: "Settings",
           }}
         />
       </Stack>
