@@ -7,6 +7,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { StatusBar } from "expo-status-bar";
 import { View, ActivityIndicator, StyleSheet, Platform } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import * as Notifications from "expo-notifications";
 import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
 import { ThemeProvider, useAppTheme } from "@/providers/ThemeProvider";
@@ -202,15 +203,17 @@ function RootLayoutNav() {
 
 export default function RootLayout() {
   return (
-    <SafeAreaProvider>
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <ThemeProvider>
-            <RootLayoutNav />
-          </ThemeProvider>
-        </AuthProvider>
-      </QueryClientProvider>
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider>
+            <ThemeProvider>
+              <RootLayoutNav />
+            </ThemeProvider>
+          </AuthProvider>
+        </QueryClientProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
 
