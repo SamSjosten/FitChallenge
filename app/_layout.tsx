@@ -170,15 +170,9 @@ function RootLayoutNav() {
             headerShown: false,
           }}
         />
-        {/* Auth screens */}
+        {/* Auth group - the group's _layout.tsx handles individual screens */}
         <Stack.Screen
-          name="(auth)/login"
-          options={{
-            headerShown: false,
-          }}
-        />
-        <Stack.Screen
-          name="(auth)/signup"
+          name="(auth)"
           options={{
             headerShown: false,
           }}
@@ -213,7 +207,7 @@ function RootLayoutNav() {
         />
         {/* Settings screen */}
         <Stack.Screen
-          name="settings/index"
+          name="settings"
           options={{
             title: "Settings",
           }}
