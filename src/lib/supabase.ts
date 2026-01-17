@@ -5,10 +5,14 @@ import "react-native-url-polyfill/auto";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import * as SecureStore from "expo-secure-store";
 import { Database } from "@/types/database";
-import { Config, validateConfig } from "@/constants/config";
+import { Config, configValidation } from "@/constants/config";
 
-// Fail fast if required environment variables are missing
-validateConfig();
+if (!configValidation.isValid && configValidation.message) {
+  console.error(configValidation.message);
+}
+
+const fallbackSupabaseUrl = "https://example.invalid";
+const fallbackSupabaseAnonKey = "invalid";
 
 // Secure storage adapter for auth tokens
 // Uses expo-secure-store which encrypts data on device
@@ -40,8 +44,8 @@ const ExpoSecureStoreAdapter = {
 
 // Create typed Supabase client
 export const supabase: SupabaseClient<Database> = createClient<Database>(
-  Config.supabaseUrl,
-  Config.supabaseAnonKey,
+  Config.supabaseUrl || fallbackSupabaseUrl,
+  Config.supabaseAnonKey || fallbackSupabaseAnonKey,
   {
     auth: {
       storage: ExpoSecureStoreAdapter,
