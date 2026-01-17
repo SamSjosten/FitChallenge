@@ -8,8 +8,14 @@ export const Config = {
   enableAnalytics: process.env.NODE_ENV === "production",
 };
 
+export interface ConfigValidation {
+  missing: string[];
+  isValid: boolean;
+  message: string | null;
+}
+
 // Validate required config at startup
-export function validateConfig(): void {
+export function validateConfig(): ConfigValidation {
   const missing: string[] = [];
 
   if (!Config.supabaseUrl) {
@@ -19,10 +25,21 @@ export function validateConfig(): void {
     missing.push("EXPO_PUBLIC_SUPABASE_ANON_KEY");
   }
 
-  if (missing.length > 0) {
-    throw new Error(
-      `Missing required environment variables: ${missing.join(", ")}. ` +
-        `Copy .env.example to .env and fill in your Supabase credentials.`
-    );
+  if (missing.length === 0) {
+    return {
+      missing,
+      isValid: true,
+      message: null,
+    };
   }
+
+  return {
+    missing,
+    isValid: false,
+    message:
+      `Missing required environment variables: ${missing.join(", ")}. ` +
+      `Copy .env.example to .env and fill in your Supabase credentials.`,
+  };
 }
+
+export const configValidation = validateConfig();
