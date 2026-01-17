@@ -5,12 +5,13 @@ import React, { useEffect, useRef } from "react";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { StatusBar } from "expo-status-bar";
-import { View, ActivityIndicator, StyleSheet, Platform } from "react-native";
+import { View, ActivityIndicator, StyleSheet, Platform, Text } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import * as Notifications from "expo-notifications";
 import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
 import { ThemeProvider, useAppTheme } from "@/providers/ThemeProvider";
 import { AuthProvider, useAuth } from "@/providers/AuthProvider";
+import { configValidation } from "@/constants/config";
 import type { Session } from "@supabase/supabase-js";
 
 // =============================================================================
@@ -169,9 +170,15 @@ function RootLayoutNav() {
             headerShown: false,
           }}
         />
-        {/* Auth group - the group's _layout.tsx handles individual screens */}
+        {/* Auth screens */}
         <Stack.Screen
-          name="(auth)"
+          name="(auth)/login"
+          options={{
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="(auth)/signup"
           options={{
             headerShown: false,
           }}
@@ -206,7 +213,7 @@ function RootLayoutNav() {
         />
         {/* Settings screen */}
         <Stack.Screen
-          name="settings"
+          name="settings/index"
           options={{
             title: "Settings",
           }}
@@ -217,6 +224,27 @@ function RootLayoutNav() {
 }
 
 export default function RootLayout() {
+  if (!configValidation.isValid && configValidation.message) {
+    return (
+      <SafeAreaProvider>
+        <View style={styles.configError}>
+          <Text style={styles.configErrorTitle}>Configuration Required</Text>
+          <Text style={styles.configErrorBody}>{configValidation.message}</Text>
+          <View style={styles.configErrorList}>
+            {configValidation.missing.map((item) => (
+              <Text key={item} style={styles.configErrorItem}>
+                • {item}
+              </Text>
+            ))}
+          </View>
+          <Text style={styles.configErrorBody}>
+            After updating your .env file, restart the Expo dev server.
+          </Text>
+        </View>
+      </SafeAreaProvider>
+    );
+  }
+
   return (
     <SafeAreaProvider>
       <QueryClientProvider client={queryClient}>
@@ -235,5 +263,36 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+  },
+  configError: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+    backgroundColor: "#0B0B0F",
+  },
+  configErrorTitle: {
+    color: "#FFFFFF",
+    fontSize: 20,
+    fontWeight: "700",
+    marginBottom: 12,
+    textAlign: "center",
+  },
+  configErrorBody: {
+    color: "#C9CDD4",
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: "center",
+  },
+  configErrorList: {
+    marginTop: 16,
+    marginBottom: 16,
+    alignSelf: "stretch",
+  },
+  configErrorItem: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: "center",
   },
 });
