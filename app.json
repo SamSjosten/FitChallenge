@@ -19,6 +19,9 @@
       "usesAppleSignIn": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
+      },
+      "runtimeVersion": {
+        "policy": "appVersion"
       }
     },
     "android": {
@@ -26,7 +29,8 @@
         "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#007AFF"
       },
-      "package": "com.yourcompany.fitchallenge"
+      "package": "com.yourcompany.fitchallenge",
+      "runtimeVersion": "1.0.0"
     },
     "web": {
       "bundler": "metro",
@@ -56,6 +60,9 @@
       "eas": {
         "projectId": "033727d1-6bab-43cb-94f4-0f1ae0670573"
       }
+    },
+    "updates": {
+      "url": "https://u.expo.dev/033727d1-6bab-43cb-94f4-0f1ae0670573"
     }
   }
 }
