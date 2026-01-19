@@ -19,7 +19,15 @@ import { ThemeProvider, useAppTheme } from "@/providers/ThemeProvider";
 import { AuthProvider, useAuth } from "@/providers/AuthProvider";
 import { supabaseConfigError } from "@/lib/supabase";
 import { queryRetryFn, mutationRetryFn } from "@/lib/queryRetry";
+import { initSentry, setUserContext } from "@/lib/sentry";
 import type { Session } from "@supabase/supabase-js";
+
+// =============================================================================
+// SENTRY SETUP
+// =============================================================================
+
+// Initialize error reporting (does nothing if no DSN configured)
+initSentry();
 
 // =============================================================================
 // NOTIFICATION SETUP
@@ -214,6 +222,15 @@ function RootLayoutNav() {
   const { session, loading: isLoading } = useAuth();
 
   useProtectedRoute(session, isLoading);
+
+  // Update Sentry user context on auth state change
+  useEffect(() => {
+    if (session?.user?.id) {
+      setUserContext({ id: session.user.id });
+    } else {
+      setUserContext(null);
+    }
+  }, [session?.user?.id]);
 
   // Enable realtime updates when logged in
   useRealtimeSubscription();
