@@ -73,7 +73,7 @@ describe("Challenge Visibility Integration Tests", () => {
           p_custom_activity_name: null,
           p_win_condition: "highest_total",
           p_daily_target: null,
-        }
+        },
       );
 
       if (error) throw error;
@@ -243,7 +243,7 @@ describe("Challenge Visibility Integration Tests", () => {
 
       // Accepted user should see all accepted participants
       const acceptedParticipants = data?.filter(
-        (p) => p.invite_status === "accepted"
+        (p) => p.invite_status === "accepted",
       );
       expect(acceptedParticipants?.length).toBe(2);
     });
@@ -394,7 +394,7 @@ describe("Challenge Visibility Integration Tests", () => {
         title: "Upcoming Challenge",
         start_date: new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString(),
         end_date: new Date(
-          now.getTime() + 7 * 24 * 60 * 60 * 1000
+          now.getTime() + 7 * 24 * 60 * 60 * 1000,
         ).toISOString(),
       });
       upcomingChallengeId = requireId(upcomingChallenge.id);
@@ -404,7 +404,7 @@ describe("Challenge Visibility Integration Tests", () => {
         title: "Active Challenge",
         start_date: new Date(now.getTime() - 60 * 60 * 1000).toISOString(),
         end_date: new Date(
-          now.getTime() + 7 * 24 * 60 * 60 * 1000
+          now.getTime() + 7 * 24 * 60 * 60 * 1000,
         ).toISOString(),
       });
       activeChallengeId = requireId(activeChallenge.id);
@@ -413,7 +413,7 @@ describe("Challenge Visibility Integration Tests", () => {
       const endedChallenge = await createTestChallenge(user1.client, {
         title: "Ended Challenge",
         start_date: new Date(
-          now.getTime() - 7 * 24 * 60 * 60 * 1000
+          now.getTime() - 7 * 24 * 60 * 60 * 1000,
         ).toISOString(),
         end_date: new Date(now.getTime() - 60 * 60 * 1000).toISOString(),
       });
@@ -628,6 +628,46 @@ describe("Challenge Visibility Integration Tests", () => {
       // User1 should be first with 5000 progress
       expect(data?.[0].user_id).toBe(user1.id);
       expect(data?.[0].current_progress).toBe(5000);
+    });
+
+    it("produces deterministic ordering when progress is tied (P1-2)", async () => {
+      const id = requireId(challengeId);
+
+      // Set both users to the same progress (user1 is creator, can update)
+      await user1.client
+        .from("challenge_participants")
+        .update({ current_progress: 1000 })
+        .eq("challenge_id", id)
+        .eq("user_id", user1.id);
+
+      await user1.client
+        .from("challenge_participants")
+        .update({ current_progress: 1000 })
+        .eq("challenge_id", id)
+        .eq("user_id", user2.id);
+
+      // Query multiple times with tie-breaker to verify stable ordering
+      const results: string[][] = [];
+
+      for (let i = 0; i < 3; i++) {
+        const { data } = await user1.client
+          .from("challenge_participants")
+          .select("user_id, current_progress")
+          .eq("challenge_id", id)
+          .eq("invite_status", "accepted")
+          .order("current_progress", { ascending: false })
+          .order("user_id", { ascending: true }); // Tie-breaker
+
+        results.push((data || []).map((d) => d.user_id));
+      }
+
+      // All results should be identical (deterministic)
+      expect(results[0]).toEqual(results[1]);
+      expect(results[1]).toEqual(results[2]);
+
+      // The user with smaller user_id should consistently be first
+      const [firstUserId, secondUserId] = results[0];
+      expect(firstUserId < secondUserId).toBe(true);
     });
   });
 });

@@ -69,6 +69,76 @@ function mapParticipation(
   };
 }
 
+/**
+ * Calculate rank for a user in a sorted participant list using standard competition ranking.
+ *
+ * RANKING BEHAVIOR (1224 / "standard competition ranking"):
+ * - Equal progress = equal rank
+ * - Next different progress = position + 1 (gaps in ranking)
+ *
+ * Example: [1000, 1000, 1000, 500] → ranks [1, 1, 1, 4]
+ *
+ * REQUIREMENTS:
+ * - participants must be pre-sorted by (current_progress DESC, user_id ASC)
+ * - user_id tie-breaker ensures stable ordering for equal progress
+ *
+ * @param participants - Sorted array of participants with current_progress
+ * @param userId - The user ID to find rank for
+ * @returns 1-indexed rank, or undefined if user not found
+ */
+function calculateRankWithTies(
+  participants: Array<{ user_id: string; current_progress: number }>,
+  userId: string,
+): number | undefined {
+  const userIndex = participants.findIndex((p) => p.user_id === userId);
+  if (userIndex < 0) return undefined;
+
+  const userProgress = participants[userIndex].current_progress;
+
+  // Find how many people have strictly higher progress
+  // Rank = count of people with higher progress + 1
+  let rank = 1;
+  for (const p of participants) {
+    if (p.current_progress > userProgress) {
+      rank++;
+    }
+  }
+
+  return rank;
+}
+
+/**
+ * Assign ranks to all participants using standard competition ranking.
+ *
+ * @param participants - Sorted array (by current_progress DESC, user_id ASC)
+ * @returns Array of ranks corresponding to each participant
+ */
+function assignRanksWithTies(
+  participants: Array<{ current_progress: number }>,
+): number[] {
+  if (participants.length === 0) return [];
+
+  const ranks: number[] = [];
+  let currentRank = 1;
+
+  for (let i = 0; i < participants.length; i++) {
+    if (i === 0) {
+      // First participant is always rank 1
+      ranks.push(1);
+    } else if (
+      participants[i].current_progress === participants[i - 1].current_progress
+    ) {
+      // Same progress as previous = same rank
+      ranks.push(ranks[i - 1]);
+    } else {
+      // Different progress = rank is position + 1
+      ranks.push(i + 1);
+    }
+  }
+
+  return ranks;
+}
+
 // =============================================================================
 // SERVICE
 // =============================================================================
@@ -175,7 +245,8 @@ export const challengeService = {
           .select("challenge_id, user_id, current_progress")
           .in("challenge_id", challengeIds)
           .eq("invite_status", "accepted")
-          .order("current_progress", { ascending: false });
+          .order("current_progress", { ascending: false })
+          .order("user_id", { ascending: true }); // Tie-breaker for deterministic ranking
 
         if (participantsError) {
           throw new Error(
@@ -191,7 +262,7 @@ export const challengeService = {
         }));
       }
 
-      // Group participants by challenge and calculate rank
+      // Group participants by challenge (already sorted by progress DESC, user_id ASC)
       const challengeParticipants = new Map<string, typeof participantData>();
       for (const p of participantData) {
         if (!challengeParticipants.has(p.challenge_id)) {
@@ -200,16 +271,16 @@ export const challengeService = {
         challengeParticipants.get(p.challenge_id)!.push(p);
       }
 
-      // Flatten via destructuring, coalesce numeric nulls, add counts and ranks
+      // Flatten via destructuring, add counts and ranks
+      // Uses standard competition ranking: equal progress = equal rank
       return challenges.map(({ challenge_participants, ...challenge }) => {
         const participants = challengeParticipants.get(challenge.id) || [];
-        const myRankIndex = participants.findIndex((p) => p.user_id === userId);
 
         return {
           ...challenge,
           my_participation: mapParticipation(challenge_participants?.[0]),
           participant_count: participants.length,
-          my_rank: myRankIndex >= 0 ? myRankIndex + 1 : undefined,
+          my_rank: calculateRankWithTies(participants, userId),
         };
       });
     });
@@ -260,7 +331,8 @@ export const challengeService = {
           .select("challenge_id, user_id, current_progress")
           .in("challenge_id", challengeIds)
           .eq("invite_status", "accepted")
-          .order("current_progress", { ascending: false });
+          .order("current_progress", { ascending: false })
+          .order("user_id", { ascending: true }); // Tie-breaker for deterministic ranking
 
         if (participantsError) {
           throw new Error(
@@ -276,7 +348,7 @@ export const challengeService = {
         }));
       }
 
-      // Group participants by challenge and calculate rank
+      // Group participants by challenge (already sorted by progress DESC, user_id ASC)
       const challengeParticipants = new Map<string, typeof participantData>();
       for (const p of participantData) {
         if (!challengeParticipants.has(p.challenge_id)) {
@@ -285,16 +357,16 @@ export const challengeService = {
         challengeParticipants.get(p.challenge_id)!.push(p);
       }
 
-      // Flatten via destructuring, coalesce numeric nulls, add counts and ranks
+      // Flatten via destructuring, add counts and ranks
+      // Uses standard competition ranking: equal progress = equal rank
       return challenges.map(({ challenge_participants, ...challenge }) => {
         const participants = challengeParticipants.get(challenge.id) || [];
-        const myRankIndex = participants.findIndex((p) => p.user_id === userId);
 
         return {
           ...challenge,
           my_participation: mapParticipation(challenge_participants?.[0]),
           participant_count: participants.length,
-          my_rank: myRankIndex >= 0 ? myRankIndex + 1 : undefined,
+          my_rank: calculateRankWithTies(participants, userId),
         };
       });
     });
@@ -502,7 +574,8 @@ export const challengeService = {
         .select("user_id, current_progress, current_streak")
         .eq("challenge_id", challengeId)
         .eq("invite_status", "accepted")
-        .order("current_progress", { ascending: false });
+        .order("current_progress", { ascending: false })
+        .order("user_id", { ascending: true }); // Tie-breaker for deterministic ranking
 
       if (error) throw error;
 
@@ -527,12 +600,21 @@ export const challengeService = {
         profileMap = new Map(profiles?.map((p) => [p.id, p]) || []);
       }
 
-      // Coalesce numeric nulls to 0
-      return participants.map((p, index) => ({
+      // Coalesce numeric nulls to 0 and prepare for ranking
+      const coalesced = participants.map((p) => ({
         user_id: p.user_id,
         current_progress: p.current_progress ?? 0,
         current_streak: p.current_streak ?? 0,
-        rank: index + 1,
+      }));
+
+      // Calculate ranks with standard competition ranking (ties get equal rank)
+      const ranks = assignRanksWithTies(coalesced);
+
+      return coalesced.map((p, index) => ({
+        user_id: p.user_id,
+        current_progress: p.current_progress,
+        current_streak: p.current_streak,
+        rank: ranks[index],
         profile: profileMap.get(p.user_id) || {
           id: p.user_id,
           username: "Unknown",
