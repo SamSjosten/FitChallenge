@@ -38,11 +38,17 @@ export const authService = {
     const username = normalizeUsername(validatedUsername);
 
     // Check username availability first
-    const { data: existing } = await supabase
+    const { data: existing, error: usernameCheckError } = await supabase
       .from("profiles_public")
       .select("id")
       .eq("username", username)
       .maybeSingle();
+
+    if (usernameCheckError) {
+      throw new Error(
+        "Unable to verify username availability. Please try again.",
+      );
+    }
 
     if (existing) {
       throw new Error("Username is already taken");
@@ -129,11 +135,17 @@ export const authService = {
    */
   async isUsernameAvailable(username: string): Promise<boolean> {
     const normalized = normalizeUsername(username);
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("profiles_public")
       .select("id")
       .eq("username", normalized)
       .maybeSingle();
+
+    if (error) {
+      throw new Error(
+        "Unable to check username availability. Please try again.",
+      );
+    }
 
     return data === null;
   },
