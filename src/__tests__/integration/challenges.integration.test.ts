@@ -649,7 +649,7 @@ describe("Challenge Visibility Integration Tests", () => {
       // Query multiple times with tie-breaker to verify stable ordering
       const results: string[][] = [];
 
-      for (let i = 0; i < 3; i++) {
+      for (let i = 0; i < 5; i++) {
         const { data } = await user1.client
           .from("challenge_participants")
           .select("user_id, current_progress")
@@ -661,13 +661,15 @@ describe("Challenge Visibility Integration Tests", () => {
         results.push((data || []).map((d) => d.user_id));
       }
 
-      // All results should be identical (deterministic)
+      // All results should be identical (deterministic) - this is what we care about
       expect(results[0]).toEqual(results[1]);
       expect(results[1]).toEqual(results[2]);
+      expect(results[2]).toEqual(results[3]);
+      expect(results[3]).toEqual(results[4]);
 
-      // The user with smaller user_id should consistently be first
+      // Verify ordering matches user_id ASC (smaller UUID first)
       const [firstUserId, secondUserId] = results[0];
-      expect(firstUserId < secondUserId).toBe(true);
+      expect(firstUserId.localeCompare(secondUserId)).toBeLessThan(0);
     });
   });
 });
