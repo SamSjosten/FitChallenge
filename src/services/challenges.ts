@@ -170,12 +170,18 @@ export const challengeService = {
         current_progress: number;
       }[] = [];
       if (challengeIds.length > 0) {
-        const { data: participants } = await supabase
+        const { data: participants, error: participantsError } = await supabase
           .from("challenge_participants")
           .select("challenge_id, user_id, current_progress")
           .in("challenge_id", challengeIds)
           .eq("invite_status", "accepted")
           .order("current_progress", { ascending: false });
+
+        if (participantsError) {
+          throw new Error(
+            "Unable to load challenge participants. Please try again.",
+          );
+        }
 
         // Coalesce nulls at service boundary (explicit to avoid spread type issues)
         participantData = (participants || []).map((p) => ({
@@ -249,12 +255,18 @@ export const challengeService = {
         current_progress: number;
       }[] = [];
       if (challengeIds.length > 0) {
-        const { data: participants } = await supabase
+        const { data: participants, error: participantsError } = await supabase
           .from("challenge_participants")
           .select("challenge_id, user_id, current_progress")
           .in("challenge_id", challengeIds)
           .eq("invite_status", "accepted")
           .order("current_progress", { ascending: false });
+
+        if (participantsError) {
+          throw new Error(
+            "Unable to load challenge participants. Please try again.",
+          );
+        }
 
         // Coalesce nulls at service boundary (explicit to avoid spread type issues)
         participantData = (participants || []).map((p) => ({
@@ -324,10 +336,15 @@ export const challengeService = {
       // Guard: skip query if no creator IDs to fetch (empty .in() is problematic)
       let creatorMap = new Map<string, ProfilePublic>();
       if (creatorIds.length > 0) {
-        const { data: creators } = await supabase
+        const { data: creators, error: creatorsError } = await supabase
           .from("profiles_public")
           .select("*")
           .in("id", creatorIds);
+
+        if (creatorsError) {
+          throw new Error("Unable to load invite details. Please try again.");
+        }
+
         creatorMap = new Map(creators?.map((c) => [c.id, c]) || []);
       }
 
@@ -496,10 +513,16 @@ export const challengeService = {
       // Guard against empty array to prevent PostgREST error
       let profileMap = new Map<string, ProfilePublic>();
       if (userIds.length > 0) {
-        const { data: profiles } = await supabase
+        const { data: profiles, error: profilesError } = await supabase
           .from("profiles_public")
           .select("*")
           .in("id", userIds);
+
+        if (profilesError) {
+          throw new Error(
+            "Unable to load leaderboard profiles. Please try again.",
+          );
+        }
 
         profileMap = new Map(profiles?.map((p) => [p.id, p]) || []);
       }

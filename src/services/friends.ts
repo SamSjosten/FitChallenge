@@ -64,17 +64,21 @@ export const friendsService = {
 
       // Get the "other" user's ID for each friendship
       const otherUserIds = friends.map((f) =>
-        f.requested_by === userId ? f.requested_to : f.requested_by
+        f.requested_by === userId ? f.requested_to : f.requested_by,
       );
 
       // Fetch profiles from profiles_public
       // Guard against empty array to prevent PostgREST error
       let profileMap = new Map<string, ProfilePublic>();
       if (otherUserIds.length > 0) {
-        const { data: profiles } = await supabase
+        const { data: profiles, error: profilesError } = await supabase
           .from("profiles_public")
           .select("*")
           .in("id", otherUserIds);
+
+        if (profilesError) {
+          throw new Error("Unable to load friend profiles. Please try again.");
+        }
 
         profileMap = new Map(profiles?.map((p) => [p.id, p]) || []);
       }
@@ -117,10 +121,16 @@ export const friendsService = {
       // Guard against empty array to prevent PostgREST error
       let profileMap = new Map<string, ProfilePublic>();
       if (requesterIds.length > 0) {
-        const { data: profiles } = await supabase
+        const { data: profiles, error: profilesError } = await supabase
           .from("profiles_public")
           .select("*")
           .in("id", requesterIds);
+
+        if (profilesError) {
+          throw new Error(
+            "Unable to load friend request details. Please try again.",
+          );
+        }
 
         profileMap = new Map(profiles?.map((p) => [p.id, p]) || []);
       }
