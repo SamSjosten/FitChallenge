@@ -22,6 +22,9 @@ jest.mock("expo-secure-store", () => ({
   setItemAsync: jest.fn(),
   deleteItemAsync: jest.fn(),
 }));
+jest.mock("expo-crypto", () => ({
+  randomUUID: () => require("crypto").randomUUID(),
+}));
 jest.mock("@/lib/supabase", () => ({
   supabase: {},
   withAuth: jest.fn(),
@@ -122,7 +125,7 @@ describe("Activity Integration Tests", () => {
         // Malicious / untrusted timestamp (still within challenge bounds)
         // Pick something clearly distinct from "now" to ensure the override is observable.
         const maliciousRecordedAt = new Date(
-          Date.now() - 30 * 60 * 1000
+          Date.now() - 30 * 60 * 1000,
         ).toISOString(); // -30m
 
         // Capture a tight window around the RPC call to sanity-check "server now".
@@ -207,7 +210,7 @@ describe("Activity Integration Tests", () => {
         // Verify it did NOT double count
         const { data: summary, error: summaryError } = await user1.client.rpc(
           "get_activity_summary",
-          { p_challenge_id: challengeId }
+          { p_challenge_id: challengeId },
         );
         expect(summaryError).toBeNull();
 
@@ -421,7 +424,7 @@ describe("Activity Integration Tests", () => {
         // User1's summary should show only their activities
         const { data: user1Data } = await user1.client.rpc(
           "get_activity_summary",
-          { p_challenge_id: challengeId }
+          { p_challenge_id: challengeId },
         );
         const user1Row = Array.isArray(user1Data) ? user1Data[0] : user1Data;
         expect(Number(user1Row?.total_value)).toBe(5000);
@@ -429,7 +432,7 @@ describe("Activity Integration Tests", () => {
         // User2's summary should show only their activities
         const { data: user2Data } = await user2.client.rpc(
           "get_activity_summary",
-          { p_challenge_id: challengeId }
+          { p_challenge_id: challengeId },
         );
         const user2Row = Array.isArray(user2Data) ? user2Data[0] : user2Data;
         expect(Number(user2Row?.total_value)).toBe(3000);
@@ -537,7 +540,7 @@ describe("Activity Integration Tests", () => {
       // All returned items should have created_at < cursor
       pagedData?.forEach((item) => {
         expect(new Date(item.created_at!).getTime()).toBeLessThan(
-          new Date(cursor).getTime()
+          new Date(cursor).getTime(),
         );
       });
     });
@@ -589,7 +592,7 @@ describe("Activity Integration Tests", () => {
       // Should be deterministically ordered
       if (pagedData && pagedData.length > 1) {
         expect(
-          new Date(pagedData[0].created_at!).getTime()
+          new Date(pagedData[0].created_at!).getTime(),
         ).toBeGreaterThanOrEqual(new Date(pagedData[1].created_at!).getTime());
       }
     });
@@ -680,7 +683,7 @@ describe("Activity Integration Tests", () => {
         if (cursor) {
           // Apply composite cursor filter
           query = query.or(
-            `recorded_at.lt.${cursor.beforeRecordedAt},and(recorded_at.eq.${cursor.beforeRecordedAt},id.lt.${cursor.beforeId})`
+            `recorded_at.lt.${cursor.beforeRecordedAt},and(recorded_at.eq.${cursor.beforeRecordedAt},id.lt.${cursor.beforeId})`,
           );
         }
 
@@ -744,7 +747,7 @@ describe("Activity Integration Tests", () => {
 
       const middleActivity = activities![1];
       const cursorTimestamp = new Date(
-        middleActivity.recorded_at!
+        middleActivity.recorded_at!,
       ).toISOString();
 
       // Verify the timestamp has fractional seconds (most databases include them)
@@ -758,7 +761,7 @@ describe("Activity Integration Tests", () => {
         .eq("challenge_id", challengeId)
         .in("client_event_id", clientEventIds)
         .or(
-          `recorded_at.lt.${cursorTimestamp},and(recorded_at.eq.${cursorTimestamp},id.lt.${middleActivity.id})`
+          `recorded_at.lt.${cursorTimestamp},and(recorded_at.eq.${cursorTimestamp},id.lt.${middleActivity.id})`,
         )
         .order("recorded_at", { ascending: false })
         .order("id", { ascending: false });
@@ -774,7 +777,7 @@ describe("Activity Integration Tests", () => {
       // Log for debugging if needed
       if (hasFractional) {
         console.log(
-          `Verified .or() filter works with fractional timestamp: ${cursorTimestamp}`
+          `Verified .or() filter works with fractional timestamp: ${cursorTimestamp}`,
         );
       }
     });
@@ -819,7 +822,7 @@ describe("Activity Integration Tests", () => {
 
         if (cursor) {
           query = query.or(
-            `recorded_at.lt.${cursor.beforeRecordedAt},and(recorded_at.eq.${cursor.beforeRecordedAt},id.lt.${cursor.beforeId})`
+            `recorded_at.lt.${cursor.beforeRecordedAt},and(recorded_at.eq.${cursor.beforeRecordedAt},id.lt.${cursor.beforeId})`,
           );
         }
 
@@ -1020,7 +1023,7 @@ describe("Activity Integration Tests", () => {
       const fetchedClientEventIds = new Set(
         allFetchedActivities
           .filter((a) => a.client_event_id !== null)
-          .map((a) => a.client_event_id as string)
+          .map((a) => a.client_event_id as string),
       );
       serviceTestClientEventIds.forEach((id) => {
         expect(fetchedClientEventIds.has(id)).toBe(true);
@@ -1177,10 +1180,10 @@ describe("Activity Integration Tests", () => {
 
       // Cursor should be valid ISO format
       expect(cursor.beforeRecordedAt).toMatch(
-        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?Z$/
+        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?Z$/,
       );
       expect(cursor.beforeId).toMatch(
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
       );
 
       // Using the cursor should not throw
@@ -1190,7 +1193,7 @@ describe("Activity Integration Tests", () => {
           beforeRecordedAt: cursor.beforeRecordedAt,
           beforeId: cursor.beforeId,
           client: user1.client,
-        }
+        },
       );
 
       expect(Array.isArray(nextPage)).toBe(true);

@@ -24,6 +24,7 @@ import {
   useLeaveChallenge,
   useCancelChallenge,
 } from "@/hooks/useChallenges";
+import { generateClientEventId } from "@/services/activities";
 import { useLeaderboardSubscription } from "@/hooks/useRealtimeSubscription";
 import { authService } from "@/services/auth";
 import {
@@ -84,11 +85,16 @@ export default function ChallengeDetailScreen() {
     }
     if (!challenge) return;
 
+    // Generate idempotency key ONCE before calling mutate.
+    // React Query retries will reuse this same ID, preventing double-counting.
+    const client_event_id = generateClientEventId();
+
     try {
       await logActivity.mutateAsync({
         challenge_id: challenge.id,
         activity_type: challenge.challenge_type,
         value: parseInt(activityValue),
+        client_event_id,
       });
       setShowLogModal(false);
       setActivityValue("");
@@ -145,7 +151,7 @@ export default function ChallengeDetailScreen() {
             }
           },
         },
-      ]
+      ],
     );
   };
 
@@ -168,7 +174,7 @@ export default function ChallengeDetailScreen() {
             }
           },
         },
-      ]
+      ],
     );
   };
 
@@ -191,7 +197,7 @@ export default function ChallengeDetailScreen() {
   const progress = challenge.my_participation?.current_progress || 0;
   const progressPercent = Math.min(
     (progress / challenge.goal_value) * 100,
-    100
+    100,
   );
 
   // Calculate days remaining using server time
@@ -199,7 +205,7 @@ export default function ChallengeDetailScreen() {
   const now = getServerNow();
   const daysLeft = Math.max(
     0,
-    Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+    Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)),
   );
 
   return (

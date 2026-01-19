@@ -151,6 +151,10 @@ export function useRespondToInvite() {
 /**
  * Log activity for a challenge
  * CONTRACT: Uses atomic RPC function with idempotency key
+ *
+ * IMPORTANT: client_event_id must be generated ONCE at the call site before
+ * calling mutate(). This ensures React Query retries reuse the same ID,
+ * preventing double-counting. Use generateClientEventId() from '@/services/activities'.
  */
 export function useLogActivity() {
   const queryClient = useQueryClient();
@@ -160,14 +164,9 @@ export function useLogActivity() {
       challenge_id: string;
       activity_type: ChallengeType;
       value: number;
+      client_event_id: string;
     }) => {
-      // Generate idempotency key
-      const client_event_id = generateClientEventId();
-
-      await activityService.logActivity({
-        ...input,
-        client_event_id,
-      });
+      await activityService.logActivity(input);
     },
     onSuccess: (_, variables) => {
       // Invalidate challenge detail and leaderboard to reflect new progress
