@@ -66,6 +66,47 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // ==========================================================================
   useEffect(() => {
     let mounted = true;
+    let initialLoadHandled = false; // Prevent race between initSession and onAuthStateChange
+
+    // Helper to load profile with the session we already have
+    const loadProfileAndSetState = async (session: Session) => {
+      // Sync server time (non-blocking)
+      syncServerTime().catch((err) =>
+        console.warn("Server time sync failed:", err),
+      );
+
+      try {
+        const profile = await authService.getMyProfile();
+        if (mounted) {
+          setState({
+            session,
+            user: session.user,
+            profile,
+            loading: false,
+            error: null,
+            pendingEmailConfirmation: false,
+          });
+
+          // Register push token if permission already granted (non-blocking)
+          pushTokenService
+            .registerToken()
+            .catch((err) =>
+              console.warn("Push token registration failed:", err),
+            );
+        }
+      } catch (err) {
+        if (mounted) {
+          setState({
+            session,
+            user: session.user,
+            profile: null,
+            loading: false,
+            error: err as Error,
+            pendingEmailConfirmation: false,
+          });
+        }
+      }
+    };
 
     // Get initial session
     const initSession = async () => {
@@ -75,7 +116,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
           error,
         } = await supabase.auth.getSession();
 
-        if (!mounted) return;
+        if (!mounted || initialLoadHandled) return;
+        initialLoadHandled = true;
 
         if (error) {
           setState((prev) => ({ ...prev, loading: false, error }));
@@ -83,43 +125,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
 
         if (session?.user) {
-          // Sync server time on initial auth
-          syncServerTime().catch((err) =>
-            console.warn("Initial server time sync failed:", err),
-          );
-
-          // Load profile
-          try {
-            const profile = await authService.getMyProfile();
-            if (mounted) {
-              setState({
-                session,
-                user: session.user,
-                profile,
-                loading: false,
-                error: null,
-                pendingEmailConfirmation: false,
-              });
-
-              // Register push token if permission already granted (non-blocking)
-              pushTokenService
-                .registerToken()
-                .catch((err) =>
-                  console.warn("Push token registration failed:", err),
-                );
-            }
-          } catch (profileError) {
-            if (mounted) {
-              setState({
-                session,
-                user: session.user,
-                profile: null,
-                loading: false,
-                error: profileError as Error,
-                pendingEmailConfirmation: false,
-              });
-            }
-          }
+          await loadProfileAndSetState(session);
         } else {
           setState({
             session: null,
@@ -143,11 +149,36 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     initSession();
 
+    // Safety timeout: ensure loading clears even if something hangs
+    const safetyTimeout = setTimeout(() => {
+      if (mounted) {
+        setState((prev) => {
+          if (prev.loading) {
+            console.warn(
+              "Auth initialization timed out, clearing loading state",
+            );
+            return { ...prev, loading: false };
+          }
+          return prev;
+        });
+      }
+    }, 10000); // 10 second safety net
+
     // Listen for auth changes - THE SINGLE SUBSCRIPTION
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!mounted) return;
+
+      // Skip INITIAL_SESSION if initSession already handled it
+      if (event === "INITIAL_SESSION" && initialLoadHandled) {
+        return;
+      }
+
+      // Mark as handled if this is the initial session event
+      if (event === "INITIAL_SESSION") {
+        initialLoadHandled = true;
+      }
 
       if (event === "SIGNED_OUT" || !session) {
         setState({
@@ -163,47 +194,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       // User signed in or token refreshed
       if (session.user) {
-        // Sync server time on auth change (e.g., fresh login)
-        syncServerTime().catch((err) =>
-          console.warn("Server time sync on auth change failed:", err),
-        );
-
-        try {
-          const profile = await authService.getMyProfile();
-          if (mounted) {
-            setState({
-              session,
-              user: session.user,
-              profile,
-              loading: false,
-              error: null,
-              pendingEmailConfirmation: false,
-            });
-
-            // Register push token if permission already granted (non-blocking)
-            pushTokenService
-              .registerToken()
-              .catch((err) =>
-                console.warn("Push token registration failed:", err),
-              );
-          }
-        } catch (err) {
-          if (mounted) {
-            setState({
-              session,
-              user: session.user,
-              profile: null,
-              loading: false,
-              error: err as Error,
-              pendingEmailConfirmation: false,
-            });
-          }
-        }
+        await loadProfileAndSetState(session);
       }
     });
 
     return () => {
       mounted = false;
+      clearTimeout(safetyTimeout);
       subscription.unsubscribe();
     };
   }, []);
