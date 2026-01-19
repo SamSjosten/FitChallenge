@@ -22,8 +22,11 @@ export const authService = {
   /**
    * Sign up a new user
    * Profile is auto-created by database trigger
+   * Returns session info to determine if email confirmation is required
    */
-  async signUp(input: unknown): Promise<void> {
+  async signUp(
+    input: unknown,
+  ): Promise<{ session: import("@supabase/supabase-js").Session | null }> {
     // Validation applies .toLowerCase() transform to username
     const {
       email,
@@ -46,7 +49,7 @@ export const authService = {
     }
 
     // Create auth user - profile created by trigger
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -55,6 +58,9 @@ export const authService = {
     });
 
     if (error) throw error;
+
+    // Return session so caller can determine if email confirmation is pending
+    return { session: data.session };
   },
 
   /**

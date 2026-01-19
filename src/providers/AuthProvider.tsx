@@ -26,6 +26,7 @@ interface AuthState {
   profile: Profile | null;
   loading: boolean;
   error: AuthError | Error | null;
+  pendingEmailConfirmation: boolean;
 }
 
 interface AuthContextValue extends AuthState {
@@ -57,6 +58,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     profile: null,
     loading: true,
     error: null,
+    pendingEmailConfirmation: false,
   });
 
   // ==========================================================================
@@ -96,6 +98,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
                 profile,
                 loading: false,
                 error: null,
+                pendingEmailConfirmation: false,
               });
 
               // Register push token if permission already granted (non-blocking)
@@ -113,6 +116,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
                 profile: null,
                 loading: false,
                 error: profileError as Error,
+                pendingEmailConfirmation: false,
               });
             }
           }
@@ -123,6 +127,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
             profile: null,
             loading: false,
             error: null,
+            pendingEmailConfirmation: false,
           });
         }
       } catch (err) {
@@ -151,6 +156,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           profile: null,
           loading: false,
           error: null,
+          pendingEmailConfirmation: false,
         });
         return;
       }
@@ -171,6 +177,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
               profile,
               loading: false,
               error: null,
+              pendingEmailConfirmation: false,
             });
 
             // Register push token if permission already granted (non-blocking)
@@ -188,6 +195,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
               profile: null,
               loading: false,
               error: err as Error,
+              pendingEmailConfirmation: false,
             });
           }
         }
@@ -224,8 +232,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
     async (email: string, password: string, username: string) => {
       setState((prev) => ({ ...prev, loading: true, error: null }));
       try {
-        await authService.signUp({ email, password, username });
-        // Auth state change listener will handle the rest
+        const { session } = await authService.signUp({
+          email,
+          password,
+          username,
+        });
+        // If no session returned, email confirmation is pending
+        // Explicitly clear loading - don't rely solely on onAuthStateChange
+        setState((prev) => ({
+          ...prev,
+          loading: false,
+          pendingEmailConfirmation: !session,
+        }));
+        // If session exists, onAuthStateChange will handle user/profile setup
       } catch (err) {
         setState((prev) => ({ ...prev, loading: false, error: err as Error }));
         throw err;
