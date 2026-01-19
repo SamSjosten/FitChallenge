@@ -13,7 +13,7 @@ import { Session, User, AuthError } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import { authService } from "@/services/auth";
 import { pushTokenService } from "@/services/pushTokens";
-import { syncServerTime } from "@/lib/serverTime";
+import { syncServerTime, RESYNC_INTERVAL_MS } from "@/lib/serverTime";
 import type { Profile } from "@/types/database";
 
 // =============================================================================
@@ -83,7 +83,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         if (session?.user) {
           // Sync server time on initial auth
           syncServerTime().catch((err) =>
-            console.warn("Initial server time sync failed:", err)
+            console.warn("Initial server time sync failed:", err),
           );
 
           // Load profile
@@ -102,7 +102,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
               pushTokenService
                 .registerToken()
                 .catch((err) =>
-                  console.warn("Push token registration failed:", err)
+                  console.warn("Push token registration failed:", err),
                 );
             }
           } catch (profileError) {
@@ -159,7 +159,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       if (session.user) {
         // Sync server time on auth change (e.g., fresh login)
         syncServerTime().catch((err) =>
-          console.warn("Server time sync on auth change failed:", err)
+          console.warn("Server time sync on auth change failed:", err),
         );
 
         try {
@@ -177,7 +177,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
             pushTokenService
               .registerToken()
               .catch((err) =>
-                console.warn("Push token registration failed:", err)
+                console.warn("Push token registration failed:", err),
               );
           }
         } catch (err) {
@@ -201,6 +201,22 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, []);
 
   // ==========================================================================
+  // PERIODIC SERVER TIME SYNC
+  // ==========================================================================
+  useEffect(() => {
+    // Only run interval when authenticated
+    if (!state.session) return;
+
+    const intervalId = setInterval(() => {
+      syncServerTime().catch((err) =>
+        console.warn("Periodic server time sync failed:", err),
+      );
+    }, RESYNC_INTERVAL_MS);
+
+    return () => clearInterval(intervalId);
+  }, [state.session]);
+
+  // ==========================================================================
   // AUTH ACTIONS
   // ==========================================================================
 
@@ -215,7 +231,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         throw err;
       }
     },
-    []
+    [],
   );
 
   const signIn = useCallback(async (email: string, password: string) => {
@@ -268,7 +284,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       refreshProfile,
       clearError,
     }),
-    [state, signUp, signIn, signOut, refreshProfile, clearError]
+    [state, signUp, signIn, signOut, refreshProfile, clearError],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

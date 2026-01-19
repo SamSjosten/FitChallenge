@@ -13,7 +13,7 @@ let cachedOffsetMs: number | null = null;
 let lastSyncAt: number | null = null;
 
 /** How often to re-sync (5 minutes) */
-const RESYNC_INTERVAL_MS = 5 * 60 * 1000;
+export const RESYNC_INTERVAL_MS = 5 * 60 * 1000;
 
 /** Threshold for logging clock drift warnings (60 seconds) */
 const DRIFT_WARNING_THRESHOLD_MS = 60 * 1000;
@@ -50,12 +50,12 @@ export async function syncServerTime(opts?: {
       typeof raw === "string"
         ? raw
         : typeof raw?.server_time === "string"
-        ? raw.server_time
-        : typeof raw?.get_server_time === "string"
-        ? raw.get_server_time
-        : typeof raw?.now === "string"
-        ? raw.now
-        : null;
+          ? raw.server_time
+          : typeof raw?.get_server_time === "string"
+            ? raw.get_server_time
+            : typeof raw?.now === "string"
+              ? raw.now
+              : null;
 
     if (!serverTimeStr) {
       console.warn("Failed to sync server time: unexpected payload shape");
@@ -74,7 +74,7 @@ export async function syncServerTime(opts?: {
     // Log significant drift for debugging
     if (Math.abs(cachedOffsetMs) > DRIFT_WARNING_THRESHOLD_MS) {
       console.warn(
-        `Device clock drift detected: ${Math.round(cachedOffsetMs / 1000)}s`
+        `Device clock drift detected: ${Math.round(cachedOffsetMs / 1000)}s`,
       );
     }
 
