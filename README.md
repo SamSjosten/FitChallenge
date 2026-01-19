@@ -29,6 +29,9 @@ A working end-to-end implementation of the FitChallenge app proving the core flo
    supabase/migrations/012_get_server_time.sql
    supabase/migrations/013_custom_activity_name.sql
    supabase/migrations/014_create_challenge_atomic.sql
+   supabase/migrations/015_invite_to_challenge_rpc.sql
+   supabase/migrations/016_notification_read_rpcs.sql
+   supabase/migrations/017_server_time_challenge_filters.sql
    ```
 3. Copy your project URL and anon key from Settings → API
 
@@ -357,7 +360,7 @@ src/
         └── challenges.test.ts
 
 supabase/
-└── migrations/              # Database migrations (001-014)
+└── migrations/              # Database migrations (001-017)
 
 docs/
 └── SCOPE.md                 # Feature scope documentation

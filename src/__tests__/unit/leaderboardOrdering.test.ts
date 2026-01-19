@@ -43,10 +43,12 @@ const createQueryChain = (finalData: unknown[] = []) => {
 };
 
 const mockFrom = jest.fn();
+const mockRpc = jest.fn();
 
 jest.mock("@/lib/supabase", () => ({
   supabase: {
     from: (...args: unknown[]) => mockFrom(...args),
+    rpc: (...args: unknown[]) => mockRpc(...args),
   },
   withAuth: jest.fn((operation) => operation("test-user-123")),
 }));
@@ -128,6 +130,17 @@ describe("Leaderboard Ordering (P1-2)", () => {
 
   describe("getMyActiveChallenges", () => {
     it("applies user_id as tie-breaker for participant ranking", async () => {
+      // Setup: RPC returns challenge IDs
+      mockRpc.mockImplementation((name: string) => {
+        if (name === "get_active_challenge_ids") {
+          return Promise.resolve({
+            data: [{ challenge_id: "challenge-1" }],
+            error: null,
+          });
+        }
+        return Promise.resolve({ data: null, error: null });
+      });
+
       // Setup: challenges query returns one challenge
       const challengesChain = createQueryChain([
         {
@@ -184,6 +197,17 @@ describe("Leaderboard Ordering (P1-2)", () => {
 
   describe("getCompletedChallenges", () => {
     it("applies user_id as tie-breaker for participant ranking", async () => {
+      // Setup: RPC returns completed challenge IDs
+      mockRpc.mockImplementation((name: string) => {
+        if (name === "get_completed_challenge_ids") {
+          return Promise.resolve({
+            data: [{ challenge_id: "challenge-1" }],
+            error: null,
+          });
+        }
+        return Promise.resolve({ data: null, error: null });
+      });
+
       // Setup: challenges query returns one completed challenge
       const challengesChain = createQueryChain([
         {

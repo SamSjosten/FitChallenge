@@ -57,7 +57,7 @@ export function createAnonClient(): SupabaseClient<Database> {
         autoRefreshToken: false,
         persistSession: false,
       },
-    }
+    },
   );
 }
 
@@ -74,7 +74,7 @@ export function createServiceClient(): SupabaseClient<Database> {
         autoRefreshToken: false,
         persistSession: false,
       },
-    }
+    },
   );
 }
 
@@ -146,7 +146,7 @@ async function getTestUser(email: string, password: string): Promise<TestUser> {
           };
         }
         throw new Error(
-          `Failed to create test user: ${signUpError.message}. Retry failed: ${retryError?.message}`
+          `Failed to create test user: ${signUpError.message}. Retry failed: ${retryError?.message}`,
         );
       }
       throw new Error(`Failed to create test user: ${signUpError.message}`);
@@ -165,7 +165,7 @@ async function getTestUser(email: string, password: string): Promise<TestUser> {
 
     if (newSignInError || !newSignIn.user) {
       throw new Error(
-        `Failed to sign in after creating user: ${newSignInError?.message}`
+        `Failed to sign in after creating user: ${newSignInError?.message}`,
       );
     }
 
@@ -188,7 +188,7 @@ export async function getTestUser1(): Promise<TestUser> {
   if (!user1Promise) {
     user1Promise = getTestUser(
       testConfig.testUser.email,
-      testConfig.testUser.password
+      testConfig.testUser.password,
     );
   }
 
@@ -205,7 +205,7 @@ export async function getTestUser2(): Promise<TestUser> {
   if (!user2Promise) {
     user2Promise = getTestUser(
       testConfig.testUser2.email,
-      testConfig.testUser2.password
+      testConfig.testUser2.password,
     );
   }
 
@@ -222,7 +222,7 @@ export async function getTestUser2(): Promise<TestUser> {
  */
 export async function createTestChallenge(
   client: SupabaseClient<Database>,
-  overrides: Partial<Database["public"]["Tables"]["challenges"]["Insert"]> = {}
+  overrides: Partial<Database["public"]["Tables"]["challenges"]["Insert"]> = {},
 ): Promise<Database["public"]["Tables"]["challenges"]["Row"]> {
   const {
     data: { user },
@@ -261,7 +261,7 @@ export async function createTestChallenge(
 export async function inviteToChallenge(
   creatorClient: SupabaseClient<Database>,
   challengeId: string,
-  inviteeUserId: string
+  inviteeUserId: string,
 ): Promise<void> {
   const { error } = await creatorClient.from("challenge_participants").insert({
     challenge_id: challengeId,
@@ -277,7 +277,7 @@ export async function inviteToChallenge(
  */
 export async function acceptChallengeInvite(
   client: SupabaseClient<Database>,
-  challengeId: string
+  challengeId: string,
 ): Promise<void> {
   const {
     data: { user },
