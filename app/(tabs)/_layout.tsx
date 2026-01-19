@@ -5,10 +5,8 @@
 import React from "react";
 import { Tabs, router } from "expo-router";
 import { View, Pressable, Text, Platform } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useUnreadNotificationCount } from "@/hooks/useNotifications";
 import { useAppTheme } from "@/providers/ThemeProvider";
-import { componentSize } from "@/constants/theme";
 import {
   HomeIcon,
   TrophyIcon,
@@ -148,10 +146,6 @@ function CreateButton() {
 
 export default function TabLayout() {
   const { colors } = useAppTheme();
-  const insets = useSafeAreaInsets();
-
-  // Tab bar height: base height + bottom safe area
-  const tabBarHeight = componentSize.tabBar.height + insets.bottom;
 
   return (
     <Tabs
@@ -160,17 +154,20 @@ export default function TabLayout() {
         tabBarInactiveTintColor: colors.textMuted,
         tabBarStyle: {
           backgroundColor: colors.surface,
-          borderTopWidth: 1,
-          borderTopColor: colors.border,
-          // Use calculated height based on safe area
-          height: tabBarHeight,
-          paddingBottom: insets.bottom,
-          paddingTop: 8,
+          // iOS 26 fix: borderTopWidth breaks touch - use shadow instead
+          shadowColor: colors.border,
+          shadowOffset: { width: 0, height: -1 },
+          shadowOpacity: 1,
+          shadowRadius: 0,
+          elevation: 0,
+          paddingTop: 4,
         },
         tabBarLabelStyle: {
           fontSize: 11,
           fontFamily: "PlusJakartaSans_500Medium",
-          marginTop: 2,
+        },
+        tabBarItemStyle: {
+          paddingVertical: 4,
         },
         headerStyle: {
           backgroundColor: colors.background,
