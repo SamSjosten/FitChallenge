@@ -5,12 +5,19 @@ import React, { useEffect, useRef } from "react";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { StatusBar } from "expo-status-bar";
-import { View, ActivityIndicator, StyleSheet, Platform } from "react-native";
-import { SafeAreaProvider } from "react-native-safe-area-context";
+import {
+  View,
+  ActivityIndicator,
+  StyleSheet,
+  Platform,
+  Text,
+} from "react-native";
+import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import * as Notifications from "expo-notifications";
 import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
 import { ThemeProvider, useAppTheme } from "@/providers/ThemeProvider";
 import { AuthProvider, useAuth } from "@/providers/AuthProvider";
+import { supabaseConfigError } from "@/lib/supabase";
 import type { Session } from "@supabase/supabase-js";
 
 // =============================================================================
@@ -86,6 +93,86 @@ function useNotificationResponseHandler() {
     };
   }, [router]);
 }
+
+// =============================================================================
+// CONFIGURATION ERROR SCREEN (Production)
+// =============================================================================
+
+/**
+ * Displayed when Supabase configuration is missing.
+ * In dev: app throws before reaching this (fail-fast).
+ * In prod: renders this user-friendly screen.
+ */
+function ConfigurationErrorScreen() {
+  return (
+    <SafeAreaView style={configErrorStyles.container}>
+      <View style={configErrorStyles.content}>
+        <Text style={configErrorStyles.icon}>⚠️</Text>
+        <Text style={configErrorStyles.title}>Configuration Error</Text>
+        <Text style={configErrorStyles.message}>
+          The app is not properly configured. Please contact support or try
+          reinstalling the app.
+        </Text>
+        {__DEV__ && supabaseConfigError && (
+          <View style={configErrorStyles.devInfo}>
+            <Text style={configErrorStyles.devLabel}>Developer Info:</Text>
+            <Text style={configErrorStyles.devMessage}>
+              {supabaseConfigError}
+            </Text>
+          </View>
+        )}
+      </View>
+    </SafeAreaView>
+  );
+}
+
+const configErrorStyles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#0F0F0F",
+  },
+  content: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 32,
+  },
+  icon: {
+    fontSize: 48,
+    marginBottom: 16,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#FAFAFA",
+    marginBottom: 12,
+    textAlign: "center",
+  },
+  message: {
+    fontSize: 16,
+    color: "#A0A0A0",
+    textAlign: "center",
+    lineHeight: 24,
+  },
+  devInfo: {
+    marginTop: 32,
+    padding: 16,
+    backgroundColor: "#1A1A1A",
+    borderRadius: 8,
+    width: "100%",
+  },
+  devLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#FF6B6B",
+    marginBottom: 8,
+  },
+  devMessage: {
+    fontSize: 12,
+    color: "#A0A0A0",
+    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
+  },
+});
 
 // Create a client
 const queryClient = new QueryClient({
@@ -211,6 +298,15 @@ function RootLayoutNav() {
 }
 
 export default function RootLayout() {
+  // Block app if Supabase config is invalid (production error screen)
+  if (supabaseConfigError) {
+    return (
+      <SafeAreaProvider>
+        <ConfigurationErrorScreen />
+      </SafeAreaProvider>
+    );
+  }
+
   return (
     <SafeAreaProvider>
       <QueryClientProvider client={queryClient}>
