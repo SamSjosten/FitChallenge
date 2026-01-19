@@ -26,7 +26,7 @@ async function mockRequireUserId(): Promise<string> {
 
 // Simulates withAuth from supabase.ts
 async function withAuth<T>(
-  operation: (userId: string) => Promise<T>
+  operation: (userId: string) => Promise<T>,
 ): Promise<T> {
   const userId = await mockRequireUserId();
   return operation(userId);
@@ -97,7 +97,7 @@ describe("withAuth", () => {
       const mockOperation = jest.fn().mockResolvedValue("success");
 
       await expect(withAuth(mockOperation)).rejects.toThrow(
-        "Authentication required"
+        "Authentication required",
       );
     });
 
@@ -142,7 +142,7 @@ describe("defense-in-depth mutation pattern", () => {
 
   // Simulates a mutation method wrapped with withAuth
   async function protectedMutation(
-    mutationFn: () => Promise<void>
+    mutationFn: () => Promise<void>,
   ): Promise<void> {
     return withAuth(async (userId) => {
       // userId is available for logging/audit
@@ -168,7 +168,7 @@ describe("defense-in-depth mutation pattern", () => {
     const mutation = jest.fn().mockResolvedValue(undefined);
 
     await expect(protectedMutation(mutation)).rejects.toThrow(
-      "Authentication required"
+      "Authentication required",
     );
     expect(mutation).not.toHaveBeenCalled();
   });
@@ -202,7 +202,7 @@ describe("requireUserId", () => {
     clearMockUser();
 
     await expect(mockRequireUserId()).rejects.toThrow(
-      "Authentication required"
+      "Authentication required",
     );
   });
 });

@@ -99,7 +99,7 @@ export const createChallengeSchema = z
     {
       message: "Custom activity name is required for custom challenges",
       path: ["custom_activity_name"],
-    }
+    },
   )
   .refine((d) => new Date(d.end_date) > new Date(d.start_date), {
     message: "End date must be after start date",
@@ -112,7 +112,7 @@ export const createChallengeSchema = z
         86400000;
       return days >= 1 && days <= 365;
     },
-    { message: "Duration must be 1-365 days", path: ["end_date"] }
+    { message: "Duration must be 1-365 days", path: ["end_date"] },
   );
 
 // =============================================================================
@@ -139,9 +139,16 @@ export const sendFriendRequestSchema = z.object({
   target_user_id: uuidSchema,
 });
 
-export const respondToFriendRequestSchema = z.object({
+export const acceptFriendRequestSchema = z.object({
   friendship_id: uuidSchema,
-  action: z.enum(["accept", "decline", "block"]),
+});
+
+export const declineFriendRequestSchema = z.object({
+  friendship_id: uuidSchema,
+});
+
+export const removeFriendSchema = z.object({
+  friendship_id: uuidSchema,
 });
 
 // =============================================================================
@@ -188,7 +195,7 @@ export function validate<T>(schema: z.ZodSchema<T>, data: unknown): T {
       result.error.errors.map((e) => ({
         field: e.path.join("."),
         message: e.message,
-      }))
+      })),
     );
   }
   return result.data;
@@ -199,7 +206,7 @@ export function validate<T>(schema: z.ZodSchema<T>, data: unknown): T {
  */
 export function tryValidate<T>(
   schema: z.ZodSchema<T>,
-  data: unknown
+  data: unknown,
 ): T | null {
   const result = schema.safeParse(data);
   return result.success ? result.data : null;
@@ -214,5 +221,13 @@ export type SignInInput = z.infer<typeof signInSchema>;
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 export type CreateChallengeInput = z.infer<typeof createChallengeSchema>;
 export type LogActivityInput = z.infer<typeof logActivitySchema>;
+export type SendFriendRequestInput = z.infer<typeof sendFriendRequestSchema>;
+export type AcceptFriendRequestInput = z.infer<
+  typeof acceptFriendRequestSchema
+>;
+export type DeclineFriendRequestInput = z.infer<
+  typeof declineFriendRequestSchema
+>;
+export type RemoveFriendInput = z.infer<typeof removeFriendSchema>;
 export type InviteParticipantInput = z.infer<typeof inviteParticipantSchema>;
 export type RespondToInviteInput = z.infer<typeof respondToInviteSchema>;

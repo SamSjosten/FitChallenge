@@ -46,7 +46,7 @@ export function useSendFriendRequest() {
 
   return useMutation({
     mutationFn: (targetUserId: string) =>
-      friendsService.sendRequest(targetUserId),
+      friendsService.sendRequest({ target_user_id: targetUserId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: friendsKeys.all });
     },
@@ -61,7 +61,7 @@ export function useAcceptFriendRequest() {
 
   return useMutation({
     mutationFn: (friendshipId: string) =>
-      friendsService.acceptRequest(friendshipId),
+      friendsService.acceptRequest({ friendship_id: friendshipId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: friendsKeys.list() });
       queryClient.invalidateQueries({ queryKey: friendsKeys.pending() });
@@ -77,7 +77,7 @@ export function useDeclineFriendRequest() {
 
   return useMutation({
     mutationFn: (friendshipId: string) =>
-      friendsService.declineRequest(friendshipId),
+      friendsService.declineRequest({ friendship_id: friendshipId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: friendsKeys.pending() });
     },
@@ -92,7 +92,7 @@ export function useRemoveFriend() {
 
   return useMutation({
     mutationFn: (friendshipId: string) =>
-      friendsService.removeFriend(friendshipId),
+      friendsService.removeFriend({ friendship_id: friendshipId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: friendsKeys.list() });
     },

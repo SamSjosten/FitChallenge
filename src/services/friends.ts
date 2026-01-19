@@ -2,6 +2,13 @@
 // Friends management service
 
 import { supabase, withAuth } from "@/lib/supabase";
+import {
+  validate,
+  sendFriendRequestSchema,
+  acceptFriendRequestSchema,
+  declineFriendRequestSchema,
+  removeFriendSchema,
+} from "@/lib/validation";
 import type { ProfilePublic, Friend as DbFriend } from "@/types/database";
 
 // =============================================================================
@@ -153,15 +160,17 @@ export const friendsService = {
    * Send a friend request
    * CONTRACT: RLS enforces requested_by = auth.uid() and status = 'pending'
    */
-  async sendRequest(targetUserId: string): Promise<void> {
+  async sendRequest(input: unknown): Promise<void> {
+    const { target_user_id } = validate(sendFriendRequestSchema, input);
+
     return withAuth(async (userId) => {
-      if (targetUserId === userId) {
+      if (target_user_id === userId) {
         throw new Error("Cannot send friend request to yourself");
       }
 
       const { error } = await supabase.from("friends").insert({
         requested_by: userId,
-        requested_to: targetUserId,
+        requested_to: target_user_id,
         status: "pending",
       });
 
@@ -179,38 +188,50 @@ export const friendsService = {
    * Accept a friend request
    * CONTRACT: Only recipient can accept (RLS enforced)
    */
-  async acceptRequest(friendshipId: string): Promise<void> {
-    const { error } = await supabase
-      .from("friends")
-      .update({ status: "accepted" })
-      .eq("id", friendshipId);
+  async acceptRequest(input: unknown): Promise<void> {
+    const { friendship_id } = validate(acceptFriendRequestSchema, input);
 
-    if (error) throw error;
+    return withAuth(async () => {
+      const { error } = await supabase
+        .from("friends")
+        .update({ status: "accepted" })
+        .eq("id", friendship_id);
+
+      if (error) throw error;
+    });
   },
 
   /**
    * Decline a friend request
    * CONTRACT: Only recipient can decline (RLS enforced)
    */
-  async declineRequest(friendshipId: string): Promise<void> {
-    const { error } = await supabase
-      .from("friends")
-      .delete()
-      .eq("id", friendshipId);
+  async declineRequest(input: unknown): Promise<void> {
+    const { friendship_id } = validate(declineFriendRequestSchema, input);
 
-    if (error) throw error;
+    return withAuth(async () => {
+      const { error } = await supabase
+        .from("friends")
+        .delete()
+        .eq("id", friendship_id);
+
+      if (error) throw error;
+    });
   },
 
   /**
    * Remove a friendship
    * CONTRACT: Either party can delete (RLS enforced)
    */
-  async removeFriend(friendshipId: string): Promise<void> {
-    const { error } = await supabase
-      .from("friends")
-      .delete()
-      .eq("id", friendshipId);
+  async removeFriend(input: unknown): Promise<void> {
+    const { friendship_id } = validate(removeFriendSchema, input);
 
-    if (error) throw error;
+    return withAuth(async () => {
+      const { error } = await supabase
+        .from("friends")
+        .delete()
+        .eq("id", friendship_id);
+
+      if (error) throw error;
+    });
   },
 };
