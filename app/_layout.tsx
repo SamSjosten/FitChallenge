@@ -18,6 +18,7 @@ import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
 import { ThemeProvider, useAppTheme } from "@/providers/ThemeProvider";
 import { AuthProvider, useAuth } from "@/providers/AuthProvider";
 import { supabaseConfigError } from "@/lib/supabase";
+import { queryRetryFn, mutationRetryFn } from "@/lib/queryRetry";
 import type { Session } from "@supabase/supabase-js";
 
 // =============================================================================
@@ -179,7 +180,10 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 1000 * 60 * 5, // 5 minutes
-      retry: 3,
+      retry: queryRetryFn, // Smart retry: skips auth/RLS errors
+    },
+    mutations: {
+      retry: mutationRetryFn, // Conservative: only network errors
     },
   },
 });
