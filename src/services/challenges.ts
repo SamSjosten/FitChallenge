@@ -60,7 +60,7 @@ export interface PendingInvite {
  * Map raw participation data to MyParticipation, coalescing numeric nulls to 0
  */
 function mapParticipation(
-  raw: ParticipationFields | undefined
+  raw: ParticipationFields | undefined,
 ): MyParticipation | undefined {
   if (!raw) return undefined;
   return {
@@ -105,7 +105,7 @@ export const challengeService = {
             : null,
         p_win_condition: validated.win_condition,
         p_daily_target: validated.daily_target ?? null,
-      }
+      },
     );
 
     if (error) {
@@ -146,7 +146,7 @@ export const challengeService = {
             invite_status,
             current_progress
           )
-        `
+        `,
         )
         .eq("challenge_participants.user_id", userId)
         .eq("challenge_participants.invite_status", "accepted")
@@ -227,7 +227,7 @@ export const challengeService = {
             invite_status,
             current_progress
           )
-        `
+        `,
         )
         .eq("challenge_participants.user_id", userId)
         .eq("challenge_participants.invite_status", "accepted")
@@ -302,7 +302,7 @@ export const challengeService = {
           challenge:challenges!inner (
             *
           )
-        `
+        `,
         )
         .eq("user_id", userId)
         .eq("invite_status", "pending");
@@ -316,8 +316,8 @@ export const challengeService = {
           challenges
             .map((c) => c.challenge.creator_id)
             .filter(
-              (id): id is string => typeof id === "string" && id.length > 0
-            )
+              (id): id is string => typeof id === "string" && id.length > 0,
+            ),
         ),
       ];
 
@@ -350,7 +350,7 @@ export const challengeService = {
    * CONTRACT: RLS enforces visibility
    */
   async getChallenge(
-    challengeId: string
+    challengeId: string,
   ): Promise<ChallengeWithParticipation | null> {
     return withAuth(async (userId) => {
       const { data, error } = await supabase
@@ -362,7 +362,7 @@ export const challengeService = {
             invite_status,
             current_progress
           )
-        `
+        `,
         )
         .eq("id", challengeId)
         .eq("challenge_participants.user_id", userId)
@@ -384,7 +384,8 @@ export const challengeService = {
 
   /**
    * Invite a user to a challenge
-   * CONTRACT: Only creator can invite (RLS enforced)
+   * CONTRACT: Only creator can invite (RLS enforced via SECURITY INVOKER)
+   * CONTRACT: Max participants enforced atomically by RPC
    * CONTRACT: Triggers notification via server function
    * Defense-in-depth: Requires auth before attempting mutation
    */
@@ -392,21 +393,24 @@ export const challengeService = {
     const { challenge_id, user_id } = validate(inviteParticipantSchema, input);
 
     return withAuth(async () => {
-      // Insert participant (RLS enforces creator check)
-      const { error: insertError } = await supabase
-        .from("challenge_participants")
-        .insert({
-          challenge_id,
-          user_id,
-          invite_status: "pending",
-        });
+      // Atomic invite with max_participants check (RLS still enforced)
+      const { error: inviteError } = await supabase.rpc("invite_to_challenge", {
+        p_challenge_id: challenge_id,
+        p_user_id: user_id,
+      });
 
-      if (insertError) throw insertError;
+      if (inviteError) {
+        // Handle max participants exceeded
+        if (inviteError.message?.includes("challenge_full")) {
+          throw new Error("Challenge is full");
+        }
+        throw inviteError;
+      }
 
       // Trigger notification (server-side function)
       const { error: notifyError } = await supabase.rpc(
         "enqueue_challenge_invite_notification",
-        { p_challenge_id: challenge_id, p_invited_user_id: user_id }
+        { p_challenge_id: challenge_id, p_invited_user_id: user_id },
       );
 
       // Log but don't fail on notification error
