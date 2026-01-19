@@ -9,7 +9,6 @@ import {
   respondToInviteSchema,
   CreateChallengeInput,
 } from "@/lib/validation";
-import { getServerNow } from "@/lib/serverTime";
 import type {
   Challenge,
   ChallengeParticipant,
@@ -202,11 +201,28 @@ export const challengeService = {
   /**
    * Get challenges where current user is an accepted participant
    * Includes participant_count and my_rank for home screen display
+   *
+   * CONTRACT: Uses server-authoritative time filtering via RPC
+   * The RPC uses PostgreSQL now() to determine active window [start_date, end_date)
    */
   async getMyActiveChallenges(): Promise<ChallengeWithParticipation[]> {
     return withAuth(async (userId) => {
-      const now = getServerNow().toISOString();
+      // Step 1: Get active challenge IDs using server-authoritative time
+      const { data: idRows, error: idsError } = await supabase.rpc(
+        "get_active_challenge_ids",
+      );
 
+      if (idsError) throw idsError;
+
+      const challengeIds = (idRows || []).map((row) => row.challenge_id);
+
+      // Guard: empty .in() fails in PostgREST
+      if (challengeIds.length === 0) {
+        return [];
+      }
+
+      // Step 2: Fetch full challenge data by IDs
+      // Explicit ordering to match RPC order (start_date ASC)
       const { data, error } = await supabase
         .from("challenges")
         .select(
@@ -218,22 +234,16 @@ export const challengeService = {
           )
         `,
         )
+        .in("id", challengeIds)
         .eq("challenge_participants.user_id", userId)
         .eq("challenge_participants.invite_status", "accepted")
-        // Time-based filtering: active window is [start_date, end_date)
-        .lte("start_date", now) // Must have started
-        .gt("end_date", now) // Must not have ended
-        // Exclude override statuses (cancelled/archived)
-        .not("status", "in", '("cancelled","archived")')
         .order("start_date", { ascending: true });
 
       if (error) throw error;
 
       const challenges = data || [];
 
-      // Batch fetch all participants for these challenges to get counts and ranks
-      const challengeIds = challenges.map((c) => c.id);
-
+      // Step 3: Batch fetch all participants for these challenges to get counts and ranks
       let participantData: {
         challenge_id: string;
         user_id: string;
@@ -288,13 +298,29 @@ export const challengeService = {
 
   /**
    * Get completed challenges for current user
-   * CONTRACT: Uses time-derived status - challenges where end_date has passed
+   *
+   * CONTRACT: Uses server-authoritative time filtering via RPC
+   * The RPC uses PostgreSQL now() to determine completed = end_date <= now()
    * Includes participant_count and my_rank for historical display
    */
   async getCompletedChallenges(): Promise<ChallengeWithParticipation[]> {
     return withAuth(async (userId) => {
-      const now = getServerNow().toISOString();
+      // Step 1: Get completed challenge IDs using server-authoritative time
+      const { data: idRows, error: idsError } = await supabase.rpc(
+        "get_completed_challenge_ids",
+      );
 
+      if (idsError) throw idsError;
+
+      const challengeIds = (idRows || []).map((row) => row.challenge_id);
+
+      // Guard: empty .in() fails in PostgREST
+      if (challengeIds.length === 0) {
+        return [];
+      }
+
+      // Step 2: Fetch full challenge data by IDs
+      // Explicit ordering to match RPC order (end_date DESC)
       const { data, error } = await supabase
         .from("challenges")
         .select(
@@ -306,20 +332,16 @@ export const challengeService = {
           )
         `,
         )
+        .in("id", challengeIds)
         .eq("challenge_participants.user_id", userId)
         .eq("challenge_participants.invite_status", "accepted")
-        .lte("end_date", now)
-        .not("status", "in", '("cancelled","archived")')
-        .order("end_date", { ascending: false })
-        .limit(20);
+        .order("end_date", { ascending: false });
 
       if (error) throw error;
 
       const challenges = data || [];
 
-      // Batch fetch all participants for these challenges to get counts and ranks
-      const challengeIds = challenges.map((c) => c.id);
-
+      // Step 3: Batch fetch all participants for these challenges to get counts and ranks
       let participantData: {
         challenge_id: string;
         user_id: string;
