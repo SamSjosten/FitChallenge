@@ -44,22 +44,17 @@ export const notificationsService = {
 
   async markAsRead(notificationId: string): Promise<void> {
     return withAuth(async () => {
-      const { error } = await supabase
-        .from("notifications")
-        .update({ read_at: new Date().toISOString() })
-        .eq("id", notificationId);
+      const { error } = await supabase.rpc("mark_notification_read", {
+        p_notification_id: notificationId,
+      });
 
       if (error) throw error;
     });
   },
 
   async markAllAsRead(): Promise<void> {
-    return withAuth(async (userId) => {
-      const { error } = await supabase
-        .from("notifications")
-        .update({ read_at: new Date().toISOString() })
-        .eq("user_id", userId)
-        .is("read_at", null);
+    return withAuth(async () => {
+      const { error } = await supabase.rpc("mark_all_notifications_read");
 
       if (error) throw error;
     });
