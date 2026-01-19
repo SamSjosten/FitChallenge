@@ -6,6 +6,8 @@ export const Config = {
   supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || "",
   sentryDsn: process.env.EXPO_PUBLIC_SENTRY_DSN || "",
   enableAnalytics: process.env.NODE_ENV === "production",
+  // Realtime subscriptions - disable with EXPO_PUBLIC_ENABLE_REALTIME=false
+  enableRealtime: process.env.EXPO_PUBLIC_ENABLE_REALTIME !== "false",
 };
 
 export interface ConfigValidation {

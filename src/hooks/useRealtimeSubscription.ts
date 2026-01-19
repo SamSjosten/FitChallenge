@@ -1,17 +1,29 @@
 // src/hooks/useRealtimeSubscription.ts
 // Realtime subscription hook for live updates
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
 import { notificationsKeys } from "@/hooks/useNotifications";
 import { friendsKeys } from "@/hooks/useFriends";
 import { challengeKeys } from "@/hooks/useChallenges";
+import { Config } from "@/constants/config";
+import {
+  createThrottledInvalidator,
+  logRealtimeStatus,
+  type RealtimeStatus,
+} from "@/lib/realtimeThrottle";
 
 /**
  * Subscribe to realtime updates for the current user
  * Invalidates React Query cache when relevant changes occur
+ *
+ * Features:
+ * - Feature flag: Disable with EXPO_PUBLIC_ENABLE_REALTIME=false
+ * - Throttled invalidation: Batches rapid changes to avoid stampedes
+ * - Connection logging: Logs status changes for observability
+ * - Auto-reconnect: Supabase handles reconnection with exponential backoff
  *
  * NOTE: Leaderboard updates are handled by useLeaderboardSubscription
  * in the challenge detail screen (scoped to specific challenge_id)
@@ -20,8 +32,23 @@ export function useRealtimeSubscription() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
+  // Stable reference to throttled invalidator
+  const throttledInvalidateRef = useRef<ReturnType<
+    typeof createThrottledInvalidator
+  > | null>(null);
+
   useEffect(() => {
+    // Feature flag check
+    if (!Config.enableRealtime) {
+      console.log("[Realtime] Disabled via feature flag");
+      return;
+    }
+
     if (!user?.id) return;
+
+    // Create throttled invalidator (500ms debounce)
+    const throttledInvalidate = createThrottledInvalidator(queryClient, 500);
+    throttledInvalidateRef.current = throttledInvalidate;
 
     const channel = supabase
       .channel("app-realtime")
@@ -35,8 +62,8 @@ export function useRealtimeSubscription() {
           filter: `user_id=eq.${user.id}`,
         },
         () => {
-          queryClient.invalidateQueries({ queryKey: notificationsKeys.all });
-        }
+          throttledInvalidate(notificationsKeys.all);
+        },
       )
       // Friends: changes where user is requester or recipient
       .on(
@@ -48,8 +75,8 @@ export function useRealtimeSubscription() {
           filter: `requested_by=eq.${user.id}`,
         },
         () => {
-          queryClient.invalidateQueries({ queryKey: friendsKeys.all });
-        }
+          throttledInvalidate(friendsKeys.all);
+        },
       )
       .on(
         "postgres_changes",
@@ -60,8 +87,8 @@ export function useRealtimeSubscription() {
           filter: `requested_to=eq.${user.id}`,
         },
         () => {
-          queryClient.invalidateQueries({ queryKey: friendsKeys.all });
-        }
+          throttledInvalidate(friendsKeys.all);
+        },
       )
       // Challenge participants: changes for current user only
       .on(
@@ -73,10 +100,12 @@ export function useRealtimeSubscription() {
           filter: `user_id=eq.${user.id}`,
         },
         () => {
-          queryClient.invalidateQueries({ queryKey: challengeKeys.all });
-        }
+          throttledInvalidate(challengeKeys.all);
+        },
       )
-      .subscribe();
+      .subscribe((status, err) => {
+        logRealtimeStatus("app-realtime", status as RealtimeStatus, err);
+      });
 
     // Cleanup on unmount
     return () => {
@@ -88,15 +117,27 @@ export function useRealtimeSubscription() {
 /**
  * Subscribe to leaderboard updates for a specific challenge
  * Use this on screens that display a challenge leaderboard
+ *
+ * Features:
+ * - Feature flag: Respects EXPO_PUBLIC_ENABLE_REALTIME
+ * - Throttled invalidation: Batches rapid progress updates
+ * - Connection logging: Logs status changes for observability
  */
 export function useLeaderboardSubscription(challengeId: string | undefined) {
   const queryClient = useQueryClient();
 
   useEffect(() => {
+    // Feature flag check
+    if (!Config.enableRealtime) return;
+
     if (!challengeId) return;
 
+    // Create throttled invalidator (500ms debounce)
+    const throttledInvalidate = createThrottledInvalidator(queryClient, 500);
+
+    const channelName = `leaderboard-${challengeId}`;
     const channel = supabase
-      .channel(`leaderboard-${challengeId}`)
+      .channel(channelName)
       // Challenge participants: progress updates for this challenge
       .on(
         "postgres_changes",
@@ -107,10 +148,8 @@ export function useLeaderboardSubscription(challengeId: string | undefined) {
           filter: `challenge_id=eq.${challengeId}`,
         },
         () => {
-          queryClient.invalidateQueries({
-            queryKey: challengeKeys.leaderboard(challengeId),
-          });
-        }
+          throttledInvalidate(challengeKeys.leaderboard(challengeId));
+        },
       )
       // Activity logs: new entries for this challenge
       .on(
@@ -122,12 +161,12 @@ export function useLeaderboardSubscription(challengeId: string | undefined) {
           filter: `challenge_id=eq.${challengeId}`,
         },
         () => {
-          queryClient.invalidateQueries({
-            queryKey: challengeKeys.leaderboard(challengeId),
-          });
-        }
+          throttledInvalidate(challengeKeys.leaderboard(challengeId));
+        },
       )
-      .subscribe();
+      .subscribe((status, err) => {
+        logRealtimeStatus(channelName, status as RealtimeStatus, err);
+      });
 
     // Cleanup on unmount or challengeId change
     return () => {
