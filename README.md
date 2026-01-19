@@ -48,6 +48,19 @@ EXPO_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 EXPO_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 ```
 
+#### Optional Configuration
+
+| Variable                      | Default | Description                                      |
+| ----------------------------- | ------- | ------------------------------------------------ |
+| `EXPO_PUBLIC_SENTRY_DSN`      | (none)  | Sentry error tracking DSN                        |
+| `EXPO_PUBLIC_ENABLE_REALTIME` | `true`  | Set to `false` to disable realtime subscriptions |
+
+Example to disable realtime (for debugging or battery saving):
+
+```
+EXPO_PUBLIC_ENABLE_REALTIME=false
+```
+
 ### 3. Install & Run
 
 ```bash
@@ -297,7 +310,6 @@ app/
 ├── _layout.tsx              # Root layout with auth routing
 ├── index.tsx                # Root redirect
 ├── notifications.tsx        # Notifications screen
-├── friends.tsx              # Friends screen (⚠️ duplicate, see note)
 ├── (auth)/
 │   ├── login.tsx            # Sign in
 │   └── signup.tsx           # Sign up
@@ -305,12 +317,15 @@ app/
 │   ├── _layout.tsx          # Tab navigation
 │   ├── index.tsx            # Home/Dashboard
 │   ├── challenges.tsx       # Challenges list
-│   ├── create.tsx           # Create challenge (⚠️ duplicate, see note)
+│   ├── create.tsx           # Placeholder for FAB (navigates to /challenge/create)
 │   ├── friends.tsx          # Friends tab
 │   └── profile.tsx          # Profile screen
-└── challenge/
-    ├── create.tsx           # Create challenge form
-    └── [id].tsx             # Challenge detail + leaderboard
+├── challenge/
+│   ├── create.tsx           # Create challenge form
+│   └── [id].tsx             # Challenge detail + leaderboard
+└── settings/
+    ├── _layout.tsx          # Settings layout
+    └── index.tsx            # Settings screen
 
 src/
 ├── components/
@@ -331,14 +346,10 @@ src/
 │   ├── validation.ts        # Zod schemas
 │   ├── challengeStatus.ts   # Challenge status utilities
 │   ├── serverTime.ts        # Server time synchronization
+│   ├── realtimeThrottle.ts  # Realtime subscription utilities
 │   ├── username.ts          # Username normalization
 │   ├── uuid.ts              # UUID generation
 │   └── __tests__/           # Unit tests for lib modules
-│       ├── challengeStatus.test.ts
-│       ├── generateClientEventId.test.ts
-│       ├── serverTime.test.ts
-│       ├── usernameNormalization.test.ts
-│       └── withAuth.test.ts
 ├── services/
 │   ├── auth.ts              # Auth operations
 │   ├── activities.ts        # Activity logging (RPC)
@@ -365,13 +376,6 @@ supabase/
 docs/
 └── SCOPE.md                 # Feature scope documentation
 ```
-
-> ⚠️ **Note on duplicate files:**
->
-> - `app/friends.tsx` and `app/(tabs)/friends.tsx` both exist
-> - `app/(tabs)/create.tsx` and `app/challenge/create.tsx` both exist
->
-> This duplication is noted for future cleanup.
 
 ### Design System Files
 
