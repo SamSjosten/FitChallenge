@@ -8,6 +8,7 @@ import React, {
   useState,
   useCallback,
   useMemo,
+  useRef,
 } from "react";
 import { Session, User, AuthError } from "@supabase/supabase-js";
 import { getSupabaseClient } from "@/lib/supabase";
@@ -61,54 +62,67 @@ export function AuthProvider({ children }: AuthProviderProps) {
     pendingEmailConfirmation: false,
   });
 
+  // Track mounted state for async operations
+  const mountedRef = useRef(true);
+
+  // Track if signIn/signUp has explicitly handled the auth event
+  // Prevents listener from redundantly processing the same event
+  const authActionHandledRef = useRef(false);
+
   // ==========================================================================
-  // SINGLE AUTH SUBSCRIPTION (replaces duplicate subscriptions)
+  // PROFILE LOADING HELPER
   // ==========================================================================
-  useEffect(() => {
-    let mounted = true;
-    let initialLoadHandled = false; // Prevent race between initSession and onAuthStateChange
 
-    // Helper to load profile with the session we already have
-    const loadProfileAndSetState = async (session: Session) => {
-      // Sync server time (non-blocking)
-      syncServerTime().catch((err) =>
-        console.warn("Server time sync failed:", err),
-      );
+  /**
+   * Load user profile and set authenticated state.
+   * Used by initialization, signIn, signUp, and auth listener.
+   */
+  const loadProfileAndSetState = useCallback(async (session: Session) => {
+    // Sync server time (non-blocking)
+    syncServerTime().catch((err) =>
+      console.warn("Server time sync failed:", err),
+    );
 
-      try {
-        const profile = await authService.getMyProfile();
-        if (mounted) {
-          setState({
-            session,
-            user: session.user,
-            profile,
-            loading: false,
-            error: null,
-            pendingEmailConfirmation: false,
-          });
+    try {
+      const profile = await authService.getMyProfile();
+      if (mountedRef.current) {
+        setState({
+          session,
+          user: session.user,
+          profile,
+          loading: false,
+          error: null,
+          pendingEmailConfirmation: false,
+        });
 
-          // Register push token if permission already granted (non-blocking)
-          pushTokenService
-            .registerToken()
-            .catch((err) =>
-              console.warn("Push token registration failed:", err),
-            );
-        }
-      } catch (err) {
-        if (mounted) {
-          setState({
-            session,
-            user: session.user,
-            profile: null,
-            loading: false,
-            error: err as Error,
-            pendingEmailConfirmation: false,
-          });
-        }
+        // Register push token if permission already granted (non-blocking)
+        pushTokenService
+          .registerToken()
+          .catch((err) => console.warn("Push token registration failed:", err));
       }
-    };
+    } catch (err) {
+      if (mountedRef.current) {
+        setState({
+          session,
+          user: session.user,
+          profile: null,
+          loading: false,
+          error: err as Error,
+          pendingEmailConfirmation: false,
+        });
+      }
+    }
+  }, []);
 
-    // Get initial session
+  // ==========================================================================
+  // AUTH INITIALIZATION & SUBSCRIPTION
+  // ==========================================================================
+
+  useEffect(() => {
+    // Reset mounted ref on mount
+    mountedRef.current = true;
+    let initialLoadHandled = false;
+
     const initSession = async () => {
       try {
         const {
@@ -116,7 +130,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           error,
         } = await getSupabaseClient().auth.getSession();
 
-        if (!mounted || initialLoadHandled) return;
+        if (!mountedRef.current || initialLoadHandled) return;
         initialLoadHandled = true;
 
         if (error) {
@@ -137,7 +151,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           });
         }
       } catch (err) {
-        if (mounted) {
+        if (mountedRef.current) {
           setState((prev) => ({
             ...prev,
             loading: false,
@@ -149,35 +163,44 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     initSession();
 
-    // Safety timeout: ensure loading clears even if something hangs
+    // Safety timeout: set explicit error if auth hangs
     const safetyTimeout = setTimeout(() => {
-      if (mounted) {
+      if (mountedRef.current) {
         setState((prev) => {
           if (prev.loading) {
-            console.warn(
-              "Auth initialization timed out, clearing loading state",
-            );
-            return { ...prev, loading: false };
+            console.warn("Auth initialization timed out");
+            return {
+              ...prev,
+              loading: false,
+              error: new Error(
+                "Authentication timed out. Please check your connection and try again.",
+              ),
+            };
           }
           return prev;
         });
       }
-    }, 10000); // 10 second safety net
+    }, 10000);
 
-    // Listen for auth changes - THE SINGLE SUBSCRIPTION
+    // Listen for auth changes - BACKUP mechanism for token refresh, sign out, etc.
     const {
       data: { subscription },
     } = getSupabaseClient().auth.onAuthStateChange(async (event, session) => {
-      if (!mounted) return;
+      if (!mountedRef.current) return;
 
       // Skip INITIAL_SESSION if initSession already handled it
       if (event === "INITIAL_SESSION" && initialLoadHandled) {
         return;
       }
 
-      // Mark as handled if this is the initial session event
       if (event === "INITIAL_SESSION") {
         initialLoadHandled = true;
+      }
+
+      // Skip SIGNED_IN if signIn/signUp already handled it explicitly
+      if (event === "SIGNED_IN" && authActionHandledRef.current) {
+        authActionHandledRef.current = false; // Reset for future auth actions
+        return;
       }
 
       if (event === "SIGNED_OUT" || !session) {
@@ -192,24 +215,24 @@ export function AuthProvider({ children }: AuthProviderProps) {
         return;
       }
 
-      // User signed in or token refreshed
+      // Token refresh or external auth change
       if (session.user) {
         await loadProfileAndSetState(session);
       }
     });
 
     return () => {
-      mounted = false;
+      mountedRef.current = false;
       clearTimeout(safetyTimeout);
       subscription.unsubscribe();
     };
-  }, []);
+  }, [loadProfileAndSetState]);
 
   // ==========================================================================
   // PERIODIC SERVER TIME SYNC
   // ==========================================================================
+
   useEffect(() => {
-    // Only run interval when authenticated
     if (!state.session) return;
 
     const intervalId = setInterval(() => {
@@ -229,37 +252,86 @@ export function AuthProvider({ children }: AuthProviderProps) {
     async (email: string, password: string, username: string) => {
       setState((prev) => ({ ...prev, loading: true, error: null }));
       try {
-        const { session } = await authService.signUp({
+        const { session: returnedSession } = await authService.signUp({
           email,
           password,
           username,
         });
-        // If no session returned, email confirmation is pending
-        // Explicitly clear loading - don't rely solely on onAuthStateChange
-        setState((prev) => ({
-          ...prev,
-          loading: false,
-          pendingEmailConfirmation: !session,
-        }));
-        // If session exists, onAuthStateChange will handle user/profile setup
+
+        if (returnedSession) {
+          // Auto-confirm enabled - explicitly verify session
+          const {
+            data: { session },
+            error: sessionError,
+          } = await getSupabaseClient().auth.getSession();
+
+          if (sessionError) {
+            throw new Error(
+              `Failed to verify session: ${sessionError.message}`,
+            );
+          }
+
+          if (!session) {
+            throw new Error(
+              "Sign up succeeded but no session was created. Please try again.",
+            );
+          }
+
+          // Mark as handled so listener doesn't duplicate work
+          authActionHandledRef.current = true;
+
+          // Explicitly load profile and set state
+          await loadProfileAndSetState(session);
+        } else {
+          // Email confirmation required
+          setState((prev) => ({
+            ...prev,
+            loading: false,
+            pendingEmailConfirmation: true,
+          }));
+        }
       } catch (err) {
         setState((prev) => ({ ...prev, loading: false, error: err as Error }));
         throw err;
       }
     },
-    [],
+    [loadProfileAndSetState],
   );
 
-  const signIn = useCallback(async (email: string, password: string) => {
-    setState((prev) => ({ ...prev, loading: true, error: null }));
-    try {
-      await authService.signIn({ email, password });
-      // Auth state change listener will handle the rest
-    } catch (err) {
-      setState((prev) => ({ ...prev, loading: false, error: err as Error }));
-      throw err;
-    }
-  }, []);
+  const signIn = useCallback(
+    async (email: string, password: string) => {
+      setState((prev) => ({ ...prev, loading: true, error: null }));
+      try {
+        await authService.signIn({ email, password });
+
+        // Explicitly fetch session - don't rely on listener
+        const {
+          data: { session },
+          error: sessionError,
+        } = await getSupabaseClient().auth.getSession();
+
+        if (sessionError) {
+          throw new Error(`Failed to verify session: ${sessionError.message}`);
+        }
+
+        if (!session) {
+          throw new Error(
+            "Sign in succeeded but no session was created. Please try again.",
+          );
+        }
+
+        // Mark as handled so listener doesn't duplicate work
+        authActionHandledRef.current = true;
+
+        // Explicitly load profile and set state
+        await loadProfileAndSetState(session);
+      } catch (err) {
+        setState((prev) => ({ ...prev, loading: false, error: err as Error }));
+        throw err;
+      }
+    },
+    [loadProfileAndSetState],
+  );
 
   const signOut = useCallback(async () => {
     try {
