@@ -18,6 +18,25 @@ import { syncServerTime, RESYNC_INTERVAL_MS } from "@/lib/serverTime";
 import type { Profile } from "@/types/database";
 
 // =============================================================================
+// ERRORS
+// =============================================================================
+
+/**
+ * Structured error for auth timeout.
+ * UI can check `error.code === 'AUTH_TIMEOUT'` or `error instanceof AuthTimeoutError`
+ */
+export class AuthTimeoutError extends Error {
+  readonly code = "AUTH_TIMEOUT" as const;
+
+  constructor(
+    message = "Authentication timed out. Please check your connection and try again.",
+  ) {
+    super(message);
+    this.name = "AuthTimeoutError";
+  }
+}
+
+// =============================================================================
 // TYPES
 // =============================================================================
 
@@ -172,9 +191,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
             return {
               ...prev,
               loading: false,
-              error: new Error(
-                "Authentication timed out. Please check your connection and try again.",
-              ),
+              error: new AuthTimeoutError(),
             };
           }
           return prev;
