@@ -1,6 +1,7 @@
 // src/services/auth.ts
 // Authentication and profile management service
 
+import { AuthError } from "@supabase/supabase-js";
 import { getSupabaseClient, requireUserId, withAuth } from "@/lib/supabase";
 import {
   validate,
@@ -18,11 +19,70 @@ import type { Profile, ProfilePublic } from "@/types/database";
 // (callers can import from '@/services/auth' or '@/lib/username')
 export { normalizeUsername };
 
+// =============================================================================
+// ERROR MAPPING
+// =============================================================================
+
+/**
+ * Map sign-up errors to user-friendly messages.
+ *
+ * The DB unique constraint on profiles.username is authoritative.
+ * When the trigger fails due to duplicate username, Supabase may return:
+ * - PostgreSQL error code 23505 (unique_violation)
+ * - Message containing "duplicate key" or "unique constraint"
+ * - Message containing "username" (from constraint name)
+ *
+ * We check multiple patterns defensively since error shape may vary.
+ */
+function mapSignUpError(error: AuthError): Error {
+  const code = (error as AuthError & { code?: string }).code;
+  const message = error.message?.toLowerCase() ?? "";
+
+  // Username already taken (unique constraint violation)
+  if (
+    code === "23505" ||
+    message.includes("duplicate key") ||
+    message.includes("unique constraint") ||
+    (message.includes("unique") && message.includes("username"))
+  ) {
+    return new Error("Username is already taken");
+  }
+
+  // Email already registered
+  if (
+    message.includes("user already registered") ||
+    message.includes("email already") ||
+    message.includes("already been registered")
+  ) {
+    return new Error("An account with this email already exists");
+  }
+
+  // Password too weak (Supabase auth policy)
+  if (message.includes("password")) {
+    return new Error(error.message); // Pass through password policy messages
+  }
+
+  // Invalid email format
+  if (message.includes("invalid") && message.includes("email")) {
+    return new Error("Please enter a valid email address");
+  }
+
+  // Default: return original error
+  return error;
+}
+
+// =============================================================================
+// SERVICE
+// =============================================================================
+
 export const authService = {
   /**
    * Sign up a new user
    * Profile is auto-created by database trigger
    * Returns session info to determine if email confirmation is required
+   *
+   * NOTE: Username uniqueness is enforced by DB constraint, not pre-check.
+   * Use isUsernameAvailable() for real-time UI hints only.
    */
   async signUp(
     input: unknown,
@@ -37,25 +97,8 @@ export const authService = {
     // Explicit normalization for defense-in-depth and clarity
     const username = normalizeUsername(validatedUsername);
 
-    // Check username availability first
-    const { data: existing, error: usernameCheckError } =
-      await getSupabaseClient()
-        .from("profiles_public")
-        .select("id")
-        .eq("username", username)
-        .maybeSingle();
-
-    if (usernameCheckError) {
-      throw new Error(
-        "Unable to verify username availability. Please try again.",
-      );
-    }
-
-    if (existing) {
-      throw new Error("Username is already taken");
-    }
-
     // Create auth user - profile created by trigger
+    // Username uniqueness is enforced by DB constraint on profiles.username
     const { data, error } = await getSupabaseClient().auth.signUp({
       email,
       password,
@@ -64,7 +107,10 @@ export const authService = {
       },
     });
 
-    if (error) throw error;
+    if (error) {
+      // Map database errors to user-friendly messages
+      throw mapSignUpError(error);
+    }
 
     // Return session so caller can determine if email confirmation is pending
     return { session: data.session };
@@ -132,7 +178,11 @@ export const authService = {
   },
 
   /**
-   * Check if a username is available
+   * Check if a username is available (UX hint only).
+   *
+   * NOTE: This is for real-time UI feedback while typing, not authoritative.
+   * The DB unique constraint on profiles.username is the source of truth.
+   * Do NOT use this as a gate before signUp - that creates a TOCTOU race.
    */
   async isUsernameAvailable(username: string): Promise<boolean> {
     const normalized = normalizeUsername(username);
