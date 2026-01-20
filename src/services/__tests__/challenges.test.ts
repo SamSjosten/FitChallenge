@@ -18,12 +18,6 @@ jest.mock("expo-secure-store", () => ({
   deleteItemAsync: jest.fn(),
 }));
 
-// Track calls to Supabase methods
-const mockSelect = jest.fn();
-const mockIn = jest.fn();
-const mockEq = jest.fn();
-const mockFrom = jest.fn();
-
 // Chain mocks for fluent API
 const createChainMock = (finalData: unknown, finalError: unknown = null) => {
   const chain = {
@@ -43,16 +37,14 @@ const createChainMock = (finalData: unknown, finalError: unknown = null) => {
 // Mock user for withAuth
 const mockUserId = "test-user-123";
 
-// Create shared mock client instance
-const mockSupabaseClientInstance = {
-  from: jest.fn(),
-};
-
 // Mock supabase module
 jest.mock("@/lib/supabase", () => {
+  // Create mock client inside factory to avoid hoisting issues
+  const mockClient = { from: jest.fn() };
   return {
-    getSupabaseClient: jest.fn(() => mockSupabaseClientInstance),
-    withAuth: jest.fn((operation) => operation(mockUserId)),
+    __mockClient: mockClient, // Export for test access
+    getSupabaseClient: jest.fn(() => mockClient),
+    withAuth: jest.fn((operation) => operation("test-user-123")),
   };
 });
 
@@ -65,9 +57,15 @@ jest.mock("@/lib/serverTime", () => ({
 // TESTS
 // =============================================================================
 
+// Get mock client from the mocked module
+const getMockClient = () =>
+  require("@/lib/supabase").__mockClient as { from: jest.Mock };
+
 describe("challengeService.getPendingInvites", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // Reset the from mock for each test
+    getMockClient().from.mockReset();
   });
 
   describe("empty creatorIds guard", () => {
@@ -100,7 +98,7 @@ describe("challengeService.getPendingInvites", () => {
 
       // Track which tables are queried
       const queriedTables: string[] = [];
-      mockSupabaseClientInstance.from.mockImplementation((table: string) => {
+      getMockClient().from.mockImplementation((table: string) => {
         queriedTables.push(table);
         if (table === "challenge_participants") {
           return participantsChain;
@@ -157,7 +155,7 @@ describe("challengeService.getPendingInvites", () => {
       };
 
       const queriedTables: string[] = [];
-      mockSupabaseClientInstance.from.mockImplementation((table: string) => {
+      getMockClient().from.mockImplementation((table: string) => {
         queriedTables.push(table);
         if (table === "challenge_participants") {
           return participantsChain;
@@ -226,7 +224,7 @@ describe("challengeService.getPendingInvites", () => {
       };
 
       const queriedTables: string[] = [];
-      mockSupabaseClientInstance.from.mockImplementation((table: string) => {
+      getMockClient().from.mockImplementation((table: string) => {
         queriedTables.push(table);
         if (table === "challenge_participants") {
           return participantsChain;

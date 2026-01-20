@@ -26,7 +26,7 @@ jest.mock("expo-crypto", () => ({
   randomUUID: () => require("crypto").randomUUID(),
 }));
 jest.mock("@/lib/supabase", () => ({
-  supabase: {},
+  getSupabaseClient: jest.fn(() => ({})),
   withAuth: jest.fn(),
 }));
 
