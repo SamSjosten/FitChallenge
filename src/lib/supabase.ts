@@ -1,11 +1,17 @@
 // src/lib/supabase.ts
-// Supabase client with secure token storage
+// Supabase client with resilient token storage
 
 import "react-native-url-polyfill/auto";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
-import * as SecureStore from "expo-secure-store";
 import { Database } from "@/types/database";
 import { Config, configValidation } from "@/constants/config";
+import {
+  createResilientStorageAdapter,
+  getStorageStatus,
+  isStorageProbeComplete,
+  storageProbePromise,
+  type StorageStatus,
+} from "./storageProbe";
 
 // =============================================================================
 // CONFIGURATION VALIDATION
@@ -34,35 +40,24 @@ if (!__DEV__ && !configValidation.isValid) {
 }
 
 // =============================================================================
-// SECURE STORAGE ADAPTER
+// STORAGE STATUS EXPORTS
 // =============================================================================
 
-// Uses expo-secure-store which encrypts data on device
-const ExpoSecureStoreAdapter = {
-  getItem: async (key: string): Promise<string | null> => {
-    try {
-      return await SecureStore.getItemAsync(key);
-    } catch {
-      // SecureStore might fail on web or certain devices
-      return null;
-    }
-  },
-  setItem: async (key: string, value: string): Promise<void> => {
-    try {
-      await SecureStore.setItemAsync(key, value);
-    } catch {
-      // Fail silently - auth will still work but won't persist
-      console.warn("SecureStore setItem failed");
-    }
-  },
-  removeItem: async (key: string): Promise<void> => {
-    try {
-      await SecureStore.deleteItemAsync(key);
-    } catch {
-      console.warn("SecureStore removeItem failed");
-    }
-  },
+// Re-export storage status utilities for UI components
+export {
+  getStorageStatus,
+  isStorageProbeComplete,
+  storageProbePromise,
+  type StorageStatus,
 };
+
+// =============================================================================
+// RESILIENT STORAGE ADAPTER
+// =============================================================================
+
+// Uses storageProbe to detect best available storage and fall back gracefully
+// See src/lib/storageProbe.ts for implementation details
+const ResilientStorageAdapter = createResilientStorageAdapter();
 
 // =============================================================================
 // SUPABASE CLIENT
@@ -92,7 +87,7 @@ export function getSupabaseClient(): SupabaseClient<Database> {
       Config.supabaseAnonKey,
       {
         auth: {
-          storage: ExpoSecureStoreAdapter,
+          storage: ResilientStorageAdapter,
           autoRefreshToken: true,
           persistSession: true,
           detectSessionInUrl: false, // Important for React Native

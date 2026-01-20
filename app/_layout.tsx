@@ -17,9 +17,15 @@ import * as Notifications from "expo-notifications";
 import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
 import { ThemeProvider, useAppTheme } from "@/providers/ThemeProvider";
 import { AuthProvider, useAuth } from "@/providers/AuthProvider";
-import { supabaseConfigError } from "@/lib/supabase";
+import { ToastProvider } from "@/providers/ToastProvider";
+import {
+  supabaseConfigError,
+  getStorageStatus,
+  storageProbePromise,
+} from "@/lib/supabase";
 import { queryRetryFn, mutationRetryFn } from "@/lib/queryRetry";
 import { initSentry, setUserContext } from "@/lib/sentry";
+import { useToast } from "@/providers/ToastProvider";
 import type { Session } from "@supabase/supabase-js";
 
 // =============================================================================
@@ -218,8 +224,11 @@ function useProtectedRoute(session: Session | null, isLoading: boolean) {
 
 function RootLayoutNav() {
   const { colors, isDark } = useAppTheme();
+  const { showToast } = useToast();
   // Use centralized auth state - NO MORE DUPLICATE SUBSCRIPTION
   const { session, loading: isLoading } = useAuth();
+  // Track if we've shown storage warning for this session
+  const storageWarningShown = useRef(false);
 
   useProtectedRoute(session, isLoading);
 
@@ -231,6 +240,43 @@ function RootLayoutNav() {
       setUserContext(null);
     }
   }, [session?.user?.id]);
+
+  // Check storage status and warn if degraded (once per login)
+  useEffect(() => {
+    // Only check when user logs in and we haven't shown warning yet
+    if (!session?.user?.id || storageWarningShown.current) return;
+
+    // Wait for storage probe to complete, then check status
+    storageProbePromise.then((status) => {
+      // Don't show warning if already shown or user logged out
+      if (storageWarningShown.current) return;
+      storageWarningShown.current = true;
+
+      if (!status.isPersistent) {
+        // Critical: session won't survive app restart
+        showToast(
+          "Session won't persist between app restarts. Storage unavailable.",
+          "error",
+          6000,
+        );
+      } else if (!status.isSecure) {
+        // Warning: using unencrypted storage
+        showToast(
+          "Using unencrypted session storage. Your data is still safe.",
+          "warning",
+          5000,
+        );
+      }
+      // If status.isSecure, no warning needed
+    });
+  }, [session?.user?.id, showToast]);
+
+  // Reset warning flag when user logs out
+  useEffect(() => {
+    if (!session) {
+      storageWarningShown.current = false;
+    }
+  }, [session]);
 
   // Enable realtime updates when logged in
   useRealtimeSubscription();
@@ -333,7 +379,9 @@ export default function RootLayout() {
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <ThemeProvider>
-            <RootLayoutNav />
+            <ToastProvider>
+              <RootLayoutNav />
+            </ToastProvider>
           </ThemeProvider>
         </AuthProvider>
       </QueryClientProvider>

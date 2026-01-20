@@ -12,6 +12,10 @@ export {
   useScreenLayout,
   LAYOUT,
 } from "./ScreenContainer";
+
+// Re-export Toast components
+export { Toast, type ToastVariant, type ToastProps } from "./Toast";
+
 import {
   StyleProp,
   TouchableOpacity,
@@ -260,8 +264,8 @@ export function Input({
             borderColor: error
               ? colors.error
               : isFocused
-              ? colors.borderFocus
-              : colors.border,
+                ? colors.borderFocus
+                : colors.border,
             borderRadius: radius.input,
             paddingHorizontal: spacing.input.paddingX,
             paddingVertical: spacing.input.paddingY,
