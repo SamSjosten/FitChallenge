@@ -10,7 +10,7 @@ import React, {
   useMemo,
 } from "react";
 import { Session, User, AuthError } from "@supabase/supabase-js";
-import { supabase } from "@/lib/supabase";
+import { getSupabaseClient } from "@/lib/supabase";
 import { authService } from "@/services/auth";
 import { pushTokenService } from "@/services/pushTokens";
 import { syncServerTime, RESYNC_INTERVAL_MS } from "@/lib/serverTime";
@@ -114,7 +114,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         const {
           data: { session },
           error,
-        } = await supabase.auth.getSession();
+        } = await getSupabaseClient().auth.getSession();
 
         if (!mounted || initialLoadHandled) return;
         initialLoadHandled = true;
@@ -167,7 +167,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     // Listen for auth changes - THE SINGLE SUBSCRIPTION
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
+    } = getSupabaseClient().auth.onAuthStateChange(async (event, session) => {
       if (!mounted) return;
 
       // Skip INITIAL_SESSION if initSession already handled it

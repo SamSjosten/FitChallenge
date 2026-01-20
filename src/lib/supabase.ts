@@ -68,25 +68,42 @@ const ExpoSecureStoreAdapter = {
 // SUPABASE CLIENT
 // =============================================================================
 
+/** Lazily initialized client instance */
+let supabaseClient: SupabaseClient<Database> | null = null;
+
 /**
- * Supabase client instance.
+ * Get the Supabase client instance.
  *
- * IMPORTANT: Only created with valid credentials. In production with invalid
- * config, this is null (type-asserted). The error screen in _layout.tsx
- * renders before any component can use this client.
+ * Throws an explicit error if configuration is invalid, ensuring fail-fast
+ * behavior regardless of when/where the client is accessed.
+ *
+ * The client is lazily initialized on first call and cached thereafter.
  */
-export const supabase: SupabaseClient<Database> = configValidation.isValid
-  ? createClient<Database>(Config.supabaseUrl, Config.supabaseAnonKey, {
-      auth: {
-        storage: ExpoSecureStoreAdapter,
-        autoRefreshToken: true,
-        persistSession: true,
-        detectSessionInUrl: false, // Important for React Native
-        flowType: "pkce", // More secure than implicit
+export function getSupabaseClient(): SupabaseClient<Database> {
+  if (!configValidation.isValid) {
+    throw new Error(
+      `[FitChallenge] Supabase client unavailable: ${configValidation.message}`,
+    );
+  }
+
+  if (!supabaseClient) {
+    supabaseClient = createClient<Database>(
+      Config.supabaseUrl,
+      Config.supabaseAnonKey,
+      {
+        auth: {
+          storage: ExpoSecureStoreAdapter,
+          autoRefreshToken: true,
+          persistSession: true,
+          detectSessionInUrl: false, // Important for React Native
+          flowType: "pkce", // More secure than implicit
+        },
       },
-    })
-  : // Production with invalid config: null, but error screen prevents usage
-    (null as unknown as SupabaseClient<Database>);
+    );
+  }
+
+  return supabaseClient;
+}
 
 /**
  * Get current user ID or throw if not authenticated
@@ -96,7 +113,7 @@ export async function requireUserId(): Promise<string> {
   const {
     data: { user },
     error,
-  } = await supabase.auth.getUser();
+  } = await getSupabaseClient().auth.getUser();
   if (error) throw error;
   if (!user) throw new Error("Authentication required");
   return user.id;
@@ -109,7 +126,7 @@ export async function requireUserId(): Promise<string> {
 export async function getUserId(): Promise<string | null> {
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getSupabaseClient().auth.getUser();
   return user?.id ?? null;
 }
 

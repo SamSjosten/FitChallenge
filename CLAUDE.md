@@ -15,6 +15,15 @@ If a request conflicts with it: STOP and explain the conflict.
 - Do not add new features outside the requested scope.
 - Favor contract-aligned implementation over convenience.
 
+## Supabase Client Access
+
+- Always use `getSupabaseClient()` — never import a const client
+- The getter throws an explicit error if config is invalid (fail-fast pattern)
+- Helper functions are preferred for authenticated operations:
+  - `requireUserId()` — throws if not authenticated
+  - `getUserId()` — returns null if not authenticated
+  - `withAuth(fn)` — wraps operation with user ID injection
+
 ## Required Workflow (Do This Every Time)
 
 1. Identify the exact user story / task.
@@ -52,4 +61,6 @@ Before you answer, verify:
 - All activity logging uses `log_activity` and is idempotent.
 - I did not propose schema changes.
 - I did not create/delete notifications from the client.
-  If any check fails: STOP and correct.
+- I used `getSupabaseClient()`, not a const import, for database access.
+
+If any check fails: STOP and correct.

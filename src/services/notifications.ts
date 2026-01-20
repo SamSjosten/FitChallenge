@@ -1,4 +1,4 @@
-import { supabase, withAuth } from "@/lib/supabase";
+import { getSupabaseClient, withAuth } from "@/lib/supabase";
 import type { Notification as DbNotification } from "@/types/database";
 
 export interface Notification extends Omit<DbNotification, "data"> {
@@ -19,7 +19,7 @@ function mapNotification(db: DbNotification): Notification {
 export const notificationsService = {
   async getNotifications(): Promise<Notification[]> {
     return withAuth(async () => {
-      const { data, error } = await supabase
+      const { data, error } = await getSupabaseClient()
         .from("notifications")
         .select("*")
         .order("created_at", { ascending: false })
@@ -32,7 +32,7 @@ export const notificationsService = {
 
   async getUnreadCount(): Promise<number> {
     return withAuth(async () => {
-      const { count, error } = await supabase
+      const { count, error } = await getSupabaseClient()
         .from("notifications")
         .select("*", { count: "exact", head: true })
         .is("read_at", null);
@@ -44,9 +44,12 @@ export const notificationsService = {
 
   async markAsRead(notificationId: string): Promise<void> {
     return withAuth(async () => {
-      const { error } = await supabase.rpc("mark_notification_read", {
-        p_notification_id: notificationId,
-      });
+      const { error } = await getSupabaseClient().rpc(
+        "mark_notification_read",
+        {
+          p_notification_id: notificationId,
+        },
+      );
 
       if (error) throw error;
     });
@@ -54,7 +57,9 @@ export const notificationsService = {
 
   async markAllAsRead(): Promise<void> {
     return withAuth(async () => {
-      const { error } = await supabase.rpc("mark_all_notifications_read");
+      const { error } = await getSupabaseClient().rpc(
+        "mark_all_notifications_read",
+      );
 
       if (error) throw error;
     });

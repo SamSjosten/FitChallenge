@@ -3,7 +3,7 @@
 
 import { useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
+import { getSupabaseClient } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
 import { notificationsKeys } from "@/hooks/useNotifications";
 import { friendsKeys } from "@/hooks/useFriends";
@@ -50,7 +50,7 @@ export function useRealtimeSubscription() {
     const throttledInvalidate = createThrottledInvalidator(queryClient, 500);
     throttledInvalidateRef.current = throttledInvalidate;
 
-    const channel = supabase
+    const channel = getSupabaseClient()
       .channel("app-realtime")
       // Notifications: any change for current user
       .on(
@@ -109,7 +109,7 @@ export function useRealtimeSubscription() {
 
     // Cleanup on unmount
     return () => {
-      supabase.removeChannel(channel);
+      getSupabaseClient().removeChannel(channel);
     };
   }, [user?.id, queryClient]);
 }
@@ -136,7 +136,7 @@ export function useLeaderboardSubscription(challengeId: string | undefined) {
     const throttledInvalidate = createThrottledInvalidator(queryClient, 500);
 
     const channelName = `leaderboard-${challengeId}`;
-    const channel = supabase
+    const channel = getSupabaseClient()
       .channel(channelName)
       // Challenge participants: progress updates for this challenge
       .on(
@@ -170,7 +170,7 @@ export function useLeaderboardSubscription(challengeId: string | undefined) {
 
     // Cleanup on unmount or challengeId change
     return () => {
-      supabase.removeChannel(channel);
+      getSupabaseClient().removeChannel(channel);
     };
   }, [challengeId, queryClient]);
 }

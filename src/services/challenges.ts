@@ -1,7 +1,7 @@
 // src/services/challenges.ts
 // Challenge management service
 
-import { supabase, withAuth } from "@/lib/supabase";
+import { getSupabaseClient, withAuth } from "@/lib/supabase";
 import {
   validate,
   createChallengeSchema,
@@ -156,7 +156,7 @@ export const challengeService = {
 
     // Call atomic RPC - no withAuth needed as RPC uses auth.uid() internally
     // Parameter order: required params first, optional params last
-    const { data: challenge, error } = await supabase.rpc(
+    const { data: challenge, error } = await getSupabaseClient().rpc(
       "create_challenge_with_participant",
       {
         // Required parameters
@@ -208,7 +208,7 @@ export const challengeService = {
   async getMyActiveChallenges(): Promise<ChallengeWithParticipation[]> {
     return withAuth(async (userId) => {
       // Step 1: Get active challenge IDs using server-authoritative time
-      const { data: idRows, error: idsError } = await supabase.rpc(
+      const { data: idRows, error: idsError } = await getSupabaseClient().rpc(
         "get_active_challenge_ids",
       );
 
@@ -223,7 +223,7 @@ export const challengeService = {
 
       // Step 2: Fetch full challenge data by IDs
       // Explicit ordering to match RPC order (start_date ASC)
-      const { data, error } = await supabase
+      const { data, error } = await getSupabaseClient()
         .from("challenges")
         .select(
           `
@@ -250,13 +250,14 @@ export const challengeService = {
         current_progress: number;
       }[] = [];
       if (challengeIds.length > 0) {
-        const { data: participants, error: participantsError } = await supabase
-          .from("challenge_participants")
-          .select("challenge_id, user_id, current_progress")
-          .in("challenge_id", challengeIds)
-          .eq("invite_status", "accepted")
-          .order("current_progress", { ascending: false })
-          .order("user_id", { ascending: true }); // Tie-breaker for deterministic ranking
+        const { data: participants, error: participantsError } =
+          await getSupabaseClient()
+            .from("challenge_participants")
+            .select("challenge_id, user_id, current_progress")
+            .in("challenge_id", challengeIds)
+            .eq("invite_status", "accepted")
+            .order("current_progress", { ascending: false })
+            .order("user_id", { ascending: true }); // Tie-breaker for deterministic ranking
 
         if (participantsError) {
           throw new Error(
@@ -306,7 +307,7 @@ export const challengeService = {
   async getCompletedChallenges(): Promise<ChallengeWithParticipation[]> {
     return withAuth(async (userId) => {
       // Step 1: Get completed challenge IDs using server-authoritative time
-      const { data: idRows, error: idsError } = await supabase.rpc(
+      const { data: idRows, error: idsError } = await getSupabaseClient().rpc(
         "get_completed_challenge_ids",
       );
 
@@ -321,7 +322,7 @@ export const challengeService = {
 
       // Step 2: Fetch full challenge data by IDs
       // Explicit ordering to match RPC order (end_date DESC)
-      const { data, error } = await supabase
+      const { data, error } = await getSupabaseClient()
         .from("challenges")
         .select(
           `
@@ -348,13 +349,14 @@ export const challengeService = {
         current_progress: number;
       }[] = [];
       if (challengeIds.length > 0) {
-        const { data: participants, error: participantsError } = await supabase
-          .from("challenge_participants")
-          .select("challenge_id, user_id, current_progress")
-          .in("challenge_id", challengeIds)
-          .eq("invite_status", "accepted")
-          .order("current_progress", { ascending: false })
-          .order("user_id", { ascending: true }); // Tie-breaker for deterministic ranking
+        const { data: participants, error: participantsError } =
+          await getSupabaseClient()
+            .from("challenge_participants")
+            .select("challenge_id, user_id, current_progress")
+            .in("challenge_id", challengeIds)
+            .eq("invite_status", "accepted")
+            .order("current_progress", { ascending: false })
+            .order("user_id", { ascending: true }); // Tie-breaker for deterministic ranking
 
         if (participantsError) {
           throw new Error(
@@ -400,7 +402,7 @@ export const challengeService = {
    */
   async getPendingInvites(): Promise<PendingInvite[]> {
     return withAuth(async (userId) => {
-      const { data, error } = await supabase
+      const { data, error } = await getSupabaseClient()
         .from("challenge_participants")
         .select(
           `
@@ -430,10 +432,11 @@ export const challengeService = {
       // Guard: skip query if no creator IDs to fetch (empty .in() is problematic)
       let creatorMap = new Map<string, ProfilePublic>();
       if (creatorIds.length > 0) {
-        const { data: creators, error: creatorsError } = await supabase
-          .from("profiles_public")
-          .select("*")
-          .in("id", creatorIds);
+        const { data: creators, error: creatorsError } =
+          await getSupabaseClient()
+            .from("profiles_public")
+            .select("*")
+            .in("id", creatorIds);
 
         if (creatorsError) {
           throw new Error("Unable to load invite details. Please try again.");
@@ -464,7 +467,7 @@ export const challengeService = {
     challengeId: string,
   ): Promise<ChallengeWithParticipation | null> {
     return withAuth(async (userId) => {
-      const { data, error } = await supabase
+      const { data, error } = await getSupabaseClient()
         .from("challenges")
         .select(
           `
@@ -505,10 +508,13 @@ export const challengeService = {
 
     return withAuth(async () => {
       // Atomic invite with max_participants check (RLS still enforced)
-      const { error: inviteError } = await supabase.rpc("invite_to_challenge", {
-        p_challenge_id: challenge_id,
-        p_user_id: user_id,
-      });
+      const { error: inviteError } = await getSupabaseClient().rpc(
+        "invite_to_challenge",
+        {
+          p_challenge_id: challenge_id,
+          p_user_id: user_id,
+        },
+      );
 
       if (inviteError) {
         // Handle max participants exceeded
@@ -519,7 +525,7 @@ export const challengeService = {
       }
 
       // Trigger notification (server-side function)
-      const { error: notifyError } = await supabase.rpc(
+      const { error: notifyError } = await getSupabaseClient().rpc(
         "enqueue_challenge_invite_notification",
         { p_challenge_id: challenge_id, p_invited_user_id: user_id },
       );
@@ -539,7 +545,7 @@ export const challengeService = {
     const { challenge_id, response } = validate(respondToInviteSchema, input);
 
     return withAuth(async (userId) => {
-      const { error } = await supabase
+      const { error } = await getSupabaseClient()
         .from("challenge_participants")
         .update({ invite_status: response })
         .eq("challenge_id", challenge_id)
@@ -556,7 +562,7 @@ export const challengeService = {
    */
   async leaveChallenge(challengeId: string): Promise<void> {
     return withAuth(async (userId) => {
-      const { error } = await supabase
+      const { error } = await getSupabaseClient()
         .from("challenge_participants")
         .update({ invite_status: "declined" })
         .eq("challenge_id", challengeId)
@@ -574,7 +580,7 @@ export const challengeService = {
    */
   async cancelChallenge(challengeId: string): Promise<void> {
     return withAuth(async () => {
-      const { error } = await supabase
+      const { error } = await getSupabaseClient()
         .from("challenges")
         .update({ status: "cancelled" })
         .eq("id", challengeId);
@@ -591,7 +597,7 @@ export const challengeService = {
    */
   async getLeaderboard(challengeId: string): Promise<LeaderboardEntry[]> {
     return withAuth(async () => {
-      const { data, error } = await supabase
+      const { data, error } = await getSupabaseClient()
         .from("challenge_participants")
         .select("user_id, current_progress, current_streak")
         .eq("challenge_id", challengeId)
@@ -608,10 +614,11 @@ export const challengeService = {
       // Guard against empty array to prevent PostgREST error
       let profileMap = new Map<string, ProfilePublic>();
       if (userIds.length > 0) {
-        const { data: profiles, error: profilesError } = await supabase
-          .from("profiles_public")
-          .select("*")
-          .in("id", userIds);
+        const { data: profiles, error: profilesError } =
+          await getSupabaseClient()
+            .from("profiles_public")
+            .select("*")
+            .in("id", userIds);
 
         if (profilesError) {
           throw new Error(
@@ -654,7 +661,7 @@ export const challengeService = {
    */
   async canViewLeaderboard(challengeId: string): Promise<boolean> {
     return withAuth(async (userId) => {
-      const { data } = await supabase
+      const { data } = await getSupabaseClient()
         .from("challenge_participants")
         .select("invite_status")
         .eq("challenge_id", challengeId)

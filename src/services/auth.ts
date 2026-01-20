@@ -1,7 +1,7 @@
 // src/services/auth.ts
 // Authentication and profile management service
 
-import { supabase, requireUserId, withAuth } from "@/lib/supabase";
+import { getSupabaseClient, requireUserId, withAuth } from "@/lib/supabase";
 import {
   validate,
   signUpSchema,
@@ -38,11 +38,12 @@ export const authService = {
     const username = normalizeUsername(validatedUsername);
 
     // Check username availability first
-    const { data: existing, error: usernameCheckError } = await supabase
-      .from("profiles_public")
-      .select("id")
-      .eq("username", username)
-      .maybeSingle();
+    const { data: existing, error: usernameCheckError } =
+      await getSupabaseClient()
+        .from("profiles_public")
+        .select("id")
+        .eq("username", username)
+        .maybeSingle();
 
     if (usernameCheckError) {
       throw new Error(
@@ -55,7 +56,7 @@ export const authService = {
     }
 
     // Create auth user - profile created by trigger
-    const { data, error } = await supabase.auth.signUp({
+    const { data, error } = await getSupabaseClient().auth.signUp({
       email,
       password,
       options: {
@@ -75,7 +76,7 @@ export const authService = {
   async signIn(input: unknown): Promise<void> {
     const { email, password } = validate(signInSchema, input);
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { error } = await getSupabaseClient().auth.signInWithPassword({
       email,
       password,
     });
@@ -87,7 +88,7 @@ export const authService = {
    * Sign out the current user
    */
   async signOut(): Promise<void> {
-    const { error } = await supabase.auth.signOut();
+    const { error } = await getSupabaseClient().auth.signOut();
     if (error) throw error;
   },
 
@@ -97,7 +98,7 @@ export const authService = {
    */
   async getMyProfile(): Promise<Profile> {
     return withAuth(async (userId) => {
-      const { data, error } = await supabase
+      const { data, error } = await getSupabaseClient()
         .from("profiles")
         .select("*")
         .eq("id", userId)
@@ -117,7 +118,7 @@ export const authService = {
     const validated = validate(updateProfileSchema, input);
 
     return withAuth(async (userId) => {
-      const { data, error } = await supabase
+      const { data, error } = await getSupabaseClient()
         .from("profiles")
         .update(validated)
         .eq("id", userId)
@@ -135,7 +136,7 @@ export const authService = {
    */
   async isUsernameAvailable(username: string): Promise<boolean> {
     const normalized = normalizeUsername(username);
-    const { data, error } = await supabase
+    const { data, error } = await getSupabaseClient()
       .from("profiles_public")
       .select("id")
       .eq("username", normalized)
@@ -155,7 +156,7 @@ export const authService = {
    * CONTRACT: Uses profiles_public, not profiles
    */
   async getPublicProfile(userId: string): Promise<ProfilePublic | null> {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabaseClient()
       .from("profiles_public")
       .select("*")
       .eq("id", userId)
@@ -172,7 +173,7 @@ export const authService = {
   async searchUsers(query: string): Promise<ProfilePublic[]> {
     if (query.length < 2) return [];
 
-    const { data, error } = await supabase
+    const { data, error } = await getSupabaseClient()
       .from("profiles_public")
       .select("*")
       .ilike("username", `%${query}%`)

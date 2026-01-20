@@ -85,7 +85,7 @@ jest.mock("@/lib/supabase", () => {
   };
 
   return {
-    supabase: {
+    getSupabaseClient: jest.fn(() => ({
       rpc: jest.fn().mockImplementation((name: string, args?: unknown) => {
         rpcCalls.push({ name, args });
 
@@ -105,7 +105,7 @@ jest.mock("@/lib/supabase", () => {
         return Promise.resolve({ data: null, error: null });
       }),
       from: jest.fn().mockImplementation(() => createFromChain()),
-    },
+    })),
     withAuth: jest.fn((operation) => operation(mockUserId)),
   };
 });

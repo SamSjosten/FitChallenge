@@ -2,7 +2,7 @@
 // Activity logging service - all writes via atomic RPC function
 
 import { SupabaseClient } from "@supabase/supabase-js";
-import { supabase, withAuth } from "@/lib/supabase";
+import { getSupabaseClient, withAuth } from "@/lib/supabase";
 import { validate, logActivitySchema } from "@/lib/validation";
 import type { ActivityLog, Database } from "@/types/database";
 
@@ -70,7 +70,7 @@ export const activityService = {
         // p_recorded_at intentionally omitted
       };
 
-      const { error } = await supabase.rpc("log_activity", args);
+      const { error } = await getSupabaseClient().rpc("log_activity", args);
 
       if (error) {
         // Idempotency: duplicate key errors are safe to ignore
@@ -89,10 +89,10 @@ export const activityService = {
    */
   async getChallengeActivities(
     challengeId: string,
-    limit = 50
+    limit = 50,
   ): Promise<ActivityLog[]> {
     return withAuth(async (userId) => {
-      const { data, error } = await supabase
+      const { data, error } = await getSupabaseClient()
         .from("activity_logs")
         .select("*")
         .eq("challenge_id", challengeId)
@@ -111,12 +111,15 @@ export const activityService = {
    * CONTRACT: RLS enforced in function - only returns current user's data
    */
   async getChallengeActivitySummary(
-    challengeId: string
+    challengeId: string,
   ): Promise<ActivitySummary> {
     return withAuth(async () => {
-      const { data, error } = await supabase.rpc("get_activity_summary", {
-        p_challenge_id: challengeId,
-      });
+      const { data, error } = await getSupabaseClient().rpc(
+        "get_activity_summary",
+        {
+          p_challenge_id: challengeId,
+        },
+      );
 
       if (error) throw error;
 
@@ -172,10 +175,10 @@ export const activityService = {
           beforeRecordedAt?: string;
           beforeId?: string;
           client?: SupabaseClient<Database>;
-        }
+        },
   ): Promise<ActivityLog[]> {
     // Backwards compatibility: support (limit?: number) signature
-    const options = typeof arg === "number" ? { limit: arg } : arg ?? {};
+    const options = typeof arg === "number" ? { limit: arg } : (arg ?? {});
     const MAX_LIMIT = 100;
     const limit = Math.min(Math.max(1, options.limit ?? 20), MAX_LIMIT);
     const { beforeRecordedAt, beforeId, client: injectedClient } = options;
@@ -193,11 +196,11 @@ export const activityService = {
     if (
       beforeRecordedAt &&
       !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?Z$/.test(
-        beforeRecordedAt
+        beforeRecordedAt,
       )
     ) {
       throw new Error(
-        "beforeRecordedAt must be UTC ISO timestamp (use extractCursor helper)"
+        "beforeRecordedAt must be UTC ISO timestamp (use extractCursor helper)",
       );
     }
 
@@ -205,7 +208,7 @@ export const activityService = {
     if (
       beforeId &&
       !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-        beforeId
+        beforeId,
       )
     ) {
       throw new Error("beforeId must be a valid UUID");
@@ -214,7 +217,7 @@ export const activityService = {
     // Query builder - shared between injected and default client paths
     const executeQuery = async (
       userId: string,
-      queryClient: SupabaseClient<Database>
+      queryClient: SupabaseClient<Database>,
     ): Promise<ActivityLog[]> => {
       let query = queryClient
         .from("activity_logs")
@@ -228,7 +231,7 @@ export const activityService = {
       // Logic: recorded_at < cursor OR (recorded_at = cursor AND id < cursor_id)
       if (beforeRecordedAt && beforeId) {
         query = query.or(
-          `recorded_at.lt.${beforeRecordedAt},and(recorded_at.eq.${beforeRecordedAt},id.lt.${beforeId})`
+          `recorded_at.lt.${beforeRecordedAt},and(recorded_at.eq.${beforeRecordedAt},id.lt.${beforeId})`,
         );
       }
 
@@ -249,7 +252,7 @@ export const activityService = {
 
     // Default: use singleton client with withAuth
     return withAuth(async (userId) => {
-      return executeQuery(userId, supabase);
+      return executeQuery(userId, getSupabaseClient());
     });
   },
 };

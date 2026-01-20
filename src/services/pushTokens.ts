@@ -6,7 +6,7 @@ import { Platform } from "react-native";
 import * as Notifications from "expo-notifications";
 import * as Device from "expo-device";
 import Constants from "expo-constants";
-import { supabase, withAuth } from "@/lib/supabase";
+import { getSupabaseClient, withAuth } from "@/lib/supabase";
 
 // =============================================================================
 // TYPES
@@ -90,7 +90,7 @@ export const pushTokenService = {
    * @returns RegistrationResult with success status and optional token/error
    */
   async registerToken(
-    skipPermissionCheck = false
+    skipPermissionCheck = false,
   ): Promise<RegistrationResult> {
     if (!isNotificationSupported()) {
       return {
@@ -127,7 +127,7 @@ export const pushTokenService = {
 
       // Upsert token to database
       return withAuth(async (userId) => {
-        const { error } = await supabase.from("push_tokens").upsert(
+        const { error } = await getSupabaseClient().from("push_tokens").upsert(
           {
             user_id: userId,
             token,
@@ -137,7 +137,7 @@ export const pushTokenService = {
           },
           {
             onConflict: "user_id,token",
-          }
+          },
         );
 
         if (error) {
@@ -186,7 +186,7 @@ export const pushTokenService = {
       }
 
       // Disable token in database (RLS ensures user can only update their own)
-      const { error } = await supabase
+      const { error } = await getSupabaseClient()
         .from("push_tokens")
         .update({ disabled_at: new Date().toISOString() })
         .eq("token", token);

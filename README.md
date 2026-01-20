@@ -294,6 +294,13 @@ export default function Screen() {
 - Activity logging uses `log_activity()` RPC
 - Both prevent partial state via single-transaction execution
 
+### ✅ Fail-Fast Supabase Client
+
+- `getSupabaseClient()` getter validates config before returning client
+- Invalid config throws explicit error with validation message
+- Prevents null-reference errors deep in service calls
+- Helper functions (`requireUserId`, `getUserId`, `withAuth`) use getter internally
+
 ---
 
 ## Implementation Reference
@@ -342,7 +349,7 @@ src/
 │   ├── useNotifications.ts  # Notifications hooks
 │   └── useRealtimeSubscription.ts  # Supabase realtime
 ├── lib/
-│   ├── supabase.ts          # Supabase client
+│   ├── supabase.ts          # Supabase client (getSupabaseClient getter)
 │   ├── validation.ts        # Zod schemas
 │   ├── challengeStatus.ts   # Challenge status utilities
 │   ├── serverTime.ts        # Server time synchronization

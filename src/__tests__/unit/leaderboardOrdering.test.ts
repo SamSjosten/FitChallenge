@@ -46,10 +46,10 @@ const mockFrom = jest.fn();
 const mockRpc = jest.fn();
 
 jest.mock("@/lib/supabase", () => ({
-  supabase: {
+  getSupabaseClient: jest.fn(() => ({
     from: (...args: unknown[]) => mockFrom(...args),
     rpc: (...args: unknown[]) => mockRpc(...args),
-  },
+  })),
   withAuth: jest.fn((operation) => operation("test-user-123")),
 }));
 

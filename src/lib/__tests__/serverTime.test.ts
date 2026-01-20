@@ -1,10 +1,11 @@
 // src/lib/__tests__/serverTime.test.ts
 
 // Mock supabase before importing serverTime
+const mockRpc = jest.fn();
 jest.mock("../supabase", () => ({
-  supabase: {
-    rpc: jest.fn(),
-  },
+  getSupabaseClient: jest.fn(() => ({
+    rpc: mockRpc,
+  })),
 }));
 
 import {
@@ -15,10 +16,8 @@ import {
   needsResync,
   syncServerTime,
 } from "../serverTime";
-import { supabase } from "../supabase";
+import { getSupabaseClient } from "../supabase";
 import { getEffectiveStatus } from "../challengeStatus";
-
-const mockRpc = supabase.rpc as jest.Mock;
 
 // Fixed timestamp for deterministic tests
 const FIXED_NOW = 1_700_000_000_000;

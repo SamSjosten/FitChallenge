@@ -1,7 +1,7 @@
 // src/services/friends.ts
 // Friends management service
 
-import { supabase, withAuth } from "@/lib/supabase";
+import { getSupabaseClient, withAuth } from "@/lib/supabase";
 import {
   validate,
   sendFriendRequestSchema,
@@ -59,7 +59,7 @@ export const friendsService = {
    */
   async getFriends(): Promise<FriendWithProfile[]> {
     return withAuth(async (userId) => {
-      const { data, error } = await supabase
+      const { data, error } = await getSupabaseClient()
         .from("friends")
         .select("*")
         .eq("status", "accepted")
@@ -78,10 +78,11 @@ export const friendsService = {
       // Guard against empty array to prevent PostgREST error
       let profileMap = new Map<string, ProfilePublic>();
       if (otherUserIds.length > 0) {
-        const { data: profiles, error: profilesError } = await supabase
-          .from("profiles_public")
-          .select("*")
-          .in("id", otherUserIds);
+        const { data: profiles, error: profilesError } =
+          await getSupabaseClient()
+            .from("profiles_public")
+            .select("*")
+            .in("id", otherUserIds);
 
         if (profilesError) {
           throw new Error("Unable to load friend profiles. Please try again.");
@@ -113,7 +114,7 @@ export const friendsService = {
    */
   async getPendingRequests(): Promise<PendingRequest[]> {
     return withAuth(async (userId) => {
-      const { data, error } = await supabase
+      const { data, error } = await getSupabaseClient()
         .from("friends")
         .select("id, requested_by, created_at")
         .eq("requested_to", userId)
@@ -128,10 +129,11 @@ export const friendsService = {
       // Guard against empty array to prevent PostgREST error
       let profileMap = new Map<string, ProfilePublic>();
       if (requesterIds.length > 0) {
-        const { data: profiles, error: profilesError } = await supabase
-          .from("profiles_public")
-          .select("*")
-          .in("id", requesterIds);
+        const { data: profiles, error: profilesError } =
+          await getSupabaseClient()
+            .from("profiles_public")
+            .select("*")
+            .in("id", requesterIds);
 
         if (profilesError) {
           throw new Error(
@@ -168,7 +170,7 @@ export const friendsService = {
         throw new Error("Cannot send friend request to yourself");
       }
 
-      const { error } = await supabase.from("friends").insert({
+      const { error } = await getSupabaseClient().from("friends").insert({
         requested_by: userId,
         requested_to: target_user_id,
         status: "pending",
@@ -192,7 +194,7 @@ export const friendsService = {
     const { friendship_id } = validate(acceptFriendRequestSchema, input);
 
     return withAuth(async () => {
-      const { error } = await supabase
+      const { error } = await getSupabaseClient()
         .from("friends")
         .update({ status: "accepted" })
         .eq("id", friendship_id);
@@ -209,7 +211,7 @@ export const friendsService = {
     const { friendship_id } = validate(declineFriendRequestSchema, input);
 
     return withAuth(async () => {
-      const { error } = await supabase
+      const { error } = await getSupabaseClient()
         .from("friends")
         .delete()
         .eq("id", friendship_id);
@@ -226,7 +228,7 @@ export const friendsService = {
     const { friendship_id } = validate(removeFriendSchema, input);
 
     return withAuth(async () => {
-      const { error } = await supabase
+      const { error } = await getSupabaseClient()
         .from("friends")
         .delete()
         .eq("id", friendship_id);

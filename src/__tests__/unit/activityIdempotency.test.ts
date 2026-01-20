@@ -36,7 +36,7 @@ const mockRpc = jest.fn().mockImplementation(async () => {
 
 // Mock supabase
 jest.mock("@/lib/supabase", () => ({
-  supabase: {
+  getSupabaseClient: jest.fn(() => ({
     rpc: (...args: unknown[]) => {
       // Capture the client_event_id from the RPC args
       const [, params] = args as [string, { p_client_event_id?: string }];
@@ -45,7 +45,7 @@ jest.mock("@/lib/supabase", () => ({
       }
       return mockRpc(...args);
     },
-  },
+  })),
   withAuth: jest.fn((operation) => operation("test-user-123")),
 }));
 

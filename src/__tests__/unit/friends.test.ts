@@ -48,11 +48,14 @@ const createChainMock = (
   return chain;
 };
 
+// Create shared mock client that will be returned by getSupabaseClient
+const mockSupabaseClientInstance = {
+  from: jest.fn(),
+};
+
 // Mock supabase module
 jest.mock("@/lib/supabase", () => ({
-  supabase: {
-    from: jest.fn(),
-  },
+  getSupabaseClient: jest.fn(() => mockSupabaseClientInstance),
   withAuth: jest.fn((operation) => {
     if (!mockAuthenticatedUserId) {
       return Promise.reject(new Error("Authentication required"));
@@ -82,13 +85,10 @@ const VALID_TARGET_UUID = "660e8400-e29b-41d4-a716-446655440001";
 // =============================================================================
 
 describe("friendsService", () => {
-  let supabase: { from: jest.Mock };
-
   beforeEach(() => {
     jest.clearAllMocks();
     clearAuthenticatedUser();
-    supabase = require("@/lib/supabase").supabase;
-    supabase.from.mockImplementation(() => createChainMock());
+    mockSupabaseClientInstance.from.mockImplementation(() => createChainMock());
   });
 
   // ===========================================================================
@@ -161,7 +161,7 @@ describe("friendsService", () => {
           // Expected to throw
         }
 
-        expect(supabase.from).not.toHaveBeenCalled();
+        expect(mockSupabaseClientInstance.from).not.toHaveBeenCalled();
       });
     });
 
@@ -184,7 +184,7 @@ describe("friendsService", () => {
 
         await friendsService.sendRequest({ target_user_id: VALID_TARGET_UUID });
 
-        expect(supabase.from).toHaveBeenCalledWith("friends");
+        expect(mockSupabaseClientInstance.from).toHaveBeenCalledWith("friends");
         expect(mockInsert).toHaveBeenCalledWith({
           requested_by: "user-123",
           requested_to: VALID_TARGET_UUID,
@@ -255,7 +255,7 @@ describe("friendsService", () => {
           // Expected to throw
         }
 
-        expect(supabase.from).not.toHaveBeenCalled();
+        expect(mockSupabaseClientInstance.from).not.toHaveBeenCalled();
       });
     });
 
@@ -266,7 +266,7 @@ describe("friendsService", () => {
 
         await friendsService.acceptRequest({ friendship_id: VALID_UUID });
 
-        expect(supabase.from).toHaveBeenCalledWith("friends");
+        expect(mockSupabaseClientInstance.from).toHaveBeenCalledWith("friends");
         expect(mockUpdate).toHaveBeenCalledWith({ status: "accepted" });
         expect(mockEq).toHaveBeenCalledWith("id", VALID_UUID);
       });
@@ -341,7 +341,7 @@ describe("friendsService", () => {
           // Expected to throw
         }
 
-        expect(supabase.from).not.toHaveBeenCalled();
+        expect(mockSupabaseClientInstance.from).not.toHaveBeenCalled();
       });
     });
 
@@ -352,7 +352,7 @@ describe("friendsService", () => {
 
         await friendsService.declineRequest({ friendship_id: VALID_UUID });
 
-        expect(supabase.from).toHaveBeenCalledWith("friends");
+        expect(mockSupabaseClientInstance.from).toHaveBeenCalledWith("friends");
         expect(mockDelete).toHaveBeenCalled();
         expect(mockEq).toHaveBeenCalledWith("id", VALID_UUID);
       });
@@ -418,7 +418,7 @@ describe("friendsService", () => {
           // Expected to throw
         }
 
-        expect(supabase.from).not.toHaveBeenCalled();
+        expect(mockSupabaseClientInstance.from).not.toHaveBeenCalled();
       });
     });
 
@@ -429,7 +429,7 @@ describe("friendsService", () => {
 
         await friendsService.removeFriend({ friendship_id: VALID_UUID });
 
-        expect(supabase.from).toHaveBeenCalledWith("friends");
+        expect(mockSupabaseClientInstance.from).toHaveBeenCalledWith("friends");
         expect(mockDelete).toHaveBeenCalled();
         expect(mockEq).toHaveBeenCalledWith("id", VALID_UUID);
       });

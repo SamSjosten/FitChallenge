@@ -4,7 +4,7 @@
 // Problem: Device clocks can drift, causing incorrect challenge status display
 // Solution: Fetch server time once at app start, cache the offset, apply to local time
 
-import { supabase } from "./supabase";
+import { getSupabaseClient } from "./supabase";
 
 /** Cached offset in milliseconds: serverTime - deviceTime */
 let cachedOffsetMs: number | null = null;
@@ -33,7 +33,7 @@ export async function syncServerTime(opts?: {
   try {
     const deviceNowBefore = Date.now();
 
-    const { data, error } = await supabase.rpc("get_server_time");
+    const { data, error } = await getSupabaseClient().rpc("get_server_time");
 
     if (error || !data) {
       console.warn("Failed to sync server time:", error?.message);

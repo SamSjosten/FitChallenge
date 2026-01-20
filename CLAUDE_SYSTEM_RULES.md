@@ -10,7 +10,6 @@ SECURITY & AUTHORITY
 ──────────────────────────────────────────────────────────────
 
 1. The database (Postgres + Row Level Security) is the security boundary.
-
    - Authorization, privacy, and correctness must not be enforced in UI code.
    - UI code must assume RLS policies are authoritative.
 
@@ -23,11 +22,9 @@ PRIVACY & DATA ACCESS
 ──────────────────────────────────────────────────────────────
 
 3. The `profiles` table is private and self-only.
-
    - Code must never query or join `profiles` for any user other than auth.uid().
 
 4. The `profiles_public` table is the only allowed source of other-user identity.
-
    - All identity displays must use `profiles_public`.
 
 5. `profiles_public` must be used for:
@@ -41,13 +38,11 @@ CHALLENGES & VISIBILITY
 ──────────────────────────────────────────────────────────────
 
 6. Challenge visibility is role-based and enforced by RLS.
-
    - Pending invitees must not see leaderboards.
    - Pending invitees must not see accepted participant lists.
    - Declined or removed users must not see challenge data.
 
 7. Only accepted participants affect competition state.
-
    - Only accepted participants appear in leaderboards.
    - Pending participants must not affect aggregation.
 
@@ -60,11 +55,9 @@ FRIENDS MODEL
 ──────────────────────────────────────────────────────────────
 
 9. Friend requests are directional.
-
    - Each friendship has exactly one requester and one recipient.
 
 10. Only the recipient may accept or decline a friend request.
-
     - The requester must never be able to update request status.
 
 11. Duplicate or conflicting friendships must be prevented at the database level.
@@ -75,17 +68,14 @@ ACTIVITY LOGGING
 ──────────────────────────────────────────────────────────────
 
 12. Activity logs are append-only and immutable.
-
     - Activity logs must never be edited or deleted.
     - Corrections must use compensating entries.
 
 13. All activity logging must be idempotent.
-
     - Manual activity entries must include a client-generated UUID idempotency key.
     - Duplicate submissions must not affect aggregated progress.
 
 14. Activity logging must be atomic.
-
     - Activity insertion and aggregation must occur in a single transaction.
     - Clients must never implement multi-step insert/update logic.
 
@@ -97,12 +87,10 @@ NOTIFICATIONS
 ──────────────────────────────────────────────────────────────
 
 16. Notifications are server-created, immutable inbox events.
-
     - Clients must not insert notification records.
     - Clients must not delete notification records.
 
 17. Notification payloads must not leak private data.
-
     - Payloads may contain only minimal routing identifiers.
     - Participant lists, private stats, or social graphs are forbidden.
 
@@ -122,12 +110,11 @@ IMPLEMENTATION DISCIPLINE
 ──────────────────────────────────────────────────────────────
 
 20. UI components must not perform direct database writes.
-
     - All writes must go through a service function or RPC.
+    - Database access must use `getSupabaseClient()`, not a const import.
     - If no service exists, one must be created first.
 
 21. Database schema must not be created, modified, or extended unless explicitly instructed.
-
     - If a feature appears to require schema changes, STOP and ask.
 
 22. Deprecated documentation must never be referenced or implemented.
