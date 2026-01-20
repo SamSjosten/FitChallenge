@@ -10,6 +10,7 @@ import {
   getStorageStatus,
   isStorageProbeComplete,
   storageProbePromise,
+  subscribeToStorageStatus,
   type StorageStatus,
 } from "./storageProbe";
 
@@ -48,6 +49,7 @@ export {
   getStorageStatus,
   isStorageProbeComplete,
   storageProbePromise,
+  subscribeToStorageStatus,
   type StorageStatus,
 };
 

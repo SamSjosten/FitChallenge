@@ -22,6 +22,7 @@ import {
   supabaseConfigError,
   getStorageStatus,
   storageProbePromise,
+  subscribeToStorageStatus,
 } from "@/lib/supabase";
 import { queryRetryFn, mutationRetryFn } from "@/lib/queryRetry";
 import { initSentry, setUserContext } from "@/lib/sentry";
@@ -277,6 +278,31 @@ function RootLayoutNav() {
       storageWarningShown.current = false;
     }
   }, [session]);
+
+  // Subscribe to mid-session storage degradation
+  // This catches the case where SecureStore fails AFTER initial probe
+  useEffect(() => {
+    const unsubscribe = subscribeToStorageStatus((status) => {
+      // Only show warning if degraded mid-session (has degradedAt timestamp)
+      if (status.degradedAt) {
+        if (!status.isPersistent) {
+          showToast(
+            "Storage failed. Session may not persist after app restart.",
+            "error",
+            0, // Don't auto-dismiss - user needs to see this
+          );
+        } else if (!status.isSecure) {
+          showToast(
+            "Switched to unencrypted storage. Your session is still safe.",
+            "warning",
+            6000,
+          );
+        }
+      }
+    });
+
+    return unsubscribe;
+  }, [showToast]);
 
   // Enable realtime updates when logged in
   useRealtimeSubscription();
