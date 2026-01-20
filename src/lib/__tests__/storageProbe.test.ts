@@ -11,16 +11,19 @@
  * - Storage status is reported correctly for UI warnings
  */
 
-import { Platform } from "react-native";
-
 // =============================================================================
 // MOCKS
 // =============================================================================
 
-// Mock Platform
+// Track platform for mock
+let mockPlatformOS: "ios" | "android" | "web" = "ios";
+
+// Mock Platform - use getter so changes to mockPlatformOS are reflected
 jest.mock("react-native", () => ({
   Platform: {
-    OS: "ios", // Default to iOS, override in tests
+    get OS() {
+      return mockPlatformOS;
+    },
   },
 }));
 
@@ -87,6 +90,7 @@ const mockLocalStorageImpl = {
 // =============================================================================
 
 function resetMocks() {
+  mockPlatformOS = "ios"; // Reset to default
   secureStoreWorks = true;
   asyncStorageWorks = true;
   localStorageWorks = true;
@@ -97,7 +101,7 @@ function resetMocks() {
 }
 
 function setPlatform(os: "ios" | "android" | "web") {
-  (Platform as any).OS = os;
+  mockPlatformOS = os;
 }
 
 // =============================================================================

@@ -26,7 +26,18 @@ export { normalizeUsername };
 /**
  * Map sign-up errors to user-friendly messages.
  *
- * The DB unique constraint on profiles.username is authoritative.
+ * CRITICAL DEPENDENCY: Username uniqueness relies on DB constraint.
+ * Defined in: supabase/migrations/001_initial_schema.sql
+ *   Line 26: `username text unique not null`
+ *
+ * If this constraint is missing, the TOCTOU race condition returns and
+ * duplicate usernames become possible. The error mapping below will also
+ * fail silently (no 23505 error to catch).
+ *
+ * VERIFICATION: Run integration tests to verify constraint exists:
+ *   npm run test:integration -- auth.constraints
+ *   See: src/__tests__/integration/auth.constraints.integration.test.ts
+ *
  * When the trigger fails due to duplicate username, Supabase may return:
  * - PostgreSQL error code 23505 (unique_violation)
  * - Message containing "duplicate key" or "unique constraint"

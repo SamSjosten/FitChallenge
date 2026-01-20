@@ -14,10 +14,41 @@
 // =============================================================================
 
 jest.mock("react-native-url-polyfill/auto", () => {});
+
+jest.mock("react-native", () => ({
+  Platform: {
+    OS: "ios",
+    select: jest.fn((obj) => obj.ios ?? obj.default),
+  },
+}));
+
 jest.mock("expo-secure-store", () => ({
   getItemAsync: jest.fn(),
   setItemAsync: jest.fn(),
   deleteItemAsync: jest.fn(),
+}));
+
+jest.mock("@react-native-async-storage/async-storage", () => ({
+  getItem: jest.fn(),
+  setItem: jest.fn(),
+  removeItem: jest.fn(),
+}));
+
+// Mock storageProbe to avoid complex initialization
+jest.mock("../storageProbe", () => ({
+  createResilientStorageAdapter: jest.fn(() => ({
+    getItem: jest.fn().mockResolvedValue(null),
+    setItem: jest.fn().mockResolvedValue(undefined),
+    removeItem: jest.fn().mockResolvedValue(undefined),
+  })),
+  getStorageStatus: jest.fn(() => ({
+    type: "memory",
+    isSecure: false,
+    isPersistent: false,
+  })),
+  isStorageProbeComplete: jest.fn(() => true),
+  storageProbePromise: Promise.resolve(),
+  subscribeToStorageStatus: jest.fn(() => () => {}),
 }));
 
 // Track config validation state

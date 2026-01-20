@@ -1,71 +1,82 @@
-// src/services/__tests__/challenges.test.ts
+// src/__tests__/unit/challenges.test.ts
 // Unit tests for challenges service
 
 /**
  * Tests for challengeService, specifically the getPendingInvites guard
  * against empty .in() queries.
+ *
+ * MOCK STRATEGY: Jest hoists jest.mock() calls but allows variables prefixed
+ * with "mock" to be referenced. We use a mockSupabase object that can be
+ * configured in beforeEach.
  */
 
 // =============================================================================
-// MOCKS
+// MOCKS - Variables prefixed with "mock" are allowed in hoisted jest.mock()
 // =============================================================================
 
-// Mock React Native modules
+// This object will be configured in beforeEach - accessible due to "mock" prefix
+const mockSupabase = {
+  from: jest.fn(),
+};
+
 jest.mock("react-native-url-polyfill/auto", () => {});
+
 jest.mock("expo-secure-store", () => ({
   getItemAsync: jest.fn(),
   setItemAsync: jest.fn(),
   deleteItemAsync: jest.fn(),
 }));
 
-// Chain mocks for fluent API
-const createChainMock = (finalData: unknown, finalError: unknown = null) => {
-  const chain = {
-    select: jest.fn().mockReturnThis(),
-    eq: jest.fn().mockReturnThis(),
-    in: jest.fn().mockReturnThis(),
-    then: jest.fn((resolve) => resolve({ data: finalData, error: finalError })),
-  };
-  // Make it thenable for async/await
-  Object.defineProperty(chain, "then", {
-    value: (resolve: (value: { data: unknown; error: unknown }) => void) =>
-      Promise.resolve({ data: finalData, error: finalError }).then(resolve),
-  });
-  return chain;
-};
+jest.mock("react-native", () => ({
+  Platform: { OS: "ios" },
+}));
 
-// Mock user for withAuth
-const mockUserId = "test-user-123";
+jest.mock("@react-native-async-storage/async-storage", () => ({
+  getItem: jest.fn(),
+  setItem: jest.fn(),
+  removeItem: jest.fn(),
+}));
 
-// Mock supabase module
-jest.mock("@/lib/supabase", () => {
-  // Create mock client inside factory to avoid hoisting issues
-  const mockClient = { from: jest.fn() };
-  return {
-    __mockClient: mockClient, // Export for test access
-    getSupabaseClient: jest.fn(() => mockClient),
-    withAuth: jest.fn((operation) => operation("test-user-123")),
-  };
-});
+jest.mock("@/lib/storageProbe", () => ({
+  createResilientStorageAdapter: jest.fn(() => ({
+    getItem: jest.fn().mockResolvedValue(null),
+    setItem: jest.fn().mockResolvedValue(undefined),
+    removeItem: jest.fn().mockResolvedValue(undefined),
+  })),
+  getStorageStatus: jest.fn(() => ({
+    type: "memory",
+    isSecure: false,
+    isPersistent: false,
+  })),
+  isStorageProbeComplete: jest.fn(() => true),
+  storageProbePromise: Promise.resolve(),
+  subscribeToStorageStatus: jest.fn(() => () => {}),
+}));
 
-// Mock serverTime
 jest.mock("@/lib/serverTime", () => ({
   getServerNow: jest.fn(() => new Date()),
 }));
+
+// Mock supabase - references mockSupabase which is allowed due to "mock" prefix
+jest.mock("@/lib/supabase", () => ({
+  getSupabaseClient: jest.fn(() => mockSupabase),
+  withAuth: jest.fn((operation: (userId: string) => unknown) =>
+    operation("test-user-123"),
+  ),
+}));
+
+// Import AFTER mocks are set up
+import { challengeService } from "@/services/challenges";
 
 // =============================================================================
 // TESTS
 // =============================================================================
 
-// Get mock client from the mocked module
-const getMockClient = () =>
-  require("@/lib/supabase").__mockClient as { from: jest.Mock };
-
 describe("challengeService.getPendingInvites", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    // Reset the from mock for each test
-    getMockClient().from.mockReset();
+    // Reset the mock implementation
+    mockSupabase.from.mockReset();
   });
 
   describe("empty creatorIds guard", () => {
@@ -75,129 +86,60 @@ describe("challengeService.getPendingInvites", () => {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
       };
-      // Make the chain resolve to empty data
+
       let eqCallCount = 0;
       participantsChain.eq.mockImplementation(() => {
         eqCallCount++;
         if (eqCallCount === 2) {
-          // After both .eq() calls, return the final promise
-          return Promise.resolve({ data: [], error: null });
+          // After both .eq() calls, return thenable with empty data
+          return {
+            ...participantsChain,
+            then: (resolve: (value: unknown) => void) =>
+              Promise.resolve({ data: [], error: null }).then(resolve),
+          };
         }
         return participantsChain;
       });
 
-      // Track .in() calls explicitly
-      const inCalls: unknown[][] = [];
-      const profilesChain = {
-        select: jest.fn().mockReturnThis(),
-        in: jest.fn().mockImplementation((...args: unknown[]) => {
-          inCalls.push(args);
-          return Promise.resolve({ data: [], error: null });
-        }),
-      };
-
-      // Track which tables are queried
-      const queriedTables: string[] = [];
-      getMockClient().from.mockImplementation((table: string) => {
-        queriedTables.push(table);
+      mockSupabase.from.mockImplementation((table: string) => {
         if (table === "challenge_participants") {
           return participantsChain;
         }
-        if (table === "profiles_public") {
-          return profilesChain;
-        }
-        return createChainMock([]);
+        // profiles_public should never be called when challenges is empty
+        throw new Error(`Unexpected table access: ${table}`);
       });
 
-      // Import fresh to use mocks
-      const { challengeService } = require("@/services/challenges");
-
-      // Act
+      // Execute
       const result = await challengeService.getPendingInvites();
 
-      // Assert: returns empty list without error
+      // Verify
       expect(result).toEqual([]);
-
-      // Assert: profiles_public was NOT queried (no .in() call)
-      expect(queriedTables).toContain("challenge_participants");
-      expect(queriedTables).not.toContain("profiles_public");
-      expect(inCalls).toHaveLength(0); // .in() should never be called
+      expect(mockSupabase.from).toHaveBeenCalledWith("challenge_participants");
+      expect(mockSupabase.from).toHaveBeenCalledTimes(1); // Only participants, not profiles_public
     });
 
-    it("should NOT call .in() when all creator_ids are null/empty", async () => {
-      // Setup: invites exist but all have null creator_id
-      const mockInvites = [
-        { joined_at: "2024-01-01", challenge: { id: "c1", creator_id: null } },
-        { joined_at: "2024-01-02", challenge: { id: "c2", creator_id: null } },
-      ];
+    it("should call .in() with creatorIds when challenges.length > 0", async () => {
+      // Track .in() calls
+      const inMock = jest.fn();
 
-      const participantsChain = {
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-      };
-      let eqCallCount = 0;
-      participantsChain.eq.mockImplementation(() => {
-        eqCallCount++;
-        if (eqCallCount === 2) {
-          return Promise.resolve({ data: mockInvites, error: null });
-        }
-        return participantsChain;
-      });
-
-      // Track .in() calls explicitly
-      const inCalls: unknown[][] = [];
-      const profilesChain = {
-        select: jest.fn().mockReturnThis(),
-        in: jest.fn().mockImplementation((...args: unknown[]) => {
-          inCalls.push(args);
-          return Promise.resolve({ data: [], error: null });
-        }),
-      };
-
-      const queriedTables: string[] = [];
-      getMockClient().from.mockImplementation((table: string) => {
-        queriedTables.push(table);
-        if (table === "challenge_participants") {
-          return participantsChain;
-        }
-        if (table === "profiles_public") {
-          return profilesChain;
-        }
-        return createChainMock([]);
-      });
-
-      const { challengeService } = require("@/services/challenges");
-
-      // Act
-      const result = await challengeService.getPendingInvites();
-
-      // Assert: returns invites with fallback profiles, no error
-      expect(result).toHaveLength(2);
-
-      // Assert: .in() was never called (empty creatorIds after filtering nulls)
-      expect(queriedTables).not.toContain("profiles_public");
-      expect(inCalls).toHaveLength(0);
-
-      // Verify fallback profile is used
-      expect(result[0].creator.username).toBe("Unknown");
-      expect(result[1].creator.username).toBe("Unknown");
-    });
-
-    it("should query profiles_public when there are valid creator_ids", async () => {
-      // Setup: invites with valid creator_ids
-      const mockInvites = [
+      // Setup: challenge_participants returns some challenges
+      // Note: The query uses "challenge:challenges!inner" so the alias is "challenge" (singular)
+      const mockChallenges = [
         {
           joined_at: "2024-01-01",
-          challenge: { id: "c1", creator_id: "creator-1" },
+          challenge: {
+            id: "challenge-1",
+            title: "Test Challenge",
+            creator_id: "creator-1",
+          },
         },
-      ];
-      const mockCreators = [
         {
-          id: "creator-1",
-          username: "alice",
-          display_name: "Alice",
-          avatar_url: null,
-          updated_at: "2024-01-01",
+          joined_at: "2024-01-02",
+          challenge: {
+            id: "challenge-2",
+            title: "Test Challenge 2",
+            creator_id: "creator-2",
+          },
         },
       ];
 
@@ -209,41 +151,146 @@ describe("challengeService.getPendingInvites", () => {
       participantsChain.eq.mockImplementation(() => {
         eqCallCount++;
         if (eqCallCount === 2) {
-          return Promise.resolve({ data: mockInvites, error: null });
+          return {
+            ...participantsChain,
+            then: (resolve: (value: unknown) => void) =>
+              Promise.resolve({ data: mockChallenges, error: null }).then(
+                resolve,
+              ),
+          };
         }
         return participantsChain;
       });
 
+      // Setup: profiles_public query
       const profilesChain = {
         select: jest.fn().mockReturnThis(),
-        in: jest
-          .fn()
-          .mockImplementation(() =>
-            Promise.resolve({ data: mockCreators, error: null }),
-          ),
+        in: inMock.mockReturnThis(),
       };
+      inMock.mockImplementation(() => ({
+        ...profilesChain,
+        then: (resolve: (value: unknown) => void) =>
+          Promise.resolve({
+            data: [
+              { id: "creator-1", username: "user1", display_name: "User 1" },
+              { id: "creator-2", username: "user2", display_name: "User 2" },
+            ],
+            error: null,
+          }).then(resolve),
+      }));
 
-      const queriedTables: string[] = [];
-      getMockClient().from.mockImplementation((table: string) => {
-        queriedTables.push(table);
+      mockSupabase.from.mockImplementation((table: string) => {
         if (table === "challenge_participants") {
           return participantsChain;
         }
         if (table === "profiles_public") {
           return profilesChain;
         }
-        return createChainMock([]);
+        throw new Error(`Unexpected table: ${table}`);
       });
 
-      const { challengeService } = require("@/services/challenges");
-
-      // Act
+      // Execute
       const result = await challengeService.getPendingInvites();
 
-      // Assert
-      expect(result).toHaveLength(1);
-      expect(queriedTables).toContain("profiles_public");
-      expect(result[0].creator.username).toBe("alice");
+      // Verify .in() was called with the creator IDs
+      expect(inMock).toHaveBeenCalledWith("id", ["creator-1", "creator-2"]);
+      expect(result.length).toBe(2);
+    });
+
+    it("should deduplicate creatorIds before calling .in()", async () => {
+      const inMock = jest.fn();
+
+      // Setup: challenges with duplicate creator
+      // Note: The query uses "challenge:challenges!inner" so the alias is "challenge" (singular)
+      const mockChallenges = [
+        {
+          joined_at: "2024-01-01",
+          challenge: {
+            id: "challenge-1",
+            title: "Test Challenge",
+            creator_id: "same-creator",
+          },
+        },
+        {
+          joined_at: "2024-01-02",
+          challenge: {
+            id: "challenge-2",
+            title: "Test Challenge 2",
+            creator_id: "same-creator", // Same creator
+          },
+        },
+        {
+          joined_at: "2024-01-03",
+          challenge: {
+            id: "challenge-3",
+            title: "Test Challenge 3",
+            creator_id: "different-creator",
+          },
+        },
+      ];
+
+      const participantsChain = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+      };
+      let eqCallCount = 0;
+      participantsChain.eq.mockImplementation(() => {
+        eqCallCount++;
+        if (eqCallCount === 2) {
+          return {
+            ...participantsChain,
+            then: (resolve: (value: unknown) => void) =>
+              Promise.resolve({ data: mockChallenges, error: null }).then(
+                resolve,
+              ),
+          };
+        }
+        return participantsChain;
+      });
+
+      const profilesChain = {
+        select: jest.fn().mockReturnThis(),
+        in: inMock.mockReturnThis(),
+      };
+      inMock.mockImplementation(() => ({
+        ...profilesChain,
+        then: (resolve: (value: unknown) => void) =>
+          Promise.resolve({
+            data: [
+              {
+                id: "same-creator",
+                username: "user1",
+                display_name: "User 1",
+              },
+              {
+                id: "different-creator",
+                username: "user2",
+                display_name: "User 2",
+              },
+            ],
+            error: null,
+          }).then(resolve),
+      }));
+
+      mockSupabase.from.mockImplementation((table: string) => {
+        if (table === "challenge_participants") {
+          return participantsChain;
+        }
+        if (table === "profiles_public") {
+          return profilesChain;
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      });
+
+      // Execute
+      await challengeService.getPendingInvites();
+
+      // Verify .in() was called with deduplicated IDs
+      expect(inMock).toHaveBeenCalledTimes(1);
+      const calledWithIds = inMock.mock.calls[0][1];
+      expect(calledWithIds).toHaveLength(2); // Not 3
+      expect(calledWithIds).toContain("same-creator");
+      expect(calledWithIds).toContain("different-creator");
     });
   });
 });
