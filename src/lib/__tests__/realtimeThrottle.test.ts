@@ -4,6 +4,11 @@
 import {
   createThrottledInvalidator,
   logRealtimeStatus,
+  getRealtimeStatus,
+  subscribeToRealtimeStatus,
+  updateRealtimeStatus,
+  resetRealtimeStatus,
+  type RealtimeConnectionState,
 } from "../realtimeThrottle";
 
 // =============================================================================
@@ -247,5 +252,210 @@ describe("logRealtimeStatus", () => {
       expect.stringContaining("[Realtime] test-channel error"),
       "Unknown error",
     );
+  });
+});
+
+// =============================================================================
+// REALTIME STATUS STORE TESTS
+// =============================================================================
+
+describe("Realtime Status Store", () => {
+  beforeEach(() => {
+    // Reset to initial state before each test
+    resetRealtimeStatus();
+  });
+
+  describe("getRealtimeStatus", () => {
+    it("should return initial disconnected state", () => {
+      const state = getRealtimeStatus();
+
+      expect(state.status).toBe("DISCONNECTED");
+      expect(state.channelName).toBe("");
+      expect(state.lastError).toBeNull();
+    });
+
+    it("should return a copy of the state (immutable)", () => {
+      const state1 = getRealtimeStatus();
+      const state2 = getRealtimeStatus();
+
+      expect(state1).not.toBe(state2);
+      expect(state1).toEqual(state2);
+    });
+  });
+
+  describe("updateRealtimeStatus", () => {
+    it("should update status and channel name", () => {
+      updateRealtimeStatus("test-channel", "SUBSCRIBED");
+
+      const state = getRealtimeStatus();
+      expect(state.status).toBe("SUBSCRIBED");
+      expect(state.channelName).toBe("test-channel");
+      expect(state.lastError).toBeNull();
+      expect(state.lastUpdatedAt).toBeInstanceOf(Date);
+    });
+
+    it("should store error when provided", () => {
+      const error = new Error("Test error");
+      updateRealtimeStatus("test-channel", "CHANNEL_ERROR", error);
+
+      const state = getRealtimeStatus();
+      expect(state.status).toBe("CHANNEL_ERROR");
+      expect(state.lastError).toBe(error);
+    });
+
+    it("should clear error when not provided", () => {
+      const error = new Error("Test error");
+      updateRealtimeStatus("test-channel", "CHANNEL_ERROR", error);
+      updateRealtimeStatus("test-channel", "SUBSCRIBED");
+
+      const state = getRealtimeStatus();
+      expect(state.lastError).toBeNull();
+    });
+
+    it("should support CONNECTING status", () => {
+      updateRealtimeStatus("test-channel", "CONNECTING");
+
+      const state = getRealtimeStatus();
+      expect(state.status).toBe("CONNECTING");
+    });
+  });
+
+  describe("subscribeToRealtimeStatus", () => {
+    it("should call listener with initial state on subscribe", () => {
+      const listener = jest.fn();
+
+      subscribeToRealtimeStatus(listener);
+
+      expect(listener).toHaveBeenCalledTimes(1);
+      expect(listener).toHaveBeenCalledWith(
+        expect.objectContaining({ status: "DISCONNECTED" }),
+      );
+    });
+
+    it("should call listener on status updates", () => {
+      const listener = jest.fn();
+      subscribeToRealtimeStatus(listener);
+      listener.mockClear();
+
+      updateRealtimeStatus("test-channel", "SUBSCRIBED");
+
+      expect(listener).toHaveBeenCalledTimes(1);
+      expect(listener).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: "SUBSCRIBED",
+          channelName: "test-channel",
+        }),
+      );
+    });
+
+    it("should return unsubscribe function", () => {
+      const listener = jest.fn();
+      const unsubscribe = subscribeToRealtimeStatus(listener);
+      listener.mockClear();
+
+      unsubscribe();
+      updateRealtimeStatus("test-channel", "SUBSCRIBED");
+
+      expect(listener).not.toHaveBeenCalled();
+    });
+
+    it("should handle multiple listeners", () => {
+      const listener1 = jest.fn();
+      const listener2 = jest.fn();
+
+      subscribeToRealtimeStatus(listener1);
+      subscribeToRealtimeStatus(listener2);
+      listener1.mockClear();
+      listener2.mockClear();
+
+      updateRealtimeStatus("test-channel", "SUBSCRIBED");
+
+      expect(listener1).toHaveBeenCalledTimes(1);
+      expect(listener2).toHaveBeenCalledTimes(1);
+    });
+
+    it("should handle listener errors gracefully", () => {
+      const consoleWarnSpy = jest
+        .spyOn(console, "warn")
+        .mockImplementation(() => {});
+      const badListener = jest.fn(() => {
+        throw new Error("Listener error");
+      });
+      const goodListener = jest.fn();
+
+      // Both subscribe calls should not throw despite badListener
+      subscribeToRealtimeStatus(badListener);
+      subscribeToRealtimeStatus(goodListener);
+
+      // Both listeners were called on subscribe
+      expect(badListener).toHaveBeenCalledTimes(1);
+      expect(goodListener).toHaveBeenCalledTimes(1);
+
+      // Warning was logged for bad listener
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        "[Realtime] Status listener error:",
+        expect.any(Error),
+      );
+
+      consoleWarnSpy.mockClear();
+      badListener.mockClear();
+      goodListener.mockClear();
+
+      // On update, both listeners are called again
+      updateRealtimeStatus("test-channel", "SUBSCRIBED");
+
+      // Good listener should still work
+      expect(goodListener).toHaveBeenCalled();
+      // Warning logged again for bad listener
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        "[Realtime] Status listener error:",
+        expect.any(Error),
+      );
+
+      consoleWarnSpy.mockRestore();
+    });
+  });
+
+  describe("resetRealtimeStatus", () => {
+    it("should reset to disconnected state", () => {
+      updateRealtimeStatus("test-channel", "SUBSCRIBED");
+      resetRealtimeStatus();
+
+      const state = getRealtimeStatus();
+      expect(state.status).toBe("DISCONNECTED");
+      expect(state.channelName).toBe("");
+    });
+
+    it("should notify listeners on reset", () => {
+      const listener = jest.fn();
+      subscribeToRealtimeStatus(listener);
+      listener.mockClear();
+
+      resetRealtimeStatus();
+
+      expect(listener).toHaveBeenCalledWith(
+        expect.objectContaining({ status: "DISCONNECTED" }),
+      );
+    });
+  });
+
+  describe("logRealtimeStatus integration", () => {
+    let consoleLogSpy: jest.SpyInstance;
+
+    beforeEach(() => {
+      consoleLogSpy = jest.spyOn(console, "log").mockImplementation();
+    });
+
+    afterEach(() => {
+      consoleLogSpy.mockRestore();
+    });
+
+    it("should update status store when logging", () => {
+      logRealtimeStatus("test-channel", "SUBSCRIBED");
+
+      const state = getRealtimeStatus();
+      expect(state.status).toBe("SUBSCRIBED");
+      expect(state.channelName).toBe("test-channel");
+    });
   });
 });

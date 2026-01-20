@@ -1,8 +1,9 @@
 // src/hooks/useRealtimeSubscription.ts
 // Realtime subscription hook for live updates
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { RealtimeChannel } from "@supabase/supabase-js";
 import { getSupabaseClient } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
 import { notificationsKeys } from "@/hooks/useNotifications";
@@ -12,7 +13,12 @@ import { Config } from "@/constants/config";
 import {
   createThrottledInvalidator,
   logRealtimeStatus,
+  updateRealtimeStatus,
+  resetRealtimeStatus,
+  getRealtimeStatus,
+  subscribeToRealtimeStatus,
   type RealtimeStatus,
+  type RealtimeConnectionState,
 } from "@/lib/realtimeThrottle";
 
 /**
@@ -24,6 +30,7 @@ import {
  * - Throttled invalidation: Batches rapid changes to avoid stampedes
  * - Connection logging: Logs status changes for observability
  * - Auto-reconnect: Supabase handles reconnection with exponential backoff
+ * - Fail-safe: Invalid client or rapid auth changes won't crash the app
  *
  * NOTE: Leaderboard updates are handled by useLeaderboardSubscription
  * in the challenge detail screen (scoped to specific challenge_id)
@@ -37,6 +44,9 @@ export function useRealtimeSubscription() {
     typeof createThrottledInvalidator
   > | null>(null);
 
+  // Track channel for cleanup
+  const channelRef = useRef<RealtimeChannel | null>(null);
+
   useEffect(() => {
     // Feature flag check
     if (!Config.enableRealtime) {
@@ -44,13 +54,37 @@ export function useRealtimeSubscription() {
       return;
     }
 
-    if (!user?.id) return;
+    // Must have authenticated user
+    if (!user?.id) {
+      resetRealtimeStatus();
+      return;
+    }
+
+    // Cancellation flag to prevent stale operations on rapid auth changes
+    let cancelled = false;
+
+    // Get Supabase client safely
+    let supabase;
+    try {
+      supabase = getSupabaseClient();
+    } catch (err) {
+      console.error("[Realtime] Failed to get Supabase client:", err);
+      updateRealtimeStatus(
+        "app-realtime",
+        "DISCONNECTED",
+        err instanceof Error ? err : new Error(String(err)),
+      );
+      return;
+    }
+
+    // Mark as connecting
+    updateRealtimeStatus("app-realtime", "CONNECTING");
 
     // Create throttled invalidator (500ms debounce)
     const throttledInvalidate = createThrottledInvalidator(queryClient, 500);
     throttledInvalidateRef.current = throttledInvalidate;
 
-    const channel = getSupabaseClient()
+    const channel = supabase
       .channel("app-realtime")
       // Notifications: any change for current user
       .on(
@@ -62,7 +96,9 @@ export function useRealtimeSubscription() {
           filter: `user_id=eq.${user.id}`,
         },
         () => {
-          throttledInvalidate(notificationsKeys.all);
+          if (!cancelled) {
+            throttledInvalidate(notificationsKeys.all);
+          }
         },
       )
       // Friends: changes where user is requester or recipient
@@ -75,7 +111,9 @@ export function useRealtimeSubscription() {
           filter: `requested_by=eq.${user.id}`,
         },
         () => {
-          throttledInvalidate(friendsKeys.all);
+          if (!cancelled) {
+            throttledInvalidate(friendsKeys.all);
+          }
         },
       )
       .on(
@@ -87,7 +125,9 @@ export function useRealtimeSubscription() {
           filter: `requested_to=eq.${user.id}`,
         },
         () => {
-          throttledInvalidate(friendsKeys.all);
+          if (!cancelled) {
+            throttledInvalidate(friendsKeys.all);
+          }
         },
       )
       // Challenge participants: changes for current user only
@@ -100,16 +140,33 @@ export function useRealtimeSubscription() {
           filter: `user_id=eq.${user.id}`,
         },
         () => {
-          throttledInvalidate(challengeKeys.all);
+          if (!cancelled) {
+            throttledInvalidate(challengeKeys.all);
+          }
         },
       )
-      .subscribe((status, err) => {
-        logRealtimeStatus("app-realtime", status as RealtimeStatus, err);
+      .subscribe((status: string, err?: Error) => {
+        if (!cancelled) {
+          logRealtimeStatus("app-realtime", status as RealtimeStatus, err);
+        }
       });
 
-    // Cleanup on unmount
+    channelRef.current = channel;
+
+    // Cleanup on unmount or user change
     return () => {
-      getSupabaseClient().removeChannel(channel);
+      cancelled = true;
+
+      if (channelRef.current) {
+        try {
+          supabase.removeChannel(channelRef.current);
+        } catch (err) {
+          console.warn("[Realtime] Error removing channel:", err);
+        }
+        channelRef.current = null;
+      }
+
+      resetRealtimeStatus();
     };
   }, [user?.id, queryClient]);
 }
@@ -122,9 +179,11 @@ export function useRealtimeSubscription() {
  * - Feature flag: Respects EXPO_PUBLIC_ENABLE_REALTIME
  * - Throttled invalidation: Batches rapid progress updates
  * - Connection logging: Logs status changes for observability
+ * - Fail-safe: Invalid client won't crash the app
  */
 export function useLeaderboardSubscription(challengeId: string | undefined) {
   const queryClient = useQueryClient();
+  const channelRef = useRef<RealtimeChannel | null>(null);
 
   useEffect(() => {
     // Feature flag check
@@ -132,11 +191,23 @@ export function useLeaderboardSubscription(challengeId: string | undefined) {
 
     if (!challengeId) return;
 
+    // Cancellation flag to prevent stale operations
+    let cancelled = false;
+
+    // Get Supabase client safely
+    let supabase;
+    try {
+      supabase = getSupabaseClient();
+    } catch (err) {
+      console.error("[Realtime] Failed to get Supabase client:", err);
+      return;
+    }
+
     // Create throttled invalidator (500ms debounce)
     const throttledInvalidate = createThrottledInvalidator(queryClient, 500);
 
     const channelName = `leaderboard-${challengeId}`;
-    const channel = getSupabaseClient()
+    const channel = supabase
       .channel(channelName)
       // Challenge participants: progress updates for this challenge
       .on(
@@ -148,7 +219,9 @@ export function useLeaderboardSubscription(challengeId: string | undefined) {
           filter: `challenge_id=eq.${challengeId}`,
         },
         () => {
-          throttledInvalidate(challengeKeys.leaderboard(challengeId));
+          if (!cancelled) {
+            throttledInvalidate(challengeKeys.leaderboard(challengeId));
+          }
         },
       )
       // Activity logs: new entries for this challenge
@@ -161,16 +234,56 @@ export function useLeaderboardSubscription(challengeId: string | undefined) {
           filter: `challenge_id=eq.${challengeId}`,
         },
         () => {
-          throttledInvalidate(challengeKeys.leaderboard(challengeId));
+          if (!cancelled) {
+            throttledInvalidate(challengeKeys.leaderboard(challengeId));
+          }
         },
       )
-      .subscribe((status, err) => {
-        logRealtimeStatus(channelName, status as RealtimeStatus, err);
+      .subscribe((status: string, err?: Error) => {
+        if (!cancelled) {
+          logRealtimeStatus(channelName, status as RealtimeStatus, err);
+        }
       });
+
+    channelRef.current = channel;
 
     // Cleanup on unmount or challengeId change
     return () => {
-      getSupabaseClient().removeChannel(channel);
+      cancelled = true;
+
+      if (channelRef.current) {
+        try {
+          supabase.removeChannel(channelRef.current);
+        } catch (err) {
+          console.warn("[Realtime] Error removing channel:", err);
+        }
+        channelRef.current = null;
+      }
     };
   }, [challengeId, queryClient]);
+}
+
+/**
+ * Hook to observe realtime connection status
+ * Use this to show connection warnings in the UI
+ *
+ * @example
+ * ```tsx
+ * function ConnectionStatus() {
+ *   const { status, lastError } = useRealtimeStatus();
+ *   if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+ *     return <Banner>Realtime updates unavailable</Banner>;
+ *   }
+ *   return null;
+ * }
+ * ```
+ */
+export function useRealtimeStatus() {
+  const [state, setState] = useState(() => getRealtimeStatus());
+
+  useEffect(() => {
+    return subscribeToRealtimeStatus(setState);
+  }, []);
+
+  return state;
 }

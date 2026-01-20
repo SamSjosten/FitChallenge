@@ -1,7 +1,108 @@
 // src/lib/realtimeThrottle.ts
 // Throttled query invalidation for realtime subscriptions
+// Status observability for realtime connections
 
 import { QueryClient } from "@tanstack/react-query";
+
+// =============================================================================
+// REALTIME STATUS STORE
+// =============================================================================
+
+/**
+ * Realtime connection status types from Supabase
+ */
+export type RealtimeStatus =
+  | "SUBSCRIBED"
+  | "CHANNEL_ERROR"
+  | "TIMED_OUT"
+  | "CLOSED";
+
+/**
+ * Global realtime connection state
+ */
+export interface RealtimeConnectionState {
+  /** Current connection status */
+  status: RealtimeStatus | "DISCONNECTED" | "CONNECTING";
+  /** Channel name for debugging */
+  channelName: string | null;
+  /** Last error if any */
+  lastError: Error | null;
+  /** Timestamp of last status change */
+  lastUpdatedAt: Date | null;
+}
+
+type RealtimeStatusListener = (state: RealtimeConnectionState) => void;
+
+// Module-level singleton state
+let currentState: RealtimeConnectionState = {
+  status: "DISCONNECTED",
+  channelName: null,
+  lastError: null,
+  lastUpdatedAt: null,
+};
+
+const listeners = new Set<RealtimeStatusListener>();
+
+/**
+ * Get current realtime connection status
+ */
+export function getRealtimeStatus(): RealtimeConnectionState {
+  return { ...currentState };
+}
+
+/**
+ * Subscribe to realtime status changes
+ * @returns Unsubscribe function
+ */
+export function subscribeToRealtimeStatus(
+  listener: RealtimeStatusListener,
+): () => void {
+  listeners.add(listener);
+  // Immediately notify with current state
+  try {
+    listener(getRealtimeStatus());
+  } catch (err) {
+    console.warn("[Realtime] Status listener error:", err);
+  }
+  return () => listeners.delete(listener);
+}
+
+/**
+ * Update realtime status (called internally by subscription hooks)
+ */
+export function updateRealtimeStatus(
+  channelName: string,
+  status: RealtimeStatus | "DISCONNECTED" | "CONNECTING",
+  error?: Error,
+): void {
+  currentState = {
+    status,
+    channelName,
+    lastError: error ?? null,
+    lastUpdatedAt: new Date(),
+  };
+
+  // Notify all listeners
+  const state = getRealtimeStatus();
+  listeners.forEach((listener) => {
+    try {
+      listener(state);
+    } catch (err) {
+      console.warn("[Realtime] Status listener error:", err);
+    }
+  });
+}
+
+/**
+ * Reset realtime status (called on cleanup)
+ */
+export function resetRealtimeStatus(): void {
+  updateRealtimeStatus("", "DISCONNECTED");
+}
+
+// =============================================================================
+// THROTTLED INVALIDATION
+// =============================================================================
 
 /**
  * Creates a throttled invalidator that batches rapid invalidations.
@@ -43,18 +144,11 @@ export function createThrottledInvalidator(
 }
 
 /**
- * Realtime connection status types from Supabase
- */
-export type RealtimeStatus =
-  | "SUBSCRIBED"
-  | "CHANNEL_ERROR"
-  | "TIMED_OUT"
-  | "CLOSED";
-
-/**
  * Log realtime connection status changes.
  * Supabase handles reconnection internally with exponential backoff.
  * This provides observability without requiring custom reconnection logic.
+ *
+ * Also updates the global status store for UI consumption.
  */
 export function logRealtimeStatus(
   channelName: string,
@@ -63,6 +157,10 @@ export function logRealtimeStatus(
 ): void {
   const timestamp = new Date().toISOString();
 
+  // Update global status store
+  updateRealtimeStatus(channelName, status, error);
+
+  // Log for debugging
   switch (status) {
     case "SUBSCRIBED":
       console.log(`[Realtime] ${channelName} connected at ${timestamp}`);
