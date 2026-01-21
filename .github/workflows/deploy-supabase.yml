@@ -70,12 +70,12 @@ jobs:
           supabase functions deploy send-push
           echo "✅ Edge Functions deployed successfully"
 
-      - name: Run database migrations
-        if: github.event_name == 'push' || github.event.inputs.run_migrations == 'true'
-        run: |
-          echo "🗄️ Running database migrations..."
-          supabase db push
-          echo "✅ Migrations applied successfully"
+      # - name: Run database migrations
+      #   if: github.event_name == 'push' || github.event.inputs.run_migrations == 'true'
+      #   run: |
+      #     echo "🗄️ Running database migrations..."
+      #     supabase db push
+      #     echo "✅ Migrations applied successfully"
 
       - name: Verify webhook configuration
         run: |
