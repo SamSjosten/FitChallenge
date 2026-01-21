@@ -49,6 +49,9 @@ jest.mock("@/lib/supabase", () => {
     supabase: {
       from: jest.fn(),
     },
+    getSupabaseClient: jest.fn(() => ({
+      from: jest.fn(),
+    })),
     withAuth: jest.fn((operation) => operation(mockUserId)),
   };
 });
@@ -64,11 +67,15 @@ jest.mock("@/lib/serverTime", () => ({
 
 describe("challengeService.getPendingInvites", () => {
   let supabase: { from: jest.Mock };
+  let getSupabaseClient: jest.Mock;
 
   beforeEach(() => {
     jest.clearAllMocks();
     // Get reference to mocked supabase
-    supabase = require("@/lib/supabase").supabase;
+    const supabaseModule = require("@/lib/supabase");
+    supabase = supabaseModule.supabase;
+    getSupabaseClient = supabaseModule.getSupabaseClient;
+    getSupabaseClient.mockReturnValue(supabase);
   });
 
   describe("empty creatorIds guard", () => {
@@ -222,7 +229,7 @@ describe("challengeService.getPendingInvites", () => {
         in: jest
           .fn()
           .mockImplementation(() =>
-            Promise.resolve({ data: mockCreators, error: null })
+            Promise.resolve({ data: mockCreators, error: null }),
           ),
       };
 

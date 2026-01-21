@@ -43,7 +43,7 @@ const createChainMock = (finalData: unknown, finalError: unknown = null) => {
 // Mock user for withAuth
 const mockUserId = "test-user-123";
 
-// Create a mock supabase client object that will be configured per-test
+// Mock supabase client that will be returned by getSupabaseClient()
 const mockSupabaseClient = {
   from: jest.fn(),
 };
@@ -68,6 +68,8 @@ jest.mock("@/lib/serverTime", () => ({
 describe("challengeService.getPendingInvites", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // Reset the mock implementation for each test
+    mockSupabaseClient.from.mockReset();
   });
 
   describe("empty creatorIds guard", () => {
