@@ -3,6 +3,10 @@
 //
 // These tests verify that leaderboard queries use a stable tie-breaker
 // (user_id) to prevent rank jitter when participants have equal progress.
+//
+// NOTE: getMyActiveChallenges/getCompletedChallenges now use server-side
+// RPC (get_my_challenges) with RANK() window function. Ordering/ranking
+// tests for those are in integration tests against live database.
 
 // =============================================================================
 // MOCKS
@@ -128,138 +132,102 @@ describe("Leaderboard Ordering (P1-2)", () => {
     });
   });
 
-  describe("getMyActiveChallenges", () => {
-    it("applies user_id as tie-breaker for participant ranking", async () => {
-      // Setup: RPC returns challenge IDs
-      mockRpc.mockImplementation((name: string) => {
-        if (name === "get_active_challenge_ids") {
-          return Promise.resolve({
-            data: [{ challenge_id: "challenge-1" }],
-            error: null,
-          });
-        }
-        return Promise.resolve({ data: null, error: null });
+  describe("getMyActiveChallenges (RPC-based)", () => {
+    it("calls get_my_challenges RPC with 'active' filter", async () => {
+      // Setup: RPC returns challenge data with ranks pre-computed
+      mockRpc.mockResolvedValue({
+        data: [
+          {
+            id: "challenge-1",
+            creator_id: "creator-1",
+            title: "Active Challenge",
+            description: null,
+            challenge_type: "steps",
+            goal_value: 10000,
+            goal_unit: "steps",
+            win_condition: "highest_total",
+            daily_target: null,
+            start_date: "2024-06-01T00:00:00Z",
+            end_date: "2024-06-30T00:00:00Z",
+            status: "active",
+            xp_reward: 100,
+            max_participants: 50,
+            is_public: false,
+            custom_activity_name: null,
+            created_at: "2024-06-01T00:00:00Z",
+            updated_at: "2024-06-01T00:00:00Z",
+            my_invite_status: "accepted",
+            my_current_progress: 500,
+            participant_count: 3,
+            my_rank: 2,
+          },
+        ],
+        error: null,
       });
-
-      // Setup: challenges query returns one challenge
-      const challengesChain = createQueryChain([
-        {
-          id: "challenge-1",
-          title: "Test",
-          challenge_participants: [
-            { invite_status: "accepted", current_progress: 500 },
-          ],
-        },
-      ]);
-
-      // Setup: participants query returns tied progress
-      const participantsChain = createQueryChain([
-        {
-          challenge_id: "challenge-1",
-          user_id: "user-c",
-          current_progress: 1000,
-        },
-        {
-          challenge_id: "challenge-1",
-          user_id: "user-a",
-          current_progress: 1000,
-        },
-      ]);
-
-      mockFrom.mockImplementation((table: string) => {
-        if (table === "challenges") return challengesChain;
-        if (table === "challenge_participants") return participantsChain;
-        return createQueryChain([]);
-      });
-
-      // Clear order calls from setup
-      orderCalls.length = 0;
 
       const { challengeService } = require("@/services/challenges");
-      await challengeService.getMyActiveChallenges();
+      const result = await challengeService.getMyActiveChallenges();
 
-      // Verify participant ranking query uses tie-breaker
-      const participantOrders = orderCalls.filter(
-        (call) =>
-          call.column === "current_progress" || call.column === "user_id",
-      );
+      // Verify RPC was called with correct filter
+      expect(mockRpc).toHaveBeenCalledWith("get_my_challenges", {
+        p_filter: "active",
+      });
 
-      expect(participantOrders).toContainEqual({
-        column: "current_progress",
-        options: { ascending: false },
+      // Verify result is mapped correctly
+      expect(result).toHaveLength(1);
+      expect(result[0].my_participation).toEqual({
+        invite_status: "accepted",
+        current_progress: 500,
       });
-      expect(participantOrders).toContainEqual({
-        column: "user_id",
-        options: { ascending: true },
-      });
+      expect(result[0].participant_count).toBe(3);
+      expect(result[0].my_rank).toBe(2);
     });
   });
 
-  describe("getCompletedChallenges", () => {
-    it("applies user_id as tie-breaker for participant ranking", async () => {
-      // Setup: RPC returns completed challenge IDs
-      mockRpc.mockImplementation((name: string) => {
-        if (name === "get_completed_challenge_ids") {
-          return Promise.resolve({
-            data: [{ challenge_id: "challenge-1" }],
-            error: null,
-          });
-        }
-        return Promise.resolve({ data: null, error: null });
+  describe("getCompletedChallenges (RPC-based)", () => {
+    it("calls get_my_challenges RPC with 'completed' filter", async () => {
+      // Setup: RPC returns completed challenge data
+      mockRpc.mockResolvedValue({
+        data: [
+          {
+            id: "challenge-2",
+            creator_id: "creator-1",
+            title: "Completed Challenge",
+            description: null,
+            challenge_type: "steps",
+            goal_value: 10000,
+            goal_unit: "steps",
+            win_condition: "highest_total",
+            daily_target: null,
+            start_date: "2024-05-01T00:00:00Z",
+            end_date: "2024-05-31T00:00:00Z",
+            status: "completed",
+            xp_reward: 100,
+            max_participants: 50,
+            is_public: false,
+            custom_activity_name: null,
+            created_at: "2024-05-01T00:00:00Z",
+            updated_at: "2024-05-31T00:00:00Z",
+            my_invite_status: "accepted",
+            my_current_progress: 15000,
+            participant_count: 5,
+            my_rank: 1,
+          },
+        ],
+        error: null,
       });
-
-      // Setup: challenges query returns one completed challenge
-      const challengesChain = createQueryChain([
-        {
-          id: "challenge-1",
-          title: "Completed Test",
-          end_date: "2024-06-01T00:00:00Z",
-          challenge_participants: [
-            { invite_status: "accepted", current_progress: 500 },
-          ],
-        },
-      ]);
-
-      // Setup: participants query
-      const participantsChain = createQueryChain([
-        {
-          challenge_id: "challenge-1",
-          user_id: "user-b",
-          current_progress: 1000,
-        },
-        {
-          challenge_id: "challenge-1",
-          user_id: "user-a",
-          current_progress: 1000,
-        },
-      ]);
-
-      mockFrom.mockImplementation((table: string) => {
-        if (table === "challenges") return challengesChain;
-        if (table === "challenge_participants") return participantsChain;
-        return createQueryChain([]);
-      });
-
-      // Clear order calls
-      orderCalls.length = 0;
 
       const { challengeService } = require("@/services/challenges");
-      await challengeService.getCompletedChallenges();
+      const result = await challengeService.getCompletedChallenges();
 
-      // Verify participant ranking query uses tie-breaker
-      const participantOrders = orderCalls.filter(
-        (call) =>
-          call.column === "current_progress" || call.column === "user_id",
-      );
+      // Verify RPC was called with correct filter
+      expect(mockRpc).toHaveBeenCalledWith("get_my_challenges", {
+        p_filter: "completed",
+      });
 
-      expect(participantOrders).toContainEqual({
-        column: "current_progress",
-        options: { ascending: false },
-      });
-      expect(participantOrders).toContainEqual({
-        column: "user_id",
-        options: { ascending: true },
-      });
+      // Verify result is mapped correctly
+      expect(result).toHaveLength(1);
+      expect(result[0].my_rank).toBe(1);
     });
   });
 

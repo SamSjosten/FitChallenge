@@ -1,6 +1,7 @@
 // src/services/challenges.ts
 // Challenge management service
 
+import { z } from "zod";
 import { getSupabaseClient, withAuth } from "@/lib/supabase";
 import {
   validate,
@@ -14,6 +15,64 @@ import type {
   ChallengeParticipant,
   ProfilePublic,
 } from "@/types/database";
+
+// =============================================================================
+// RPC RESPONSE VALIDATION
+// =============================================================================
+
+/**
+ * Zod schema for validating get_my_challenges RPC response rows.
+ * Matches the RETURNS TABLE definition in migration 018.
+ */
+const challengeRpcRowSchema = z.object({
+  // Challenge fields
+  id: z.string().uuid(),
+  creator_id: z.string().uuid().nullable(),
+  title: z.string(),
+  description: z.string().nullable(),
+  challenge_type: z.enum([
+    "steps",
+    "active_minutes",
+    "workouts",
+    "distance",
+    "custom",
+  ]),
+  goal_value: z.number(),
+  goal_unit: z.string(),
+  win_condition: z.enum([
+    "highest_total",
+    "first_to_goal",
+    "longest_streak",
+    "all_complete",
+  ]),
+  daily_target: z.number().nullable(),
+  start_date: z.string(),
+  end_date: z.string(),
+  status: z.enum([
+    "draft",
+    "pending",
+    "active",
+    "completed",
+    "archived",
+    "cancelled",
+  ]),
+  xp_reward: z.number().nullable(),
+  max_participants: z.number().nullable(),
+  is_public: z.boolean().nullable(),
+  custom_activity_name: z.string().nullable(),
+  created_at: z.string(),
+  updated_at: z.string(),
+  // Participation fields (from RPC)
+  my_invite_status: z.string(),
+  my_current_progress: z.number(),
+  // Aggregations (from RPC)
+  participant_count: z.number(),
+  my_rank: z.number(),
+});
+
+const challengeRpcResponseSchema = z.array(challengeRpcRowSchema);
+
+type ChallengeRpcRow = z.infer<typeof challengeRpcRowSchema>;
 
 // =============================================================================
 // TYPES
@@ -52,6 +111,36 @@ export interface PendingInvite {
 }
 
 // =============================================================================
+// RPC RESPONSE MAPPING
+// =============================================================================
+
+/**
+ * Maps flat RPC response row to ChallengeWithParticipation interface.
+ * Transforms server-side aggregations to existing UI data shape.
+ */
+function mapRpcToChallengeWithParticipation(
+  row: ChallengeRpcRow,
+): ChallengeWithParticipation {
+  const {
+    my_invite_status,
+    my_current_progress,
+    participant_count,
+    my_rank,
+    ...challengeFields
+  } = row;
+
+  return {
+    ...challengeFields,
+    my_participation: {
+      invite_status: my_invite_status,
+      current_progress: my_current_progress,
+    },
+    participant_count,
+    my_rank,
+  };
+}
+
+// =============================================================================
 // HELPERS
 // =============================================================================
 
@@ -66,44 +155,6 @@ function mapParticipation(
     invite_status: raw.invite_status, // Keep as-is (nullable)
     current_progress: raw.current_progress ?? 0,
   };
-}
-
-/**
- * Calculate rank for a user in a sorted participant list using standard competition ranking.
- *
- * RANKING BEHAVIOR (1224 / "standard competition ranking"):
- * - Equal progress = equal rank
- * - Next different progress = position + 1 (gaps in ranking)
- *
- * Example: [1000, 1000, 1000, 500] → ranks [1, 1, 1, 4]
- *
- * REQUIREMENTS:
- * - participants must be pre-sorted by (current_progress DESC, user_id ASC)
- * - user_id tie-breaker ensures stable ordering for equal progress
- *
- * @param participants - Sorted array of participants with current_progress
- * @param userId - The user ID to find rank for
- * @returns 1-indexed rank, or undefined if user not found
- */
-function calculateRankWithTies(
-  participants: Array<{ user_id: string; current_progress: number }>,
-  userId: string,
-): number | undefined {
-  const userIndex = participants.findIndex((p) => p.user_id === userId);
-  if (userIndex < 0) return undefined;
-
-  const userProgress = participants[userIndex].current_progress;
-
-  // Find how many people have strictly higher progress
-  // Rank = count of people with higher progress + 1
-  let rank = 1;
-  for (const p of participants) {
-    if (p.current_progress > userProgress) {
-      rank++;
-    }
-  }
-
-  return rank;
 }
 
 /**
@@ -202,197 +253,50 @@ export const challengeService = {
    * Get challenges where current user is an accepted participant
    * Includes participant_count and my_rank for home screen display
    *
-   * CONTRACT: Uses server-authoritative time filtering via RPC
-   * The RPC uses PostgreSQL now() to determine active window [start_date, end_date)
+   * CONTRACT: Uses atomic RPC for consistent snapshot (no race windows)
+   * CONTRACT: Server-authoritative time filtering via PostgreSQL now()
+   * CONTRACT: Standard competition ranking computed server-side
    */
   async getMyActiveChallenges(): Promise<ChallengeWithParticipation[]> {
-    return withAuth(async (userId) => {
-      // Step 1: Get active challenge IDs using server-authoritative time
-      const { data: idRows, error: idsError } = await getSupabaseClient().rpc(
-        "get_active_challenge_ids",
+    return withAuth(async () => {
+      const { data, error } = await getSupabaseClient().rpc(
+        "get_my_challenges",
+        {
+          p_filter: "active",
+        },
       );
-
-      if (idsError) throw idsError;
-
-      const challengeIds = (idRows || []).map((row) => row.challenge_id);
-
-      // Guard: empty .in() fails in PostgREST
-      if (challengeIds.length === 0) {
-        return [];
-      }
-
-      // Step 2: Fetch full challenge data by IDs
-      // Explicit ordering to match RPC order (start_date ASC)
-      const { data, error } = await getSupabaseClient()
-        .from("challenges")
-        .select(
-          `
-          *,
-          challenge_participants!inner (
-            invite_status,
-            current_progress
-          )
-        `,
-        )
-        .in("id", challengeIds)
-        .eq("challenge_participants.user_id", userId)
-        .eq("challenge_participants.invite_status", "accepted")
-        .order("start_date", { ascending: true });
 
       if (error) throw error;
 
-      const challenges = data || [];
+      // Validate response shape (catches schema drift between migrations)
+      const validated = challengeRpcResponseSchema.parse(data);
 
-      // Step 3: Batch fetch all participants for these challenges to get counts and ranks
-      let participantData: {
-        challenge_id: string;
-        user_id: string;
-        current_progress: number;
-      }[] = [];
-      if (challengeIds.length > 0) {
-        const { data: participants, error: participantsError } =
-          await getSupabaseClient()
-            .from("challenge_participants")
-            .select("challenge_id, user_id, current_progress")
-            .in("challenge_id", challengeIds)
-            .eq("invite_status", "accepted")
-            .order("current_progress", { ascending: false })
-            .order("user_id", { ascending: true }); // Tie-breaker for deterministic ranking
-
-        if (participantsError) {
-          throw new Error(
-            "Unable to load challenge participants. Please try again.",
-          );
-        }
-
-        // Coalesce nulls at service boundary (explicit to avoid spread type issues)
-        participantData = (participants || []).map((p) => ({
-          challenge_id: p.challenge_id,
-          user_id: p.user_id,
-          current_progress: p.current_progress ?? 0,
-        }));
-      }
-
-      // Group participants by challenge (already sorted by progress DESC, user_id ASC)
-      const challengeParticipants = new Map<string, typeof participantData>();
-      for (const p of participantData) {
-        if (!challengeParticipants.has(p.challenge_id)) {
-          challengeParticipants.set(p.challenge_id, []);
-        }
-        challengeParticipants.get(p.challenge_id)!.push(p);
-      }
-
-      // Flatten via destructuring, add counts and ranks
-      // Uses standard competition ranking: equal progress = equal rank
-      return challenges.map(({ challenge_participants, ...challenge }) => {
-        const participants = challengeParticipants.get(challenge.id) || [];
-
-        return {
-          ...challenge,
-          my_participation: mapParticipation(challenge_participants?.[0]),
-          participant_count: participants.length,
-          my_rank: calculateRankWithTies(participants, userId),
-        };
-      });
+      return validated.map(mapRpcToChallengeWithParticipation);
     });
   },
 
   /**
    * Get completed challenges for current user
    *
-   * CONTRACT: Uses server-authoritative time filtering via RPC
-   * The RPC uses PostgreSQL now() to determine completed = end_date <= now()
-   * Includes participant_count and my_rank for historical display
+   * CONTRACT: Uses atomic RPC for consistent snapshot (no race windows)
+   * CONTRACT: Server-authoritative time filtering via PostgreSQL now()
+   * CONTRACT: Returns max 20 most recently completed (server-side limit)
    */
   async getCompletedChallenges(): Promise<ChallengeWithParticipation[]> {
-    return withAuth(async (userId) => {
-      // Step 1: Get completed challenge IDs using server-authoritative time
-      const { data: idRows, error: idsError } = await getSupabaseClient().rpc(
-        "get_completed_challenge_ids",
+    return withAuth(async () => {
+      const { data, error } = await getSupabaseClient().rpc(
+        "get_my_challenges",
+        {
+          p_filter: "completed",
+        },
       );
-
-      if (idsError) throw idsError;
-
-      const challengeIds = (idRows || []).map((row) => row.challenge_id);
-
-      // Guard: empty .in() fails in PostgREST
-      if (challengeIds.length === 0) {
-        return [];
-      }
-
-      // Step 2: Fetch full challenge data by IDs
-      // Explicit ordering to match RPC order (end_date DESC)
-      const { data, error } = await getSupabaseClient()
-        .from("challenges")
-        .select(
-          `
-          *,
-          challenge_participants!inner (
-            invite_status,
-            current_progress
-          )
-        `,
-        )
-        .in("id", challengeIds)
-        .eq("challenge_participants.user_id", userId)
-        .eq("challenge_participants.invite_status", "accepted")
-        .order("end_date", { ascending: false });
 
       if (error) throw error;
 
-      const challenges = data || [];
+      // Validate response shape (catches schema drift between migrations)
+      const validated = challengeRpcResponseSchema.parse(data);
 
-      // Step 3: Batch fetch all participants for these challenges to get counts and ranks
-      let participantData: {
-        challenge_id: string;
-        user_id: string;
-        current_progress: number;
-      }[] = [];
-      if (challengeIds.length > 0) {
-        const { data: participants, error: participantsError } =
-          await getSupabaseClient()
-            .from("challenge_participants")
-            .select("challenge_id, user_id, current_progress")
-            .in("challenge_id", challengeIds)
-            .eq("invite_status", "accepted")
-            .order("current_progress", { ascending: false })
-            .order("user_id", { ascending: true }); // Tie-breaker for deterministic ranking
-
-        if (participantsError) {
-          throw new Error(
-            "Unable to load challenge participants. Please try again.",
-          );
-        }
-
-        // Coalesce nulls at service boundary (explicit to avoid spread type issues)
-        participantData = (participants || []).map((p) => ({
-          challenge_id: p.challenge_id,
-          user_id: p.user_id,
-          current_progress: p.current_progress ?? 0,
-        }));
-      }
-
-      // Group participants by challenge (already sorted by progress DESC, user_id ASC)
-      const challengeParticipants = new Map<string, typeof participantData>();
-      for (const p of participantData) {
-        if (!challengeParticipants.has(p.challenge_id)) {
-          challengeParticipants.set(p.challenge_id, []);
-        }
-        challengeParticipants.get(p.challenge_id)!.push(p);
-      }
-
-      // Flatten via destructuring, add counts and ranks
-      // Uses standard competition ranking: equal progress = equal rank
-      return challenges.map(({ challenge_participants, ...challenge }) => {
-        const participants = challengeParticipants.get(challenge.id) || [];
-
-        return {
-          ...challenge,
-          my_participation: mapParticipation(challenge_participants?.[0]),
-          participant_count: participants.length,
-          my_rank: calculateRankWithTies(participants, userId),
-        };
-      });
+      return validated.map(mapRpcToChallengeWithParticipation);
     });
   },
 
