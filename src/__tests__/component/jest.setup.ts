@@ -16,7 +16,7 @@ jest.mock("react-native-reanimated", () => {
 
 // Mock expo-linear-gradient
 jest.mock("expo-linear-gradient", () => ({
-  LinearGradient: ({ children }: { children: React.ReactNode }) => children,
+  LinearGradient: ({ children }: { children: any }) => children,
 }));
 
 // Mock react-native-heroicons
@@ -54,20 +54,33 @@ const mockRouter = {
 
 const mockSearchParams: Record<string, string> = {};
 
-jest.mock("expo-router", () => ({
-  router: mockRouter,
-  useRouter: () => mockRouter,
-  useLocalSearchParams: () => mockSearchParams,
-  useSegments: () => [],
-  Link: ({ children, href, asChild }: any) => {
-    const { TouchableOpacity, Text } = require("react-native");
-    if (asChild) {
-      return children;
-    }
-    return <TouchableOpacity testID={`link-${href}`}>{children}</TouchableOpacity>;
-  },
-  Redirect: () => null,
-}));
+jest.mock("expo-router", () => {
+  const React = require("react");
+  const { View } = require("react-native");
+
+  return {
+    router: mockRouter,
+    useRouter: () => mockRouter,
+    useLocalSearchParams: () => mockSearchParams,
+    useSegments: () => [],
+    Link: ({
+      children,
+      href,
+      asChild,
+    }: {
+      children: any;
+      href: string;
+      asChild?: boolean;
+    }) => {
+      if (asChild) {
+        return children;
+      }
+      // Use createElement instead of JSX since this is a .ts file
+      return React.createElement(View, { testID: `link-${href}` }, children);
+    },
+    Redirect: () => null,
+  };
+});
 
 // Export for test customization
 export { mockRouter, mockSearchParams };
@@ -96,7 +109,7 @@ jest.mock("@/hooks/useAuth", () => ({
 
 jest.mock("@/providers/AuthProvider", () => ({
   useAuth: () => mockAuthState,
-  AuthProvider: ({ children }: { children: React.ReactNode }) => children,
+  AuthProvider: ({ children }: { children: any }) => children,
 }));
 
 // Export for test customization
@@ -280,7 +293,7 @@ const mockTheme = {
 
 jest.mock("@/providers/ThemeProvider", () => ({
   useAppTheme: () => mockTheme,
-  ThemeProvider: ({ children }: { children: React.ReactNode }) => children,
+  ThemeProvider: ({ children }: { children: any }) => children,
 }));
 
 // Export for test customization
@@ -293,7 +306,7 @@ export { mockTheme };
 // Reset all mocks between tests
 beforeEach(() => {
   jest.clearAllMocks();
-  
+
   // Reset auth state to defaults
   mockAuthState.session = null;
   mockAuthState.user = null;
