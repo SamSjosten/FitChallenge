@@ -81,20 +81,16 @@ npm run test:all      # All tests
 
 #### Integration Tests Setup
 
-Integration tests run against a real Supabase instance. Before running them:
+Integration tests run against a real Supabase instance:
 
 ```bash
 cp .env.test.example .env.test
-# Edit .env.test with your Supabase credentials
+# Edit .env.test with your Supabase credentials (URL, anon key, service role key)
 ```
 
-Required variables (from Supabase Dashboard → Settings → API):
+⚠️ **Never commit `.env.test`** — the service role key bypasses RLS.
 
-- `SUPABASE_URL` - Your project URL
-- `SUPABASE_ANON_KEY` - Public anon key
-- `SUPABASE_SERVICE_ROLE_KEY` - Service role key (for test cleanup)
-
-⚠️ **Never commit `.env.test`** - the service role key bypasses RLS.
+> 📖 **For detailed testing strategy, conventions, and contracts, see [`docs/testing.md`](docs/testing.md).**
 
 ---
 
