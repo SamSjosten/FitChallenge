@@ -33,19 +33,8 @@ module.exports = {
     },
     {
       displayName: "component",
-      // Use jsdom for React component rendering
-      testEnvironment: "jsdom",
-      transform: {
-        "^.+\\.(ts|tsx)$": [
-          "ts-jest",
-          {
-            tsconfig: {
-              jsx: "react-jsx",
-              esModuleInterop: true,
-            },
-          },
-        ],
-      },
+      // Use jest-expo preset which handles RN transforms and environment
+      preset: "jest-expo/ios",
       moduleNameMapper: {
         "^@/(.*)$": "<rootDir>/src/$1",
       },
