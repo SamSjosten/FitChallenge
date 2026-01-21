@@ -90,13 +90,26 @@ function isSupabaseError(error: unknown): error is SupabaseError {
 /**
  * Check if an error is an AbortError (request was cancelled).
  * AbortError can be a DOMException (web) or Error with name 'AbortError' (React Native).
+ * Also checks message as fallback for edge cases where abort surfaces differently.
+ *
+ * Note: ECONNABORTED is a network socket error, NOT a user-initiated abort.
  */
 function isAbortError(error: unknown): boolean {
+  // Check Error instance with name
   if (error instanceof Error && error.name === "AbortError") {
     return true;
   }
   // Check for Supabase error structure with AbortError name
   if (isSupabaseError(error) && error.name === "AbortError") {
+    return true;
+  }
+  // Fallback: check message for abort indicators (some RN cases)
+  // Exclude ECONNABORTED which is a network error, not a user cancellation
+  const message = (error as { message?: string })?.message ?? "";
+  if (/ECONN/i.test(message)) {
+    return false; // Network error codes like ECONNABORTED, ECONNRESET, etc.
+  }
+  if (/\babort/i.test(message)) {
     return true;
   }
   return false;

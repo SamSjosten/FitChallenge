@@ -32,6 +32,21 @@ describe("shouldRetryError", () => {
       };
       expect(shouldRetryError(error)).toBe(false);
     });
+
+    it("should not retry error with 'abort' in message (RN fallback)", () => {
+      const error = { message: "The operation was aborted by the user" };
+      expect(shouldRetryError(error)).toBe(false);
+    });
+
+    it("should not retry error with 'Abort' in message (case insensitive)", () => {
+      const error = { message: "Request Abort: signal triggered" };
+      expect(shouldRetryError(error)).toBe(false);
+    });
+
+    it("should not retry plain object with abort message", () => {
+      const error = { message: "AbortError: The user aborted a request." };
+      expect(shouldRetryError(error)).toBe(false);
+    });
   });
 
   describe("should NOT retry auth/permission errors", () => {
@@ -314,6 +329,11 @@ describe("mutationRetryFn", () => {
 
     it("should not retry DOMException-style AbortError", () => {
       const error = { name: "AbortError", message: "Aborted" };
+      expect(mutationRetryFn(0, error)).toBe(false);
+    });
+
+    it("should not retry error with 'abort' in message (RN fallback)", () => {
+      const error = { message: "The request was aborted" };
       expect(mutationRetryFn(0, error)).toBe(false);
     });
   });
