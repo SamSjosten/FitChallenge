@@ -8,6 +8,32 @@ import { shouldRetryError, queryRetryFn, mutationRetryFn } from "../queryRetry";
 // =============================================================================
 
 describe("shouldRetryError", () => {
+  describe("should NOT retry AbortError (cancelled requests)", () => {
+    it("should not retry Error with name AbortError", () => {
+      const error = new Error("The operation was aborted");
+      error.name = "AbortError";
+      expect(shouldRetryError(error)).toBe(false);
+    });
+
+    it("should not retry DOMException-style AbortError", () => {
+      // Simulates DOMException structure
+      const error = {
+        name: "AbortError",
+        message: "The user aborted a request",
+      };
+      expect(shouldRetryError(error)).toBe(false);
+    });
+
+    it("should not retry Supabase error with AbortError name", () => {
+      const error = {
+        name: "AbortError",
+        message: "Request aborted",
+        code: "ABORT",
+      };
+      expect(shouldRetryError(error)).toBe(false);
+    });
+  });
+
   describe("should NOT retry auth/permission errors", () => {
     it("should not retry 401 Unauthorized", () => {
       const error = { status: 401, message: "Unauthorized" };
@@ -139,6 +165,58 @@ describe("shouldRetryError", () => {
     });
   });
 
+  describe("should retry mobile network errors", () => {
+    it("should retry ETIMEDOUT errors", () => {
+      const error = { message: "connect ETIMEDOUT 192.168.1.1:443" };
+      expect(shouldRetryError(error)).toBe(true);
+    });
+
+    it("should retry ECONNRESET errors", () => {
+      const error = { message: "read ECONNRESET" };
+      expect(shouldRetryError(error)).toBe(true);
+    });
+
+    it("should retry ENOTFOUND errors", () => {
+      const error = { message: "getaddrinfo ENOTFOUND api.example.com" };
+      expect(shouldRetryError(error)).toBe(true);
+    });
+
+    it("should retry ECONNREFUSED errors", () => {
+      const error = { message: "connect ECONNREFUSED 127.0.0.1:5432" };
+      expect(shouldRetryError(error)).toBe(true);
+    });
+
+    it("should retry ECONNABORTED errors", () => {
+      const error = { message: "ECONNABORTED: Connection aborted" };
+      expect(shouldRetryError(error)).toBe(true);
+    });
+
+    it("should retry 'Network request failed' (React Native)", () => {
+      const error = { message: "Network request failed" };
+      expect(shouldRetryError(error)).toBe(true);
+    });
+
+    it("should retry socket hang up errors", () => {
+      const error = { message: "socket hang up" };
+      expect(shouldRetryError(error)).toBe(true);
+    });
+
+    it("should retry timeout errors", () => {
+      const error = { message: "Request timeout after 30000ms" };
+      expect(shouldRetryError(error)).toBe(true);
+    });
+
+    it("should retry TypeError with 'network' in message", () => {
+      const error = new TypeError("A network error occurred");
+      expect(shouldRetryError(error)).toBe(true);
+    });
+
+    it("should retry TypeError with 'failed' in message", () => {
+      const error = new TypeError("Request failed");
+      expect(shouldRetryError(error)).toBe(true);
+    });
+  });
+
   describe("edge cases", () => {
     it("should handle null error", () => {
       expect(shouldRetryError(null)).toBe(true);
@@ -225,5 +303,45 @@ describe("mutationRetryFn", () => {
     const validationError = { code: "23505", message: "duplicate key" };
 
     expect(mutationRetryFn(0, validationError)).toBe(false);
+  });
+
+  describe("AbortError handling", () => {
+    it("should not retry AbortError", () => {
+      const error = new Error("The operation was aborted");
+      error.name = "AbortError";
+      expect(mutationRetryFn(0, error)).toBe(false);
+    });
+
+    it("should not retry DOMException-style AbortError", () => {
+      const error = { name: "AbortError", message: "Aborted" };
+      expect(mutationRetryFn(0, error)).toBe(false);
+    });
+  });
+
+  describe("expanded network detection", () => {
+    it("should retry TypeError with 'network' in message", () => {
+      const error = new TypeError("A network error occurred");
+      expect(mutationRetryFn(0, error)).toBe(true);
+    });
+
+    it("should retry TypeError with 'failed' in message", () => {
+      const error = new TypeError("Request failed");
+      expect(mutationRetryFn(0, error)).toBe(true);
+    });
+
+    it("should retry ETIMEDOUT errors", () => {
+      const error = { message: "connect ETIMEDOUT" };
+      expect(mutationRetryFn(0, error)).toBe(true);
+    });
+
+    it("should retry ECONNRESET errors", () => {
+      const error = { message: "read ECONNRESET" };
+      expect(mutationRetryFn(0, error)).toBe(true);
+    });
+
+    it("should retry 'Network request failed' (React Native)", () => {
+      const error = { message: "Network request failed" };
+      expect(mutationRetryFn(0, error)).toBe(true);
+    });
   });
 });

@@ -53,6 +53,22 @@ const NON_RETRYABLE_PATTERNS = [
 ];
 
 /**
+ * Message patterns that indicate transient network errors worth retrying.
+ * These provide explicit positive matching for common mobile/network errors.
+ */
+const RETRYABLE_NETWORK_PATTERNS = [
+  /ETIMEDOUT/i,
+  /ECONNRESET/i,
+  /ENOTFOUND/i,
+  /ECONNREFUSED/i,
+  /ECONNABORTED/i,
+  /network request failed/i,
+  /network error/i,
+  /socket hang up/i,
+  /timeout/i,
+];
+
+/**
  * Type guard to check if error has Supabase/PostgrestError shape
  */
 interface SupabaseError {
@@ -60,6 +76,7 @@ interface SupabaseError {
   status?: number;
   message?: string;
   statusCode?: number; // Some Supabase errors use this
+  name?: string; // Error name (e.g., AbortError)
 }
 
 function isSupabaseError(error: unknown): error is SupabaseError {
@@ -71,24 +88,60 @@ function isSupabaseError(error: unknown): error is SupabaseError {
 }
 
 /**
+ * Check if an error is an AbortError (request was cancelled).
+ * AbortError can be a DOMException (web) or Error with name 'AbortError' (React Native).
+ */
+function isAbortError(error: unknown): boolean {
+  if (error instanceof Error && error.name === "AbortError") {
+    return true;
+  }
+  // Check for Supabase error structure with AbortError name
+  if (isSupabaseError(error) && error.name === "AbortError") {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Check if error message matches any retryable network patterns.
+ */
+function matchesRetryablePattern(message: string): boolean {
+  return RETRYABLE_NETWORK_PATTERNS.some((pattern) => pattern.test(message));
+}
+
+/**
  * Determines if an error should be retried.
  *
  * Returns false for:
+ * - AbortError (request was cancelled)
  * - Auth errors (401, 403, JWT issues)
  * - RLS/permission errors
  * - Validation/constraint errors
  * - Client errors (4xx)
  *
  * Returns true for:
- * - Network errors
+ * - Network errors (ETIMEDOUT, ECONNRESET, etc.)
  * - Server errors (5xx)
  * - Timeouts
  * - Unknown errors (err on side of retrying)
  */
 export function shouldRetryError(error: unknown): boolean {
-  // Network errors (fetch failed, no response) - should retry
-  if (error instanceof TypeError && error.message.includes("fetch")) {
-    return true;
+  // AbortError - request was cancelled, don't retry
+  if (isAbortError(error)) {
+    return false;
+  }
+
+  // TypeError - often indicates network failure
+  // Expand detection beyond just "fetch" to catch mobile network errors
+  if (error instanceof TypeError) {
+    const msg = error.message.toLowerCase();
+    if (
+      msg.includes("fetch") ||
+      msg.includes("network") ||
+      msg.includes("failed")
+    ) {
+      return true;
+    }
   }
 
   // Check Supabase error structure
@@ -111,12 +164,17 @@ export function shouldRetryError(error: unknown): boolean {
       }
     }
 
-    // Check message patterns
+    // Check message for non-retryable patterns
     if (error.message) {
       for (const pattern of NON_RETRYABLE_PATTERNS) {
         if (pattern.test(error.message)) {
           return false;
         }
+      }
+
+      // Check message for retryable network patterns (explicit positive match)
+      if (matchesRetryablePattern(error.message)) {
+        return true;
       }
     }
   }
@@ -164,14 +222,28 @@ export function mutationRetryFn(failureCount: number, error: unknown): boolean {
     return false;
   }
 
-  // Only retry obvious network failures
-  if (error instanceof TypeError && error.message.includes("fetch")) {
-    return true;
+  // AbortError - don't retry cancelled requests
+  if (isAbortError(error)) {
+    return false;
   }
 
-  // Check for timeout
-  if (isSupabaseError(error) && error.message?.includes("timeout")) {
-    return true;
+  // Only retry obvious network failures (expanded detection)
+  if (error instanceof TypeError) {
+    const msg = error.message.toLowerCase();
+    if (
+      msg.includes("fetch") ||
+      msg.includes("network") ||
+      msg.includes("failed")
+    ) {
+      return true;
+    }
+  }
+
+  // Check for timeout or network errors in Supabase error structure
+  if (isSupabaseError(error) && error.message) {
+    if (matchesRetryablePattern(error.message)) {
+      return true;
+    }
   }
 
   // Don't retry other errors for mutations
