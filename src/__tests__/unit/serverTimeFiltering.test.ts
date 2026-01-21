@@ -31,6 +31,15 @@ jest.mock("@/lib/supabase", () => ({
 }));
 
 // =============================================================================
+// TEST DATA - Valid UUIDs for Zod schema validation
+// =============================================================================
+const TEST_UUIDS = {
+  challenge1: "11111111-1111-1111-1111-111111111111",
+  challenge2: "22222222-2222-2222-2222-222222222222",
+  creator1: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+};
+
+// =============================================================================
 // TESTS
 // =============================================================================
 
@@ -69,8 +78,8 @@ describe("P1-3: Server-Authoritative Challenge Filtering", () => {
     it("returns RPC results directly (no post-processing filter)", async () => {
       const serverResults = [
         {
-          id: "challenge-1",
-          creator_id: "creator-1",
+          id: TEST_UUIDS.challenge1,
+          creator_id: TEST_UUIDS.creator1,
           title: "Active Challenge",
           description: null,
           challenge_type: "steps",
@@ -100,7 +109,7 @@ describe("P1-3: Server-Authoritative Challenge Filtering", () => {
 
       // Result count matches server response (no client filtering)
       expect(result).toHaveLength(1);
-      expect(result[0].id).toBe("challenge-1");
+      expect(result[0].id).toBe(TEST_UUIDS.challenge1);
     });
   });
 
@@ -132,8 +141,8 @@ describe("P1-3: Server-Authoritative Challenge Filtering", () => {
     it("returns RPC results directly (no post-processing filter)", async () => {
       const serverResults = [
         {
-          id: "challenge-2",
-          creator_id: "creator-1",
+          id: TEST_UUIDS.challenge2,
+          creator_id: TEST_UUIDS.creator1,
           title: "Completed Challenge",
           description: null,
           challenge_type: "steps",
@@ -162,7 +171,7 @@ describe("P1-3: Server-Authoritative Challenge Filtering", () => {
       const result = await challengeService.getCompletedChallenges();
 
       expect(result).toHaveLength(1);
-      expect(result[0].id).toBe("challenge-2");
+      expect(result[0].id).toBe(TEST_UUIDS.challenge2);
     });
   });
 

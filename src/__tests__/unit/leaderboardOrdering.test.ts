@@ -37,6 +37,21 @@ jest.mock("@/lib/serverTime", () => ({
 }));
 
 // =============================================================================
+// TEST DATA - Valid UUIDs for Zod schema validation
+// =============================================================================
+const TEST_UUIDS = {
+  challenge1: "11111111-1111-1111-1111-111111111111",
+  challenge2: "22222222-2222-2222-2222-222222222222",
+  challenge123: "12312312-1231-1231-1231-123123123123",
+  challenge456: "45645645-4564-4564-4564-456456456456",
+  creator1: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+  userA: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+  userB: "cccccccc-cccc-cccc-cccc-cccccccccccc",
+  userC: "dddddddd-dddd-dddd-dddd-dddddddddddd",
+  testUser: "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee",
+};
+
+// =============================================================================
 // TESTS
 // =============================================================================
 
@@ -50,8 +65,8 @@ describe("Challenge Service (RPC-based)", () => {
       mockRpc.mockResolvedValue({
         data: [
           {
-            id: "challenge-1",
-            creator_id: "creator-1",
+            id: TEST_UUIDS.challenge1,
+            creator_id: TEST_UUIDS.creator1,
             title: "Active Challenge",
             description: null,
             challenge_type: "steps",
@@ -108,8 +123,8 @@ describe("Challenge Service (RPC-based)", () => {
       mockRpc.mockResolvedValue({
         data: [
           {
-            id: "challenge-2",
-            creator_id: "creator-1",
+            id: TEST_UUIDS.challenge2,
+            creator_id: TEST_UUIDS.creator1,
             title: "Completed Challenge",
             description: null,
             challenge_type: "steps",
@@ -152,7 +167,7 @@ describe("Challenge Service (RPC-based)", () => {
       mockRpc.mockResolvedValue({
         data: [
           {
-            user_id: "user-a",
+            user_id: TEST_UUIDS.userA,
             current_progress: 1000,
             current_streak: 5,
             rank: 1,
@@ -161,7 +176,7 @@ describe("Challenge Service (RPC-based)", () => {
             avatar_url: null,
           },
           {
-            user_id: "user-b",
+            user_id: TEST_UUIDS.userB,
             current_progress: 800,
             current_streak: 3,
             rank: 2,
@@ -174,10 +189,12 @@ describe("Challenge Service (RPC-based)", () => {
       });
 
       const { challengeService } = require("@/services/challenges");
-      const result = await challengeService.getLeaderboard("challenge-123");
+      const result = await challengeService.getLeaderboard(
+        TEST_UUIDS.challenge123,
+      );
 
       expect(mockRpc).toHaveBeenCalledWith("get_leaderboard", {
-        p_challenge_id: "challenge-123",
+        p_challenge_id: TEST_UUIDS.challenge123,
       });
 
       expect(result).toHaveLength(2);
@@ -187,7 +204,7 @@ describe("Challenge Service (RPC-based)", () => {
       mockRpc.mockResolvedValue({
         data: [
           {
-            user_id: "user-a",
+            user_id: TEST_UUIDS.userA,
             current_progress: 1000,
             current_streak: 5,
             rank: 1,
@@ -200,15 +217,17 @@ describe("Challenge Service (RPC-based)", () => {
       });
 
       const { challengeService } = require("@/services/challenges");
-      const result = await challengeService.getLeaderboard("challenge-123");
+      const result = await challengeService.getLeaderboard(
+        TEST_UUIDS.challenge123,
+      );
 
       expect(result[0]).toEqual({
-        user_id: "user-a",
+        user_id: TEST_UUIDS.userA,
         current_progress: 1000,
         current_streak: 5,
         rank: 1,
         profile: {
-          id: "user-a",
+          id: TEST_UUIDS.userA,
           username: "alice",
           display_name: "Alice",
           avatar_url: "https://example.com/alice.jpg",
@@ -222,7 +241,9 @@ describe("Challenge Service (RPC-based)", () => {
       mockRpc.mockResolvedValue({ data: [], error: null });
 
       const { challengeService } = require("@/services/challenges");
-      const result = await challengeService.getLeaderboard("challenge-456");
+      const result = await challengeService.getLeaderboard(
+        TEST_UUIDS.challenge456,
+      );
 
       expect(result).toEqual([]);
     });
@@ -232,7 +253,7 @@ describe("Challenge Service (RPC-based)", () => {
       mockRpc.mockResolvedValue({
         data: [
           {
-            user_id: "user-a",
+            user_id: TEST_UUIDS.userA,
             current_progress: 1000,
             current_streak: 3,
             rank: 1,
@@ -241,7 +262,7 @@ describe("Challenge Service (RPC-based)", () => {
             avatar_url: null,
           },
           {
-            user_id: "user-b",
+            user_id: TEST_UUIDS.userB,
             current_progress: 1000,
             current_streak: 7,
             rank: 1, // Same progress = same rank
@@ -250,7 +271,7 @@ describe("Challenge Service (RPC-based)", () => {
             avatar_url: null,
           },
           {
-            user_id: "user-c",
+            user_id: TEST_UUIDS.userC,
             current_progress: 500,
             current_streak: 5,
             rank: 3, // Skips to position 3 (1, 1, 3 pattern)
@@ -263,7 +284,9 @@ describe("Challenge Service (RPC-based)", () => {
       });
 
       const { challengeService } = require("@/services/challenges");
-      const result = await challengeService.getLeaderboard("challenge-123");
+      const result = await challengeService.getLeaderboard(
+        TEST_UUIDS.challenge123,
+      );
 
       // Verify ranks are passed through from server
       expect(result[0].rank).toBe(1);
@@ -280,7 +303,7 @@ describe("Challenge Service (RPC-based)", () => {
       const { challengeService } = require("@/services/challenges");
 
       await expect(
-        challengeService.getLeaderboard("challenge-123"),
+        challengeService.getLeaderboard(TEST_UUIDS.challenge123),
       ).rejects.toEqual({ message: "Database error" });
     });
   });
@@ -291,7 +314,7 @@ describe("Challenge Service (RPC-based)", () => {
       mockRpc.mockResolvedValue({
         data: [
           {
-            id: "challenge-1",
+            id: TEST_UUIDS.challenge1,
             // missing title and other required fields
           },
         ],
@@ -308,7 +331,7 @@ describe("Challenge Service (RPC-based)", () => {
       mockRpc.mockResolvedValue({
         data: [
           {
-            user_id: "user-a",
+            user_id: TEST_UUIDS.userA,
             current_progress: 1000,
             current_streak: 5,
             rank: "first", // Should be number
@@ -323,7 +346,7 @@ describe("Challenge Service (RPC-based)", () => {
       const { challengeService } = require("@/services/challenges");
 
       await expect(
-        challengeService.getLeaderboard("challenge-123"),
+        challengeService.getLeaderboard(TEST_UUIDS.challenge123),
       ).rejects.toThrow();
     });
   });
