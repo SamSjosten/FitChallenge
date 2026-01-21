@@ -74,6 +74,25 @@ const challengeRpcResponseSchema = z.array(challengeRpcRowSchema);
 
 type ChallengeRpcRow = z.infer<typeof challengeRpcRowSchema>;
 
+/**
+ * Zod schema for validating get_leaderboard RPC response rows.
+ * Matches the RETURNS TABLE definition in migration 019.
+ */
+const leaderboardRpcRowSchema = z.object({
+  user_id: z.string().uuid(),
+  current_progress: z.number(),
+  current_streak: z.number(),
+  rank: z.number(),
+  // Flattened profile fields
+  username: z.string(),
+  display_name: z.string().nullable(),
+  avatar_url: z.string().nullable(),
+});
+
+const leaderboardRpcResponseSchema = z.array(leaderboardRpcRowSchema);
+
+type LeaderboardRpcRow = z.infer<typeof leaderboardRpcRowSchema>;
+
 // =============================================================================
 // TYPES
 // =============================================================================
@@ -155,38 +174,6 @@ function mapParticipation(
     invite_status: raw.invite_status, // Keep as-is (nullable)
     current_progress: raw.current_progress ?? 0,
   };
-}
-
-/**
- * Assign ranks to all participants using standard competition ranking.
- *
- * @param participants - Sorted array (by current_progress DESC, user_id ASC)
- * @returns Array of ranks corresponding to each participant
- */
-function assignRanksWithTies(
-  participants: Array<{ current_progress: number }>,
-): number[] {
-  if (participants.length === 0) return [];
-
-  const ranks: number[] = [];
-  let currentRank = 1;
-
-  for (let i = 0; i < participants.length; i++) {
-    if (i === 0) {
-      // First participant is always rank 1
-      ranks.push(1);
-    } else if (
-      participants[i].current_progress === participants[i - 1].current_progress
-    ) {
-      // Same progress as previous = same rank
-      ranks.push(ranks[i - 1]);
-    } else {
-      // Different progress = rank is position + 1
-      ranks.push(i + 1);
-    }
-  }
-
-  return ranks;
 }
 
 // =============================================================================
@@ -495,65 +482,35 @@ export const challengeService = {
 
   /**
    * Get leaderboard for a challenge
-   * CONTRACT: Uses profiles_public for participant identity
-   * CONTRACT: Only accepted participants visible (RLS enforced)
-   * Defense-in-depth: Requires auth before querying
+   *
+   * CONTRACT: Uses atomic RPC for consistent snapshot (no race windows)
+   * CONTRACT: Server-side ranking via RANK() window function
+   * CONTRACT: Explicit + RLS visibility check (defense-in-depth)
+   * CONTRACT: Returns empty array if caller is not accepted participant
    */
   async getLeaderboard(challengeId: string): Promise<LeaderboardEntry[]> {
     return withAuth(async () => {
-      const { data, error } = await getSupabaseClient()
-        .from("challenge_participants")
-        .select("user_id, current_progress, current_streak")
-        .eq("challenge_id", challengeId)
-        .eq("invite_status", "accepted")
-        .order("current_progress", { ascending: false })
-        .order("user_id", { ascending: true }); // Tie-breaker for deterministic ranking
+      const { data, error } = await getSupabaseClient().rpc("get_leaderboard", {
+        p_challenge_id: challengeId,
+      });
 
       if (error) throw error;
 
-      const participants = data || [];
-      const userIds = participants.map((p) => p.user_id);
+      // Validate response shape (catches schema drift between migrations)
+      const validated = leaderboardRpcResponseSchema.parse(data);
 
-      // Fetch profiles from profiles_public (not profiles!)
-      // Guard against empty array to prevent PostgREST error
-      let profileMap = new Map<string, ProfilePublic>();
-      if (userIds.length > 0) {
-        const { data: profiles, error: profilesError } =
-          await getSupabaseClient()
-            .from("profiles_public")
-            .select("*")
-            .in("id", userIds);
-
-        if (profilesError) {
-          throw new Error(
-            "Unable to load leaderboard profiles. Please try again.",
-          );
-        }
-
-        profileMap = new Map(profiles?.map((p) => [p.id, p]) || []);
-      }
-
-      // Coalesce numeric nulls to 0 and prepare for ranking
-      const coalesced = participants.map((p) => ({
-        user_id: p.user_id,
-        current_progress: p.current_progress ?? 0,
-        current_streak: p.current_streak ?? 0,
-      }));
-
-      // Calculate ranks with standard competition ranking (ties get equal rank)
-      const ranks = assignRanksWithTies(coalesced);
-
-      return coalesced.map((p, index) => ({
-        user_id: p.user_id,
-        current_progress: p.current_progress,
-        current_streak: p.current_streak,
-        rank: ranks[index],
-        profile: profileMap.get(p.user_id) || {
-          id: p.user_id,
-          username: "Unknown",
-          display_name: null,
-          avatar_url: null,
-          updated_at: "",
+      // Map flat RPC response to LeaderboardEntry with nested profile
+      return validated.map((row) => ({
+        user_id: row.user_id,
+        current_progress: row.current_progress,
+        current_streak: row.current_streak,
+        rank: row.rank,
+        profile: {
+          id: row.user_id,
+          username: row.username,
+          display_name: row.display_name,
+          avatar_url: row.avatar_url,
+          updated_at: "", // Not returned by RPC (not needed for display)
         },
       }));
     });

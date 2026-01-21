@@ -1,12 +1,13 @@
 // src/__tests__/unit/leaderboardOrdering.test.ts
-// Tests for P1-2: Deterministic Leaderboard Ordering
+// Tests for challenge list and leaderboard service methods
 //
-// These tests verify that leaderboard queries use a stable tie-breaker
-// (user_id) to prevent rank jitter when participants have equal progress.
+// All methods now use server-side RPCs with:
+// - Atomic queries (no race windows)
+// - Server-side RANK() for competition ranking
+// - Flattened response shapes
 //
-// NOTE: getMyActiveChallenges/getCompletedChallenges now use server-side
-// RPC (get_my_challenges) with RANK() window function. Ordering/ranking
-// tests for those are in integration tests against live database.
+// NOTE: Actual ranking behavior is tested in integration tests against live DB.
+// These unit tests verify RPC calls and response mapping.
 
 // =============================================================================
 // MOCKS
@@ -22,36 +23,10 @@ jest.mock("expo-crypto", () => ({
   randomUUID: () => require("crypto").randomUUID(),
 }));
 
-// Track order() calls to verify tie-breaker is applied
-const orderCalls: Array<{ column: string; options: { ascending: boolean } }> =
-  [];
-
-// Create a chainable mock that tracks order() calls
-const createQueryChain = (finalData: unknown[] = []) => {
-  const chain = {
-    select: jest.fn().mockReturnThis(),
-    eq: jest.fn().mockReturnThis(),
-    in: jest.fn().mockReturnThis(),
-    lte: jest.fn().mockReturnThis(),
-    gt: jest.fn().mockReturnThis(),
-    not: jest.fn().mockReturnThis(),
-    limit: jest.fn().mockReturnThis(),
-    order: jest.fn().mockImplementation((column, options) => {
-      orderCalls.push({ column, options });
-      return chain;
-    }),
-    then: (resolve: (v: { data: unknown[]; error: null }) => void) =>
-      Promise.resolve({ data: finalData, error: null }).then(resolve),
-  };
-  return chain;
-};
-
-const mockFrom = jest.fn();
 const mockRpc = jest.fn();
 
 jest.mock("@/lib/supabase", () => ({
   getSupabaseClient: jest.fn(() => ({
-    from: (...args: unknown[]) => mockFrom(...args),
     rpc: (...args: unknown[]) => mockRpc(...args),
   })),
   withAuth: jest.fn((operation) => operation("test-user-123")),
@@ -65,76 +40,13 @@ jest.mock("@/lib/serverTime", () => ({
 // TESTS
 // =============================================================================
 
-describe("Leaderboard Ordering (P1-2)", () => {
+describe("Challenge Service (RPC-based)", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    orderCalls.length = 0;
   });
 
-  describe("getLeaderboard", () => {
-    it("applies user_id as tie-breaker after current_progress", async () => {
-      // Setup mock to return participants with tied progress
-      const participantsChain = createQueryChain([
-        { user_id: "user-c", current_progress: 1000, current_streak: 5 },
-        { user_id: "user-a", current_progress: 1000, current_streak: 3 },
-        { user_id: "user-b", current_progress: 1000, current_streak: 7 },
-      ]);
-
-      const profilesChain = createQueryChain([
-        {
-          id: "user-a",
-          username: "alice",
-          display_name: "Alice",
-          avatar_url: null,
-          updated_at: "",
-        },
-        {
-          id: "user-b",
-          username: "bob",
-          display_name: "Bob",
-          avatar_url: null,
-          updated_at: "",
-        },
-        {
-          id: "user-c",
-          username: "charlie",
-          display_name: "Charlie",
-          avatar_url: null,
-          updated_at: "",
-        },
-      ]);
-
-      mockFrom.mockImplementation((table: string) => {
-        if (table === "challenge_participants") return participantsChain;
-        if (table === "profiles_public") return profilesChain;
-        return createQueryChain([]);
-      });
-
-      const { challengeService } = require("@/services/challenges");
-      await challengeService.getLeaderboard("challenge-123");
-
-      // Verify order() was called twice on challenge_participants
-      // First: current_progress DESC, Second: user_id ASC
-      const participantOrders = orderCalls.filter(
-        (call) =>
-          call.column === "current_progress" || call.column === "user_id",
-      );
-
-      expect(participantOrders).toHaveLength(2);
-      expect(participantOrders[0]).toEqual({
-        column: "current_progress",
-        options: { ascending: false },
-      });
-      expect(participantOrders[1]).toEqual({
-        column: "user_id",
-        options: { ascending: true },
-      });
-    });
-  });
-
-  describe("getMyActiveChallenges (RPC-based)", () => {
+  describe("getMyActiveChallenges", () => {
     it("calls get_my_challenges RPC with 'active' filter", async () => {
-      // Setup: RPC returns challenge data with ranks pre-computed
       mockRpc.mockResolvedValue({
         data: [
           {
@@ -168,12 +80,10 @@ describe("Leaderboard Ordering (P1-2)", () => {
       const { challengeService } = require("@/services/challenges");
       const result = await challengeService.getMyActiveChallenges();
 
-      // Verify RPC was called with correct filter
       expect(mockRpc).toHaveBeenCalledWith("get_my_challenges", {
         p_filter: "active",
       });
 
-      // Verify result is mapped correctly
       expect(result).toHaveLength(1);
       expect(result[0].my_participation).toEqual({
         invite_status: "accepted",
@@ -182,11 +92,19 @@ describe("Leaderboard Ordering (P1-2)", () => {
       expect(result[0].participant_count).toBe(3);
       expect(result[0].my_rank).toBe(2);
     });
+
+    it("returns empty array when RPC returns empty", async () => {
+      mockRpc.mockResolvedValue({ data: [], error: null });
+
+      const { challengeService } = require("@/services/challenges");
+      const result = await challengeService.getMyActiveChallenges();
+
+      expect(result).toEqual([]);
+    });
   });
 
-  describe("getCompletedChallenges (RPC-based)", () => {
+  describe("getCompletedChallenges", () => {
     it("calls get_my_challenges RPC with 'completed' filter", async () => {
-      // Setup: RPC returns completed challenge data
       mockRpc.mockResolvedValue({
         data: [
           {
@@ -220,177 +138,193 @@ describe("Leaderboard Ordering (P1-2)", () => {
       const { challengeService } = require("@/services/challenges");
       const result = await challengeService.getCompletedChallenges();
 
-      // Verify RPC was called with correct filter
       expect(mockRpc).toHaveBeenCalledWith("get_my_challenges", {
         p_filter: "completed",
       });
 
-      // Verify result is mapped correctly
       expect(result).toHaveLength(1);
       expect(result[0].my_rank).toBe(1);
     });
   });
 
-  describe("rank stability", () => {
-    it("assigns equal ranks for tied progress (standard competition ranking)", async () => {
-      // With true tie handling:
-      // All users with same progress get the same rank
-      // [1000, 1000, 1000] → ranks [1, 1, 1]
-
-      // Simulate database returning in user_id order (as it would with tie-breaker)
-      const participantsChain = createQueryChain([
-        { user_id: "user-a", current_progress: 1000, current_streak: 3 },
-        { user_id: "user-b", current_progress: 1000, current_streak: 7 },
-        { user_id: "user-c", current_progress: 1000, current_streak: 5 },
-      ]);
-
-      const profilesChain = createQueryChain([
-        {
-          id: "user-a",
-          username: "alice",
-          display_name: "Alice",
-          avatar_url: null,
-          updated_at: "",
-        },
-        {
-          id: "user-b",
-          username: "bob",
-          display_name: "Bob",
-          avatar_url: null,
-          updated_at: "",
-        },
-        {
-          id: "user-c",
-          username: "charlie",
-          display_name: "Charlie",
-          avatar_url: null,
-          updated_at: "",
-        },
-      ]);
-
-      mockFrom.mockImplementation((table: string) => {
-        if (table === "challenge_participants") return participantsChain;
-        if (table === "profiles_public") return profilesChain;
-        return createQueryChain([]);
+  describe("getLeaderboard", () => {
+    it("calls get_leaderboard RPC with challenge ID", async () => {
+      mockRpc.mockResolvedValue({
+        data: [
+          {
+            user_id: "user-a",
+            current_progress: 1000,
+            current_streak: 5,
+            rank: 1,
+            username: "alice",
+            display_name: "Alice",
+            avatar_url: null,
+          },
+          {
+            user_id: "user-b",
+            current_progress: 800,
+            current_streak: 3,
+            rank: 2,
+            username: "bob",
+            display_name: "Bob",
+            avatar_url: "https://example.com/bob.jpg",
+          },
+        ],
+        error: null,
       });
 
       const { challengeService } = require("@/services/challenges");
-      const leaderboard =
-        await challengeService.getLeaderboard("challenge-123");
+      const result = await challengeService.getLeaderboard("challenge-123");
 
-      // All tied users get rank 1
-      expect(leaderboard[0].user_id).toBe("user-a");
-      expect(leaderboard[0].rank).toBe(1);
-      expect(leaderboard[1].user_id).toBe("user-b");
-      expect(leaderboard[1].rank).toBe(1); // Same progress = same rank
-      expect(leaderboard[2].user_id).toBe("user-c");
-      expect(leaderboard[2].rank).toBe(1); // Same progress = same rank
+      expect(mockRpc).toHaveBeenCalledWith("get_leaderboard", {
+        p_challenge_id: "challenge-123",
+      });
+
+      expect(result).toHaveLength(2);
     });
 
-    it("skips ranks after ties (1, 1, 3 pattern)", async () => {
-      // Standard competition ranking:
-      // [1000, 1000, 500] → ranks [1, 1, 3] (not 1, 1, 2)
-
-      const participantsChain = createQueryChain([
-        { user_id: "user-a", current_progress: 1000, current_streak: 3 },
-        { user_id: "user-b", current_progress: 1000, current_streak: 7 },
-        { user_id: "user-c", current_progress: 500, current_streak: 5 },
-      ]);
-
-      const profilesChain = createQueryChain([
-        {
-          id: "user-a",
-          username: "alice",
-          display_name: "Alice",
-          avatar_url: null,
-          updated_at: "",
-        },
-        {
-          id: "user-b",
-          username: "bob",
-          display_name: "Bob",
-          avatar_url: null,
-          updated_at: "",
-        },
-        {
-          id: "user-c",
-          username: "charlie",
-          display_name: "Charlie",
-          avatar_url: null,
-          updated_at: "",
-        },
-      ]);
-
-      mockFrom.mockImplementation((table: string) => {
-        if (table === "challenge_participants") return participantsChain;
-        if (table === "profiles_public") return profilesChain;
-        return createQueryChain([]);
+    it("maps flattened RPC response to LeaderboardEntry with nested profile", async () => {
+      mockRpc.mockResolvedValue({
+        data: [
+          {
+            user_id: "user-a",
+            current_progress: 1000,
+            current_streak: 5,
+            rank: 1,
+            username: "alice",
+            display_name: "Alice",
+            avatar_url: "https://example.com/alice.jpg",
+          },
+        ],
+        error: null,
       });
 
       const { challengeService } = require("@/services/challenges");
-      const leaderboard =
-        await challengeService.getLeaderboard("challenge-123");
+      const result = await challengeService.getLeaderboard("challenge-123");
 
-      expect(leaderboard[0].rank).toBe(1);
-      expect(leaderboard[1].rank).toBe(1); // Tied with first
-      expect(leaderboard[2].rank).toBe(3); // Skips to position 3, not 2
+      expect(result[0]).toEqual({
+        user_id: "user-a",
+        current_progress: 1000,
+        current_streak: 5,
+        rank: 1,
+        profile: {
+          id: "user-a",
+          username: "alice",
+          display_name: "Alice",
+          avatar_url: "https://example.com/alice.jpg",
+          updated_at: "",
+        },
+      });
     });
 
-    it("maintains stable ordering via user_id tie-breaker", async () => {
-      // When progress is tied, user_id ASC ensures consistent ordering
-      // user-a < user-b < user-c alphabetically
+    it("returns empty array when user is not accepted participant", async () => {
+      // RPC returns empty when explicit gate check fails
+      mockRpc.mockResolvedValue({ data: [], error: null });
 
-      const participantsChain = createQueryChain([
-        { user_id: "user-a", current_progress: 1000, current_streak: 3 },
-        { user_id: "user-b", current_progress: 1000, current_streak: 7 },
-        { user_id: "user-c", current_progress: 1000, current_streak: 5 },
-      ]);
+      const { challengeService } = require("@/services/challenges");
+      const result = await challengeService.getLeaderboard("challenge-456");
 
-      const profilesChain = createQueryChain([
-        {
-          id: "user-a",
-          username: "alice",
-          display_name: "Alice",
-          avatar_url: null,
-          updated_at: "",
-        },
-        {
-          id: "user-b",
-          username: "bob",
-          display_name: "Bob",
-          avatar_url: null,
-          updated_at: "",
-        },
-        {
-          id: "user-c",
-          username: "charlie",
-          display_name: "Charlie",
-          avatar_url: null,
-          updated_at: "",
-        },
-      ]);
+      expect(result).toEqual([]);
+    });
 
-      mockFrom.mockImplementation((table: string) => {
-        if (table === "challenge_participants") return participantsChain;
-        if (table === "profiles_public") return profilesChain;
-        return createQueryChain([]);
+    it("handles tied ranks from server (standard competition ranking)", async () => {
+      // Server returns pre-computed ranks with ties
+      mockRpc.mockResolvedValue({
+        data: [
+          {
+            user_id: "user-a",
+            current_progress: 1000,
+            current_streak: 3,
+            rank: 1,
+            username: "alice",
+            display_name: "Alice",
+            avatar_url: null,
+          },
+          {
+            user_id: "user-b",
+            current_progress: 1000,
+            current_streak: 7,
+            rank: 1, // Same progress = same rank
+            username: "bob",
+            display_name: "Bob",
+            avatar_url: null,
+          },
+          {
+            user_id: "user-c",
+            current_progress: 500,
+            current_streak: 5,
+            rank: 3, // Skips to position 3 (1, 1, 3 pattern)
+            username: "charlie",
+            display_name: "Charlie",
+            avatar_url: null,
+          },
+        ],
+        error: null,
+      });
+
+      const { challengeService } = require("@/services/challenges");
+      const result = await challengeService.getLeaderboard("challenge-123");
+
+      // Verify ranks are passed through from server
+      expect(result[0].rank).toBe(1);
+      expect(result[1].rank).toBe(1); // Tied
+      expect(result[2].rank).toBe(3); // Gap after tie
+    });
+
+    it("throws on RPC error", async () => {
+      mockRpc.mockResolvedValue({
+        data: null,
+        error: { message: "Database error" },
       });
 
       const { challengeService } = require("@/services/challenges");
 
-      // Call multiple times to verify stability
-      const results = await Promise.all([
+      await expect(
         challengeService.getLeaderboard("challenge-123"),
-        challengeService.getLeaderboard("challenge-123"),
-        challengeService.getLeaderboard("challenge-123"),
-      ]);
+      ).rejects.toEqual({ message: "Database error" });
+    });
+  });
 
-      // Order should be consistent across calls
-      for (const leaderboard of results) {
-        expect(leaderboard[0].user_id).toBe("user-a");
-        expect(leaderboard[1].user_id).toBe("user-b");
-        expect(leaderboard[2].user_id).toBe("user-c");
-      }
+  describe("response validation", () => {
+    it("throws ZodError on malformed get_my_challenges response", async () => {
+      // Missing required field
+      mockRpc.mockResolvedValue({
+        data: [
+          {
+            id: "challenge-1",
+            // missing title and other required fields
+          },
+        ],
+        error: null,
+      });
+
+      const { challengeService } = require("@/services/challenges");
+
+      await expect(challengeService.getMyActiveChallenges()).rejects.toThrow();
+    });
+
+    it("throws ZodError on malformed get_leaderboard response", async () => {
+      // Invalid rank type
+      mockRpc.mockResolvedValue({
+        data: [
+          {
+            user_id: "user-a",
+            current_progress: 1000,
+            current_streak: 5,
+            rank: "first", // Should be number
+            username: "alice",
+            display_name: "Alice",
+            avatar_url: null,
+          },
+        ],
+        error: null,
+      });
+
+      const { challengeService } = require("@/services/challenges");
+
+      await expect(
+        challengeService.getLeaderboard("challenge-123"),
+      ).rejects.toThrow();
     });
   });
 });
