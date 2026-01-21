@@ -5,6 +5,7 @@
 #   - Catch regressions before merge
 #   - Validate TypeScript types
 #   - Run unit tests (fast, hermetic, no secrets required)
+#   - Run component tests (UI rendering, mocked dependencies)
 #
 # Integration tests are NOT run here (require .env.test secrets).
 # See workflow_dispatch for manual integration test runs.
@@ -31,7 +32,7 @@ concurrency:
 
 jobs:
   test:
-    name: Unit Tests & Type Check
+    name: Unit & Component Tests
     runs-on: ubuntu-latest
 
     steps:
@@ -52,6 +53,9 @@ jobs:
 
       - name: Run unit tests
         run: npm run test:unit
+
+      - name: Run component tests
+        run: npm run test:component
 
   # Integration tests - manual trigger only (requires secrets)
   integration:

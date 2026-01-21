@@ -6,15 +6,16 @@ This document defines the testing structure, conventions, and contracts for FitC
 
 ## Why Three Tiers?
 
-FitChallenge uses a three-tier testing strategy, each serving a distinct purpose:
+FitChallenge uses a four-tier testing strategy, each serving a distinct purpose:
 
-| Tier            | Purpose                           | Feedback Speed | Network Required  |
-| --------------- | --------------------------------- | -------------- | ----------------- |
-| **Unit**        | Catch logic bugs in isolation     | < 1 second     | ❌ No             |
-| **Integration** | Catch RLS/RPC contract violations | 5-30 seconds   | ✅ Yes (Supabase) |
-| **Manual QA**   | Catch UX issues tests can't       | Minutes        | ✅ Yes (full app) |
+| Tier            | Purpose                                    | Feedback Speed | Network Required  |
+| --------------- | ------------------------------------------ | -------------- | ----------------- |
+| **Unit**        | Catch logic bugs in isolation              | < 1 second     | ❌ No             |
+| **Component**   | Catch UI rendering/interaction regressions | 2-5 seconds    | ❌ No             |
+| **Integration** | Catch RLS/RPC contract violations          | 5-30 seconds   | ✅ Yes (Supabase) |
+| **Manual QA**   | Catch UX issues tests can't                | Minutes        | ✅ Yes (full app) |
 
-This layered approach follows the [testing pyramid](https://martinfowler.com/articles/practical-test-pyramid.html): many fast unit tests, fewer integration tests, and targeted manual verification.
+This layered approach follows the [testing pyramid](https://martinfowler.com/articles/practical-test-pyramid.html): many fast unit tests, focused component tests, fewer integration tests, and targeted manual verification.
 
 ---
 
@@ -53,7 +54,47 @@ npm run test:unit
 
 ---
 
-### 2. Integration Tests
+### 2. Component Tests
+
+**Location:** `src/__tests__/component/*.component.test.tsx`
+
+**Purpose:** Verify that UI components render correctly and respond to user interactions.
+
+**Characteristics:**
+
+- **Mocked dependencies** — All hooks, navigation, and providers are mocked
+- **Fast** — No network calls, renders in jsdom
+- **Behavior-focused** — Tests what users see and do, not implementation details
+
+**What to test:**
+
+- Key elements render (headings, buttons, inputs)
+- User interactions work (press button, enter text)
+- Error/loading states display correctly
+- Form validation feedback
+
+**What NOT to test here:**
+
+- Internal state changes (implementation detail)
+- Actual API calls (use integration tests)
+- Pixel-perfect styling (use visual regression tools)
+- Full user flows across screens (use E2E tests)
+
+**Run command:**
+
+```bash
+npm run test:component
+```
+
+**Key mocks provided in `jest.setup.ts`:**
+
+- `mockAuthState` — Control auth state for testing
+- `mockRouter` — Verify navigation calls
+- `mockTheme` — Provides theme values without loading fonts
+
+---
+
+### 3. Integration Tests
 
 **Location:** `src/__tests__/integration/*.integration.test.ts`
 
@@ -101,7 +142,7 @@ Required environment variables:
 
 ---
 
-### 3. Manual QA Checklist
+### 4. Manual QA Checklist
 
 **Location:** `README.md` § "Testing the Happy Path"
 
@@ -126,12 +167,13 @@ See README.md for the full checklist covering auth, challenge creation, invites,
 
 ## Commands Reference
 
-| Command                    | What it runs           | When to use                       |
-| -------------------------- | ---------------------- | --------------------------------- |
-| `npm test`                 | Unit tests only        | Quick feedback during development |
-| `npm run test:unit`        | Unit tests only        | Same as above (explicit)          |
-| `npm run test:integration` | Integration tests only | After schema/RLS changes          |
-| `npm run test:all`         | Unit + Integration     | Before committing, CI             |
+| Command                    | What it runs                   | When to use                       |
+| -------------------------- | ------------------------------ | --------------------------------- |
+| `npm test`                 | Unit tests only                | Quick feedback during development |
+| `npm run test:unit`        | Unit tests only                | Same as above (explicit)          |
+| `npm run test:component`   | Component tests only           | After UI changes                  |
+| `npm run test:integration` | Integration tests only         | After schema/RLS changes          |
+| `npm run test:all`         | Unit + Component + Integration | Before committing, CI             |
 
 ---
 
@@ -143,6 +185,14 @@ See README.md for the full checklist covering auth, challenge creation, invites,
 2. **No Supabase client** — If you need `getSupabaseClient()`, it's an integration test
 3. **No shared state** — Each test must be independent
 4. **Fast** — Individual tests should complete in < 100ms
+
+### Component Test Contract
+
+1. **All hooks mocked** — Use mocks from `jest.setup.ts`
+2. **No real navigation** — Use `mockRouter` to verify navigation calls
+3. **Behavior over implementation** — Test what users see/do, not internal state
+4. **Reset mocks between tests** — `beforeEach` in setup handles this automatically
+5. **Avoid snapshots** — They're brittle; prefer explicit assertions
 
 ### Integration Test Contract
 
@@ -189,11 +239,13 @@ it("creates a challenge", async () => {
 | Pattern                 | Type             | Example                          |
 | ----------------------- | ---------------- | -------------------------------- |
 | `*.test.ts`             | Unit test        | `challenges.test.ts`             |
+| `*.component.test.tsx`  | Component test   | `login.component.test.tsx`       |
 | `*.integration.test.ts` | Integration test | `challenges.integration.test.ts` |
 
 Jest config uses these patterns to separate test projects:
 
-- Unit project: matches `*.test.ts`, ignores `*.integration.test.ts`
+- Unit project: matches `*.test.ts`, ignores `*.integration.test.ts` and `*.component.test.tsx`
+- Component project: matches only `*.component.test.tsx`
 - Integration project: matches only `*.integration.test.ts`
 
 ### Test Description Naming
@@ -232,6 +284,7 @@ The GitHub Actions workflow (`.github/workflows/test.yml`) runs on every PR and 
 
 1. TypeScript type checking (`npx tsc --noEmit`)
 2. Unit tests (`npm run test:unit`)
+3. Component tests (`npm run test:component`)
 
 ### Manual Trigger (Integration)
 
@@ -251,6 +304,36 @@ Integration tests require secrets and run via `workflow_dispatch`:
 2. Import only pure functions (no Supabase client)
 3. Mock any external dependencies
 4. Run `npm run test:unit` to verify
+
+### Adding a Component Test
+
+1. Create file with `.component.test.tsx` extension in `src/__tests__/component/`
+2. Import the component and testing utilities from `@testing-library/react-native`
+3. Use mocks from `jest.setup.ts` (e.g., `mockAuthState`, `mockRouter`)
+4. Customize mock state before rendering if needed
+5. Focus on behavior: what renders, what happens on interaction
+6. Run `npm run test:component` to verify
+
+Example:
+
+```typescript
+import { render, screen, fireEvent } from "@testing-library/react-native";
+import MyScreen from "../../../app/my-screen";
+import { mockAuthState } from "./jest.setup";
+
+describe("MyScreen", () => {
+  it("renders the main heading", () => {
+    render(<MyScreen />);
+    expect(screen.getByText("My Heading")).toBeTruthy();
+  });
+
+  it("shows error when auth fails", () => {
+    mockAuthState.error = { message: "Failed" } as any;
+    render(<MyScreen />);
+    expect(screen.getByText("Failed")).toBeTruthy();
+  });
+});
+```
 
 ### Adding an Integration Test
 
