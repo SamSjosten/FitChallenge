@@ -7,6 +7,7 @@ import React from "react";
 import { View, Text, TouchableOpacity } from "react-native";
 import { useAppTheme } from "@/providers/ThemeProvider";
 import { router, useFocusEffect } from "expo-router";
+import { syncServerTime } from "@/lib/serverTime";
 import {
   useActiveChallenges,
   useCompletedChallenges,
@@ -39,10 +40,16 @@ export default function ChallengesScreen() {
 
   useFocusEffect(
     React.useCallback(() => {
+      // Ensure server time is synced for accurate challenge status display
+      // Non-blocking: respects needsResync() gate, no-op if fresh
+      syncServerTime().catch(() => {
+        // Silently handled - banner will show if sync consistently fails
+      });
+
       refetchActive();
       refetchCompleted();
       refetchPending();
-    }, [refetchActive, refetchCompleted, refetchPending])
+    }, [refetchActive, refetchCompleted, refetchPending]),
   );
 
   const handleRefresh = async () => {
@@ -175,7 +182,7 @@ export default function ChallengesScreen() {
             const progress = challenge.my_participation?.current_progress || 0;
             const progressPercent = Math.min(
               (progress / challenge.goal_value) * 100,
-              100
+              100,
             );
 
             return (

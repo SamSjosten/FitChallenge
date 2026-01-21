@@ -15,6 +15,10 @@ import {
   setOffsetMs,
   needsResync,
   syncServerTime,
+  getSyncStatus,
+  subscribeToSyncStatus,
+  RESYNC_INTERVAL_MS,
+  type ServerTimeSyncStatus,
 } from "../serverTime";
 import { getSupabaseClient } from "../supabase";
 import { getEffectiveStatus } from "../challengeStatus";
@@ -402,6 +406,268 @@ describe("serverTime", () => {
         const isActiveByDevice = startDate <= deviceNow && endDate > deviceNow;
         // start_date (15min) <= device (0min) ✗
         expect(isActiveByDevice).toBe(false);
+      });
+    });
+  });
+
+  // =============================================================================
+  // Sync Status Tracking
+  // =============================================================================
+  describe("sync status tracking", () => {
+    describe("getSyncStatus", () => {
+      test("returns correct initial state (never synced)", () => {
+        const status = getSyncStatus();
+
+        expect(status.hasSynced).toBe(false);
+        expect(status.lastSyncAt).toBeNull();
+        expect(status.lastError).toBeNull();
+        expect(status.isStale).toBe(true); // Never synced = stale
+      });
+
+      test("returns correct state after successful sync", async () => {
+        const serverTime = new Date(FIXED_NOW).toISOString();
+        mockRpc.mockResolvedValue({ data: serverTime, error: null });
+
+        await syncServerTime({ force: true });
+        const status = getSyncStatus();
+
+        expect(status.hasSynced).toBe(true);
+        expect(status.lastSyncAt).toBe(FIXED_NOW);
+        expect(status.lastError).toBeNull();
+        expect(status.isStale).toBe(false);
+      });
+
+      test("returns correct state after failed sync (never synced)", async () => {
+        mockRpc.mockResolvedValue({
+          data: null,
+          error: { message: "Network error" },
+        });
+
+        await syncServerTime({ force: true });
+        const status = getSyncStatus();
+
+        expect(status.hasSynced).toBe(false);
+        expect(status.lastSyncAt).toBeNull();
+        expect(status.lastError).toBe("Network error");
+        expect(status.isStale).toBe(true);
+      });
+
+      test("preserves hasSynced after subsequent failure", async () => {
+        // First: successful sync
+        const serverTime = new Date(FIXED_NOW).toISOString();
+        mockRpc.mockResolvedValue({ data: serverTime, error: null });
+        await syncServerTime({ force: true });
+
+        // Advance time past resync interval
+        jest.advanceTimersByTime(RESYNC_INTERVAL_MS + 1000);
+
+        // Second: failed sync
+        mockRpc.mockResolvedValue({
+          data: null,
+          error: { message: "Connection lost" },
+        });
+        await syncServerTime({ force: true });
+
+        const status = getSyncStatus();
+
+        // hasSynced should still be true (we had a successful sync earlier)
+        expect(status.hasSynced).toBe(true);
+        expect(status.lastSyncAt).toBe(FIXED_NOW); // Original sync time
+        expect(status.lastError).toBe("Connection lost");
+        expect(status.isStale).toBe(true); // Stale because time has passed
+      });
+
+      test("clears lastError on successful sync after failure", async () => {
+        // First: failed sync
+        mockRpc.mockResolvedValue({
+          data: null,
+          error: { message: "Network error" },
+        });
+        await syncServerTime({ force: true });
+
+        expect(getSyncStatus().lastError).toBe("Network error");
+
+        // Second: successful sync
+        const serverTime = new Date(FIXED_NOW).toISOString();
+        mockRpc.mockResolvedValue({ data: serverTime, error: null });
+        await syncServerTime({ force: true });
+
+        expect(getSyncStatus().lastError).toBeNull();
+      });
+
+      test("isStale becomes true after RESYNC_INTERVAL_MS", async () => {
+        const serverTime = new Date(FIXED_NOW).toISOString();
+        mockRpc.mockResolvedValue({ data: serverTime, error: null });
+        await syncServerTime({ force: true });
+
+        expect(getSyncStatus().isStale).toBe(false);
+
+        // Advance time just past the resync interval
+        jest.advanceTimersByTime(RESYNC_INTERVAL_MS + 1);
+
+        expect(getSyncStatus().isStale).toBe(true);
+      });
+    });
+
+    describe("subscribeToSyncStatus", () => {
+      test("notifies listener on successful sync", async () => {
+        const listener = jest.fn();
+        const unsubscribe = subscribeToSyncStatus(listener);
+
+        const serverTime = new Date(FIXED_NOW).toISOString();
+        mockRpc.mockResolvedValue({ data: serverTime, error: null });
+        await syncServerTime({ force: true });
+
+        expect(listener).toHaveBeenCalledTimes(1);
+        expect(listener).toHaveBeenCalledWith(
+          expect.objectContaining({
+            hasSynced: true,
+            lastError: null,
+          }),
+        );
+
+        unsubscribe();
+      });
+
+      test("notifies listener on failed sync", async () => {
+        const listener = jest.fn();
+        const unsubscribe = subscribeToSyncStatus(listener);
+
+        mockRpc.mockResolvedValue({
+          data: null,
+          error: { message: "Network error" },
+        });
+        await syncServerTime({ force: true });
+
+        expect(listener).toHaveBeenCalledTimes(1);
+        expect(listener).toHaveBeenCalledWith(
+          expect.objectContaining({
+            hasSynced: false,
+            lastError: "Network error",
+          }),
+        );
+
+        unsubscribe();
+      });
+
+      test("unsubscribe stops notifications", async () => {
+        const listener = jest.fn();
+        const unsubscribe = subscribeToSyncStatus(listener);
+
+        // First sync - should notify
+        const serverTime = new Date(FIXED_NOW).toISOString();
+        mockRpc.mockResolvedValue({ data: serverTime, error: null });
+        await syncServerTime({ force: true });
+        expect(listener).toHaveBeenCalledTimes(1);
+
+        // Unsubscribe
+        unsubscribe();
+
+        // Advance past resync interval
+        jest.advanceTimersByTime(RESYNC_INTERVAL_MS + 1000);
+
+        // Second sync - should NOT notify
+        await syncServerTime({ force: true });
+        expect(listener).toHaveBeenCalledTimes(1); // Still 1
+      });
+
+      test("multiple listeners all receive notifications", async () => {
+        const listener1 = jest.fn();
+        const listener2 = jest.fn();
+        const unsubscribe1 = subscribeToSyncStatus(listener1);
+        const unsubscribe2 = subscribeToSyncStatus(listener2);
+
+        const serverTime = new Date(FIXED_NOW).toISOString();
+        mockRpc.mockResolvedValue({ data: serverTime, error: null });
+        await syncServerTime({ force: true });
+
+        expect(listener1).toHaveBeenCalledTimes(1);
+        expect(listener2).toHaveBeenCalledTimes(1);
+
+        unsubscribe1();
+        unsubscribe2();
+      });
+
+      test("listener errors do not affect other listeners", async () => {
+        const badListener = jest.fn(() => {
+          throw new Error("Listener error");
+        });
+        const goodListener = jest.fn();
+
+        const unsubscribe1 = subscribeToSyncStatus(badListener);
+        const unsubscribe2 = subscribeToSyncStatus(goodListener);
+
+        const serverTime = new Date(FIXED_NOW).toISOString();
+        mockRpc.mockResolvedValue({ data: serverTime, error: null });
+
+        // Should not throw, and good listener should still be called
+        await syncServerTime({ force: true });
+
+        expect(badListener).toHaveBeenCalledTimes(1);
+        expect(goodListener).toHaveBeenCalledTimes(1);
+
+        unsubscribe1();
+        unsubscribe2();
+      });
+    });
+
+    describe("resetSyncState", () => {
+      test("clears all status state", async () => {
+        // First: successful sync
+        const serverTime = new Date(FIXED_NOW).toISOString();
+        mockRpc.mockResolvedValue({ data: serverTime, error: null });
+        await syncServerTime({ force: true });
+
+        // Add a listener to ensure it's cleared
+        const listener = jest.fn();
+        subscribeToSyncStatus(listener);
+
+        // Reset
+        resetSyncState();
+
+        const status = getSyncStatus();
+        expect(status.hasSynced).toBe(false);
+        expect(status.lastSyncAt).toBeNull();
+        expect(status.lastError).toBeNull();
+        expect(status.isStale).toBe(true);
+      });
+
+      test("clears all listeners", async () => {
+        const listener = jest.fn();
+        subscribeToSyncStatus(listener);
+
+        resetSyncState();
+
+        // Sync should not notify cleared listeners
+        const serverTime = new Date(FIXED_NOW).toISOString();
+        mockRpc.mockResolvedValue({ data: serverTime, error: null });
+        await syncServerTime({ force: true });
+
+        expect(listener).not.toHaveBeenCalled();
+      });
+    });
+
+    describe("setOffsetMs", () => {
+      test("sets hasSynced to true", () => {
+        expect(getSyncStatus().hasSynced).toBe(false);
+
+        setOffsetMs(1000);
+
+        expect(getSyncStatus().hasSynced).toBe(true);
+      });
+
+      test("clears lastError", async () => {
+        // First: create an error state
+        mockRpc.mockResolvedValue({
+          data: null,
+          error: { message: "Error" },
+        });
+        await syncServerTime({ force: true });
+        expect(getSyncStatus().lastError).toBe("Error");
+
+        // setOffsetMs should clear the error
+        setOffsetMs(1000);
+        expect(getSyncStatus().lastError).toBeNull();
       });
     });
   });

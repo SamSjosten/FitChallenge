@@ -18,6 +18,7 @@ import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
 import { ThemeProvider, useAppTheme } from "@/providers/ThemeProvider";
 import { AuthProvider, useAuth } from "@/providers/AuthProvider";
 import { ToastProvider } from "@/providers/ToastProvider";
+import { ServerTimeBanner } from "@/components/ui";
 import {
   supabaseConfigError,
   getStorageStatus,
@@ -326,6 +327,8 @@ function RootLayoutNav() {
   return (
     <>
       <StatusBar style={isDark ? "light" : "dark"} />
+      {/* Show time sync warning when logged in and sync has failed */}
+      {session && <ServerTimeBanner />}
       <Stack
         screenOptions={{
           headerStyle: {

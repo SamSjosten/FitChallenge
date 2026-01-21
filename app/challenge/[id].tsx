@@ -2,7 +2,7 @@
 // Challenge detail screen - Design System v1.0
 // Matches mockup: gradient header, progress card, styled leaderboard
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -39,7 +39,7 @@ import {
   canLogActivity,
   getStatusLabel,
 } from "@/lib/challengeStatus";
-import { getServerNow } from "@/lib/serverTime";
+import { getServerNow, syncServerTime } from "@/lib/serverTime";
 import {
   ChevronLeftIcon,
   PlusIcon,
@@ -58,6 +58,14 @@ export default function ChallengeDetailScreen() {
 
   // Subscribe to realtime leaderboard updates for this challenge
   useLeaderboardSubscription(id);
+
+  // Ensure server time is synced for accurate status display
+  // Non-blocking: respects needsResync() gate, no-op if fresh
+  useEffect(() => {
+    syncServerTime().catch(() => {
+      // Silently handled - banner will show if sync consistently fails
+    });
+  }, [id]);
 
   const logActivity = useLogActivity();
   const inviteUser = useInviteUser();
