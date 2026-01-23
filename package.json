@@ -12,6 +12,8 @@
     "test:unit": "jest --selectProjects unit",
     "test:component": "jest --selectProjects component",
     "test:integration": "jest --selectProjects integration",
+    "test:integration:critical": "jest --selectProjects integration --testPathPatterns=critical",
+    "test:integration:full": "jest --selectProjects integration",
     "test:all": "jest"
   },
   "dependencies": {
