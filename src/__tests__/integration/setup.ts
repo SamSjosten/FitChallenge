@@ -6,7 +6,8 @@ import { config } from "dotenv";
 import { resolve } from "path";
 import type { Database } from "@/types/database";
 
-// Load test environment variables
+// Load test environment variables from .env.test if it exists
+// In CI, env vars are set directly by the workflow
 config({ path: resolve(__dirname, "../../../.env.test") });
 
 // =============================================================================
