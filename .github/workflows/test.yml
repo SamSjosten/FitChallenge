@@ -100,9 +100,40 @@ jobs:
       - name: Get Supabase local credentials
         id: supabase
         run: |
+          # Debug: show the actual JSON structure
+          echo "=== Supabase status JSON ==="
+          supabase status --output json
+          echo ""
+          echo "=== JSON keys ==="
+          supabase status --output json | jq 'keys'
+          echo "=== End debug ==="
+
+          # Extract credentials - try old and new formats
+          # Old format: anon_key, service_role_key
+          # New format: publishable, secret (or ANON_KEY, SERVICE_ROLE_KEY)
           echo "url=http://127.0.0.1:54321" >> $GITHUB_OUTPUT
-          echo "anon_key=$(supabase status --output json | jq -r '.API.anon_key')" >> $GITHUB_OUTPUT
-          echo "service_role_key=$(supabase status --output json | jq -r '.API.service_role_key')" >> $GITHUB_OUTPUT
+
+          JSON=$(supabase status --output json)
+
+          # Try multiple possible key names
+          ANON_KEY=$(echo "$JSON" | jq -r '.anon_key // .ANON_KEY // .publishable // .Publishable // .API.anon_key // empty')
+          SERVICE_KEY=$(echo "$JSON" | jq -r '.service_role_key // .SERVICE_ROLE_KEY // .secret // .Secret // .API.service_role_key // empty')
+
+          echo "anon_key=${ANON_KEY}" >> $GITHUB_OUTPUT
+          echo "service_role_key=${SERVICE_KEY}" >> $GITHUB_OUTPUT
+
+          # Verify keys were extracted
+          echo "Anon key: ${ANON_KEY:0:20}..."
+          echo "Service key: ${SERVICE_KEY:0:20}..."
+          echo "Anon key length: ${#ANON_KEY}"
+          echo "Service role key length: ${#SERVICE_KEY}"
+
+          if [ -z "$SERVICE_KEY" ] || [ "$SERVICE_KEY" = "null" ]; then
+            echo "ERROR: Service role key not extracted!"
+            echo "Available keys in JSON:"
+            echo "$JSON" | jq 'keys'
+            exit 1
+          fi
 
       - name: Run critical integration tests
         env:
@@ -158,8 +189,20 @@ jobs:
         id: supabase
         run: |
           echo "url=http://127.0.0.1:54321" >> $GITHUB_OUTPUT
-          echo "anon_key=$(supabase status --output json | jq -r '.API.anon_key')" >> $GITHUB_OUTPUT
-          echo "service_role_key=$(supabase status --output json | jq -r '.API.service_role_key')" >> $GITHUB_OUTPUT
+
+          JSON=$(supabase status --output json)
+
+          # Try multiple possible key names (old and new CLI formats)
+          ANON_KEY=$(echo "$JSON" | jq -r '.anon_key // .ANON_KEY // .publishable // .Publishable // .API.anon_key // empty')
+          SERVICE_KEY=$(echo "$JSON" | jq -r '.service_role_key // .SERVICE_ROLE_KEY // .secret // .Secret // .API.service_role_key // empty')
+
+          echo "anon_key=${ANON_KEY}" >> $GITHUB_OUTPUT
+          echo "service_role_key=${SERVICE_KEY}" >> $GITHUB_OUTPUT
+
+          if [ -z "$SERVICE_KEY" ] || [ "$SERVICE_KEY" = "null" ]; then
+            echo "ERROR: Service role key not extracted!"
+            exit 1
+          fi
 
       - name: Run full integration tests
         env:
