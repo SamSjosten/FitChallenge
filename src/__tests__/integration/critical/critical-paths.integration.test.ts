@@ -96,11 +96,16 @@ describe("Critical Path Integration Tests", () => {
       const serviceClient = createServiceClient();
 
       // Get user1's username
-      const { data: profile } = await serviceClient
+      const { data: profile, error: profileError } = await serviceClient
         .from("profiles")
         .select("username")
         .eq("id", user1.id)
         .single();
+
+      // Verify profile was found (diagnose test setup issues)
+      expect(profileError).toBeNull();
+      expect(profile).not.toBeNull();
+      expect(profile?.username).toBeTruthy();
 
       // Attempt to update user2's profile to same username
       const { error } = await serviceClient
