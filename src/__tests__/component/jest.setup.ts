@@ -15,6 +15,7 @@ jest.mock("expo-linear-gradient", () => ({
 // Mock react-native-heroicons
 jest.mock("react-native-heroicons/outline", () => ({
   ChevronLeftIcon: () => null,
+  ChevronRightIcon: () => null,
   PlusIcon: () => null,
   XMarkIcon: () => null,
   MagnifyingGlassIcon: () => null,
@@ -22,6 +23,7 @@ jest.mock("react-native-heroicons/outline", () => ({
   TrophyIcon: () => null,
   FireIcon: () => null,
   ClockIcon: () => null,
+  CheckIcon: () => null,
   CheckCircleIcon: () => null,
   ExclamationCircleIcon: () => null,
 }));
@@ -32,6 +34,17 @@ jest.mock("react-native-heroicons/solid", () => ({
   TrophyIcon: () => null,
   FireIcon: () => null,
 }));
+
+// Mock DateTimePicker
+jest.mock("@react-native-community/datetimepicker", () => {
+  const React = require("react");
+  const { View } = require("react-native");
+  return {
+    __esModule: true,
+    default: ({ testID }: { testID?: string }) =>
+      React.createElement(View, { testID: testID || "date-time-picker" }),
+  };
+});
 
 // =============================================================================
 // EXPO ROUTER MOCKS
@@ -56,6 +69,12 @@ jest.mock("expo-router", () => {
     useRouter: () => mockRouter,
     useLocalSearchParams: () => mockSearchParams,
     useSegments: () => [],
+    useFocusEffect: (callback: () => void) => {
+      const React = require("react");
+      React.useEffect(() => {
+        callback();
+      }, []);
+    },
     Link: ({
       children,
       href,
@@ -68,7 +87,6 @@ jest.mock("expo-router", () => {
       if (asChild) {
         return children;
       }
-      // Use createElement instead of JSX since this is a .ts file
       return React.createElement(View, { testID: `link-${href}` }, children);
     },
     Redirect: () => null,
@@ -83,11 +101,11 @@ export { mockRouter, mockSearchParams };
 // =============================================================================
 
 const mockAuthState = {
-  session: null,
-  user: null,
-  profile: null,
+  session: null as any,
+  user: null as any,
+  profile: null as any,
   loading: false,
-  error: null,
+  error: null as any,
   pendingEmailConfirmation: false,
   signUp: jest.fn(),
   signIn: jest.fn(),
@@ -107,6 +125,190 @@ jest.mock("@/providers/AuthProvider", () => ({
 
 // Export for test customization
 export { mockAuthState };
+
+// =============================================================================
+// CHALLENGES HOOKS MOCK
+// =============================================================================
+
+const mockChallengesState = {
+  activeChallenges: {
+    data: [] as any[],
+    isLoading: false,
+    error: null as any,
+    refetch: jest.fn(),
+  },
+  completedChallenges: {
+    data: [] as any[],
+    isLoading: false,
+    error: null as any,
+    refetch: jest.fn(),
+  },
+  pendingInvites: {
+    data: [] as any[],
+    isLoading: false,
+    error: null as any,
+    refetch: jest.fn(),
+  },
+  challenge: {
+    data: null as any,
+    isLoading: false,
+    error: null as any,
+    refetch: jest.fn(),
+  },
+  leaderboard: {
+    data: [] as any[],
+    isLoading: false,
+    error: null as any,
+    refetch: jest.fn(),
+  },
+  respondToInvite: {
+    mutateAsync: jest.fn(),
+    isPending: false,
+  },
+  createChallenge: {
+    mutateAsync: jest.fn(),
+    isPending: false,
+  },
+  logActivity: {
+    mutateAsync: jest.fn(),
+    isPending: false,
+  },
+  inviteUser: {
+    mutateAsync: jest.fn(),
+    isPending: false,
+  },
+  leaveChallenge: {
+    mutateAsync: jest.fn(),
+    isPending: false,
+  },
+  cancelChallenge: {
+    mutateAsync: jest.fn(),
+    isPending: false,
+  },
+};
+
+jest.mock("@/hooks/useChallenges", () => ({
+  useActiveChallenges: () => mockChallengesState.activeChallenges,
+  useCompletedChallenges: () => mockChallengesState.completedChallenges,
+  usePendingInvites: () => mockChallengesState.pendingInvites,
+  useChallenge: () => mockChallengesState.challenge,
+  useLeaderboard: () => mockChallengesState.leaderboard,
+  useRespondToInvite: () => mockChallengesState.respondToInvite,
+  useCreateChallenge: () => mockChallengesState.createChallenge,
+  useLogActivity: () => mockChallengesState.logActivity,
+  useInviteUser: () => mockChallengesState.inviteUser,
+  useLeaveChallenge: () => mockChallengesState.leaveChallenge,
+  useCancelChallenge: () => mockChallengesState.cancelChallenge,
+}));
+
+export { mockChallengesState };
+
+// =============================================================================
+// REALTIME SUBSCRIPTION MOCK
+// =============================================================================
+
+jest.mock("@/hooks/useRealtimeSubscription", () => ({
+  useLeaderboardSubscription: jest.fn(),
+}));
+
+// =============================================================================
+// SERVICES MOCKS
+// =============================================================================
+
+jest.mock("@/services/pushTokens", () => ({
+  pushTokenService: {
+    requestAndRegister: jest.fn().mockResolvedValue(undefined),
+  },
+}));
+
+jest.mock("@/services/activities", () => ({
+  generateClientEventId: jest.fn(() => "mock-client-event-id-12345"),
+}));
+
+jest.mock("@/services/auth", () => ({
+  authService: {
+    searchUsers: jest.fn().mockResolvedValue([]),
+  },
+}));
+
+// =============================================================================
+// LIB MOCKS
+// =============================================================================
+
+jest.mock("@/lib/serverTime", () => ({
+  getServerNow: jest.fn(() => new Date("2025-01-15T12:00:00Z")),
+  syncServerTime: jest.fn().mockResolvedValue(undefined),
+  getDaysRemaining: jest.fn(() => 7),
+}));
+
+jest.mock("@/lib/challengeStatus", () => ({
+  getEffectiveStatus: jest.fn(() => "active"),
+  canLogActivity: jest.fn(() => true),
+  getStatusLabel: jest.fn(() => "Active"),
+}));
+
+// =============================================================================
+// UI COMPONENTS MOCKS
+// =============================================================================
+
+jest.mock("@/components/ui", () => {
+  const React = require("react");
+  const { View, Text, ActivityIndicator } = require("react-native");
+
+  return {
+    ScreenContainer: ({ children, header }: { children: any; header?: any }) =>
+      React.createElement(
+        View,
+        { testID: "screen-container" },
+        header,
+        children,
+      ),
+    ScreenHeader: ({ title, subtitle }: { title: string; subtitle?: string }) =>
+      React.createElement(
+        View,
+        { testID: "screen-header" },
+        React.createElement(Text, {}, title),
+        subtitle && React.createElement(Text, {}, subtitle),
+      ),
+    ScreenSection: ({ children }: { children: any }) =>
+      React.createElement(View, { testID: "screen-section" }, children),
+    Card: ({ children }: { children: any }) =>
+      React.createElement(View, { testID: "card" }, children),
+    LoadingScreen: () =>
+      React.createElement(
+        View,
+        { testID: "loading-screen" },
+        React.createElement(ActivityIndicator),
+      ),
+    Badge: ({ children }: { children: any }) =>
+      React.createElement(View, { testID: "badge" }, children),
+    ProgressBar: ({ progress }: { progress: number }) =>
+      React.createElement(View, {
+        testID: "progress-bar",
+        accessibilityValue: { now: progress },
+      }),
+    ErrorMessage: ({
+      message,
+      onRetry,
+    }: {
+      message: string;
+      onRetry?: () => void;
+    }) =>
+      React.createElement(
+        View,
+        { testID: "error-message" },
+        React.createElement(Text, {}, message),
+      ),
+    EmptyState: ({ message }: { message: string }) =>
+      React.createElement(
+        View,
+        { testID: "empty-state" },
+        React.createElement(Text, {}, message),
+      ),
+    Avatar: ({ name, size }: { name: string; size?: string }) =>
+      React.createElement(View, { testID: "avatar" }),
+  };
+});
 
 // =============================================================================
 // THEME MOCK
@@ -220,6 +422,12 @@ const mockTheme = {
       normal: 1.5,
       relaxed: 1.75,
     },
+    textStyles: {
+      title: { fontSize: 20 },
+      body: { fontSize: 16 },
+      caption: { fontSize: 12 },
+      label: { fontSize: 14 },
+    },
   },
   spacing: {
     xs: 4,
@@ -296,6 +504,24 @@ export { mockTheme };
 // GLOBAL TEST UTILITIES
 // =============================================================================
 
+// Helper to reset challenges state
+const resetChallengesState = () => {
+  mockChallengesState.activeChallenges.data = [];
+  mockChallengesState.activeChallenges.isLoading = false;
+  mockChallengesState.activeChallenges.error = null;
+  mockChallengesState.completedChallenges.data = [];
+  mockChallengesState.completedChallenges.isLoading = false;
+  mockChallengesState.pendingInvites.data = [];
+  mockChallengesState.pendingInvites.isLoading = false;
+  mockChallengesState.challenge.data = null;
+  mockChallengesState.challenge.isLoading = false;
+  mockChallengesState.challenge.error = null;
+  mockChallengesState.leaderboard.data = [];
+  mockChallengesState.respondToInvite.isPending = false;
+  mockChallengesState.createChallenge.isPending = false;
+  mockChallengesState.logActivity.isPending = false;
+};
+
 // Reset all mocks between tests
 beforeEach(() => {
   jest.clearAllMocks();
@@ -307,7 +533,15 @@ beforeEach(() => {
   mockAuthState.loading = false;
   mockAuthState.error = null;
   mockAuthState.pendingEmailConfirmation = false;
+
+  // Reset challenges state
+  resetChallengesState();
+
+  // Reset search params
+  Object.keys(mockSearchParams).forEach((key) => delete mockSearchParams[key]);
 });
+
+export { resetChallengesState };
 
 // Silence console.error for expected errors in tests
 const originalError = console.error;

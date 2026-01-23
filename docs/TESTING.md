@@ -89,8 +89,18 @@ npm run test:component
 **Key mocks provided in `jest.setup.ts`:**
 
 - `mockAuthState` — Control auth state for testing
+- `mockChallengesState` — Control challenge hooks state (activeChallenges, pendingInvites, etc.)
 - `mockRouter` — Verify navigation calls
+- `mockSearchParams` — Set route parameters for detail screens
 - `mockTheme` — Provides theme values without loading fonts
+
+**Current test files:**
+| File | Tests | Description |
+|------|-------|-------------|
+| `login.component.test.tsx` | 13 | Auth flow, validation, loading states |
+| `home.component.test.tsx` | 17 | Dashboard, challenges list, invites, streaks |
+| `create-challenge.component.test.tsx` | 23 | Form inputs, validation, creation flow |
+| `challenge-detail.component.test.tsx` | 24 | Leaderboard, log activity, invite modal |
 
 ---
 
