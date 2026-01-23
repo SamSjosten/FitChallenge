@@ -4,6 +4,7 @@
     "strict": true,
     "baseUrl": ".",
     "paths": {
+      "@/app/*": ["./app/*"],
       "@/*": ["./src/*"]
     },
     "typeRoots": ["./node_modules/@types", "./src/types"]

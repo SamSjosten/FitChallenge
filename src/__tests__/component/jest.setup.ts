@@ -1,6 +1,36 @@
 // src/__tests__/component/jest.setup.ts
 // Jest setup for component tests - configures RNTL and common mocks
 
+// =============================================================================
+// EXPO WINTER RUNTIME POLYFILLS
+// =============================================================================
+// Jest 30 has strict scope checking that conflicts with expo's lazy loading.
+// We provide all polyfills upfront to avoid runtime `require()` calls.
+
+// Polyfill structuredClone if not available (needed by expo)
+if (typeof globalThis.structuredClone === "undefined") {
+  (globalThis as any).structuredClone = <T>(obj: T): T =>
+    JSON.parse(JSON.stringify(obj));
+}
+
+// Polyfill __ExpoImportMetaRegistry
+if (typeof (globalThis as any).__ExpoImportMetaRegistry === "undefined") {
+  (globalThis as any).__ExpoImportMetaRegistry = {
+    url: "http://localhost:8081",
+  };
+}
+
+// Mock expo winter runtime modules to prevent lazy loading
+jest.mock("expo/src/winter/runtime.native", () => ({}), { virtual: true });
+jest.mock(
+  "expo/src/winter/installGlobal",
+  () => ({
+    installGlobal: () => {},
+    default: () => {},
+  }),
+  { virtual: true },
+);
+
 import "@testing-library/jest-native/extend-expect";
 
 // =============================================================================
