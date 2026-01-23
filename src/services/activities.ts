@@ -154,7 +154,7 @@ export const activityService = {
   },
 
   /**
-   * Get all recent activities across all challenges (current user)
+   * Get recent activities for the current user, optionally filtered by challenge.
    * NOTE: Keeping this user-scoped avoids accidental privacy drift later.
    *
    * Supports stable cursor-based pagination using (recorded_at, id) composite cursor.
@@ -163,6 +163,7 @@ export const activityService = {
    *
    * @param arg - Either a number (limit, for backwards compatibility) or options object
    * @param arg.limit - Maximum number of activities to return (default 20, max 100)
+   * @param arg.challengeId - Optional challenge ID to filter activities
    * @param arg.beforeRecordedAt - Cursor timestamp: only return activities recorded before this (ISO string)
    * @param arg.beforeId - Cursor id: tie-breaker when recorded_at matches (required with beforeRecordedAt)
    * @param arg.client - Optional Supabase client for testing (must be authenticated)
@@ -172,6 +173,7 @@ export const activityService = {
       | number
       | {
           limit?: number;
+          challengeId?: string;
           beforeRecordedAt?: string;
           beforeId?: string;
           client?: SupabaseClient<Database>;
@@ -181,7 +183,12 @@ export const activityService = {
     const options = typeof arg === "number" ? { limit: arg } : (arg ?? {});
     const MAX_LIMIT = 100;
     const limit = Math.min(Math.max(1, options.limit ?? 20), MAX_LIMIT);
-    const { beforeRecordedAt, beforeId, client: injectedClient } = options;
+    const {
+      challengeId,
+      beforeRecordedAt,
+      beforeId,
+      client: injectedClient,
+    } = options;
 
     // Validate cursor: both fields required together for stable pagination
     if (beforeRecordedAt && !beforeId) {
@@ -226,6 +233,11 @@ export const activityService = {
         .order("recorded_at", { ascending: false })
         .order("id", { ascending: false }) // Tie-breaker for stable ordering
         .limit(limit);
+
+      // Optional challenge filter
+      if (challengeId) {
+        query = query.eq("challenge_id", challengeId);
+      }
 
       // Apply composite cursor filter for stable pagination
       // Logic: recorded_at < cursor OR (recorded_at = cursor AND id < cursor_id)

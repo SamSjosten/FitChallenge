@@ -10,6 +10,7 @@ import {
   inviteToChallenge,
   cleanupChallenge,
   generateTestUUID,
+  createServiceClient,
   type TestUser,
 } from "./setup";
 import type { ActivityLog } from "@/types/database";
@@ -1078,6 +1079,13 @@ describe("Activity Integration Tests", () => {
     const sameSecondClientEventIds: string[] = [];
 
     beforeAll(async () => {
+      // Clean up any existing activities for user1 to ensure test isolation
+      const serviceClient = createServiceClient();
+      await serviceClient
+        .from("activity_logs")
+        .delete()
+        .eq("user_id", user1.id);
+
       // Create a challenge
       const timeBounds = getActiveTimeBounds();
       const challenge = await createTestChallenge(user1.client, {
@@ -1119,7 +1127,7 @@ describe("Activity Integration Tests", () => {
       const seenIds = new Set<string>();
       let cursor: { beforeRecordedAt: string; beforeId: string } | null = null;
       let iterations = 0;
-      const maxIterations = 20;
+      const maxIterations = 10; // Only need 5 + buffer since we filter by challenge
 
       // Paginate 1 activity at a time - most rigorous test for cursor precision
       while (iterations < maxIterations) {
@@ -1128,6 +1136,7 @@ describe("Activity Integration Tests", () => {
         const activities: ActivityLog[] =
           await activityService.getRecentActivities({
             limit: 1,
+            challengeId: sameSecondChallengeId, // Filter to this challenge only
             ...(cursor && {
               beforeRecordedAt: cursor.beforeRecordedAt,
               beforeId: cursor.beforeId,
