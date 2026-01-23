@@ -10,6 +10,7 @@ import {
 } from "@testing-library/react-native";
 import CreateChallengeScreen from "@/app/challenge/create";
 import { mockChallengesState, mockRouter } from "./jest.setup";
+import { getNthByText } from "./factories";
 import { Alert } from "react-native";
 
 // Mock Alert
@@ -59,9 +60,8 @@ describe("CreateChallengeScreen", () => {
       expect(screen.getByText("7 days")).toBeTruthy();
       expect(screen.getByText("14 days")).toBeTruthy();
       expect(screen.getByText("30 days")).toBeTruthy();
-      // "Custom" appears in both activity types and duration presets
       const customElements = screen.getAllByText("Custom");
-      expect(customElements.length).toBeGreaterThanOrEqual(1);
+      expect(customElements.length).toBeGreaterThanOrEqual(2);
     });
 
     it("renders start time options", () => {
@@ -135,11 +135,7 @@ describe("CreateChallengeScreen", () => {
     it("shows custom duration input when Custom is selected", () => {
       render(<CreateChallengeScreen />);
 
-      // "Custom" appears in both activity types and duration presets
-      // The duration "Custom" is the second one in DOM order
-      const customButtons = screen.getAllByText("Custom");
-      const durationCustom = customButtons[customButtons.length - 1]; // Last one is in duration section
-      fireEvent.press(durationCustom);
+      fireEvent.press(getNthByText("Custom", 2));
 
       expect(screen.getByPlaceholderText("Number of days")).toBeTruthy();
     });
@@ -237,10 +233,7 @@ describe("CreateChallengeScreen", () => {
       fireEvent.changeText(goalInput, "50000");
 
       // Select custom duration and enter invalid value
-      // "Custom" appears in both activity types and duration presets
-      const customButtons = screen.getAllByText("Custom");
-      const durationCustom = customButtons[customButtons.length - 1];
-      fireEvent.press(durationCustom);
+      fireEvent.press(getNthByText("Custom", 2));
 
       const durationInput = screen.getByPlaceholderText("Number of days");
       fireEvent.changeText(durationInput, "0");

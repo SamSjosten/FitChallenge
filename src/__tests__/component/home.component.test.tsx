@@ -10,7 +10,17 @@ import {
 } from "@testing-library/react-native";
 import HomeScreen from "@/app/(tabs)/index";
 import { mockAuthState, mockChallengesState, mockRouter } from "./jest.setup";
-import { createMockChallenge, createMockInvite } from "../factories";
+import {
+  createMockChallenge,
+  createMockChallengeWithParticipation,
+  createMockInvite,
+  createMockProfile,
+  createMockProfilePublic,
+  getFirstByText,
+  setupActiveChallenges,
+  setupAuthenticatedUser,
+  setupPendingInvites,
+} from "./factories";
 
 // =============================================================================
 // TESTS
@@ -24,23 +34,28 @@ describe("HomeScreen", () => {
     });
 
     it("renders greeting with user display name", () => {
-      mockAuthState.profile = {
-        id: "user-1",
-        display_name: "Sarah",
-        username: "sarah_fit",
-        current_streak: 5,
-      };
+      setupAuthenticatedUser(
+        createMockProfile({
+          id: "user-1",
+          display_name: "Sarah",
+          username: "sarah_fit",
+          current_streak: 5,
+        }),
+      );
 
       render(<HomeScreen />);
       expect(screen.getByText("Hello, Sarah!")).toBeTruthy();
     });
 
     it("renders greeting with username when no display name", () => {
-      mockAuthState.profile = {
-        id: "user-1",
-        username: "sarah_fit",
-        current_streak: 0,
-      };
+      setupAuthenticatedUser(
+        createMockProfile({
+          id: "user-1",
+          username: "sarah_fit",
+          display_name: null,
+          current_streak: 0,
+        }),
+      );
 
       render(<HomeScreen />);
       expect(screen.getByText("Hello, sarah_fit!")).toBeTruthy();
@@ -74,11 +89,13 @@ describe("HomeScreen", () => {
 
   describe("Streak Banner", () => {
     it("shows current streak when user has one", () => {
-      mockAuthState.profile = {
-        id: "user-1",
-        username: "test",
-        current_streak: 7,
-      };
+      setupAuthenticatedUser(
+        createMockProfile({
+          id: "user-1",
+          username: "test",
+          current_streak: 7,
+        }),
+      );
 
       render(<HomeScreen />);
       expect(screen.getByText("7 Day Streak!")).toBeTruthy();
@@ -86,11 +103,13 @@ describe("HomeScreen", () => {
     });
 
     it("shows start streak prompt when no streak", () => {
-      mockAuthState.profile = {
-        id: "user-1",
-        username: "test",
-        current_streak: 0,
-      };
+      setupAuthenticatedUser(
+        createMockProfile({
+          id: "user-1",
+          username: "test",
+          current_streak: 0,
+        }),
+      );
 
       render(<HomeScreen />);
       expect(screen.getByText("Start Your Streak!")).toBeTruthy();
@@ -100,10 +119,13 @@ describe("HomeScreen", () => {
 
   describe("Active Challenges", () => {
     it("renders active challenges section with challenges", () => {
-      mockChallengesState.activeChallenges.data = [
-        createMockChallenge({ id: "c1", title: "Step Challenge" }),
-        createMockChallenge({ id: "c2", title: "Workout Challenge" }),
-      ];
+      setupActiveChallenges([
+        createMockChallengeWithParticipation({ id: "c1", title: "Step Challenge" }),
+        createMockChallengeWithParticipation({
+          id: "c2",
+          title: "Workout Challenge",
+        }),
+      ]);
 
       render(<HomeScreen />);
       expect(screen.getByText("Active Challenges")).toBeTruthy();
@@ -112,7 +134,7 @@ describe("HomeScreen", () => {
     });
 
     it("shows empty state when no active challenges", () => {
-      mockChallengesState.activeChallenges.data = [];
+      setupActiveChallenges([]);
 
       render(<HomeScreen />);
       expect(screen.getByText("No Active Challenges")).toBeTruthy();
@@ -120,20 +142,21 @@ describe("HomeScreen", () => {
     });
 
     it("displays challenge rank correctly", () => {
-      mockChallengesState.activeChallenges.data = [
-        createMockChallenge({ my_rank: 1 }),
-      ];
+      const challenge = createMockChallengeWithParticipation({
+        id: "challenge-1",
+        title: "Step Challenge",
+        my_rank: 1,
+      });
+      setupActiveChallenges([challenge]);
 
       render(<HomeScreen />);
-      // Multiple rank displays may exist; verify at least one "1st" is shown
-      const rankElements = screen.getAllByText("1st");
-      expect(rankElements.length).toBeGreaterThanOrEqual(1);
+      expect(getFirstByText("1st")).toBeTruthy();
     });
 
     it("navigates to challenge detail when View Challenge is pressed", async () => {
-      mockChallengesState.activeChallenges.data = [
-        createMockChallenge({ id: "challenge-123" }),
-      ];
+      setupActiveChallenges([
+        createMockChallengeWithParticipation({ id: "challenge-123" }),
+      ]);
 
       render(<HomeScreen />);
 
@@ -145,7 +168,7 @@ describe("HomeScreen", () => {
     });
 
     it("navigates to create when empty state card is pressed", () => {
-      mockChallengesState.activeChallenges.data = [];
+      setupActiveChallenges([]);
 
       render(<HomeScreen />);
 
@@ -159,7 +182,17 @@ describe("HomeScreen", () => {
 
   describe("Pending Invites", () => {
     it("renders pending invites section when invites exist", () => {
-      mockChallengesState.pendingInvites.data = [createMockInvite()];
+      const invite = createMockInvite({
+        challenge: createMockChallenge({
+          id: "invite-1",
+          title: "Marathon Training",
+        }),
+        creator: createMockProfilePublic({
+          username: "john_runner",
+          display_name: "John Runner",
+        }),
+      });
+      setupPendingInvites([invite]);
 
       render(<HomeScreen />);
       expect(screen.getByText("Pending Invites")).toBeTruthy();
@@ -167,14 +200,17 @@ describe("HomeScreen", () => {
     });
 
     it("does not render pending invites section when empty", () => {
-      mockChallengesState.pendingInvites.data = [];
+      setupPendingInvites([]);
 
       render(<HomeScreen />);
       expect(screen.queryByText("Pending Invites")).toBeNull();
     });
 
     it("calls accept mutation when Accept is pressed", async () => {
-      mockChallengesState.pendingInvites.data = [createMockInvite()];
+      const invite = createMockInvite({
+        challenge: createMockChallenge({ id: "invite-1" }),
+      });
+      setupPendingInvites([invite]);
       mockChallengesState.respondToInvite.mutateAsync.mockResolvedValue({});
 
       render(<HomeScreen />);
@@ -193,7 +229,10 @@ describe("HomeScreen", () => {
     });
 
     it("calls decline mutation when Decline is pressed", async () => {
-      mockChallengesState.pendingInvites.data = [createMockInvite()];
+      const invite = createMockInvite({
+        challenge: createMockChallenge({ id: "invite-1" }),
+      });
+      setupPendingInvites([invite]);
       mockChallengesState.respondToInvite.mutateAsync.mockResolvedValue({});
 
       render(<HomeScreen />);
@@ -215,7 +254,7 @@ describe("HomeScreen", () => {
   describe("Completed Challenges", () => {
     it("renders View Completed toggle when completed exist", () => {
       mockChallengesState.completedChallenges.data = [
-        createMockChallenge({
+        createMockChallengeWithParticipation({
           id: "completed-1",
           status: "completed",
           title: "Past Challenge",
@@ -228,7 +267,7 @@ describe("HomeScreen", () => {
 
     it("expands completed section when toggled", () => {
       mockChallengesState.completedChallenges.data = [
-        createMockChallenge({
+        createMockChallengeWithParticipation({
           id: "completed-1",
           status: "completed",
           title: "January Challenge",

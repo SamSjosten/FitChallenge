@@ -32,6 +32,13 @@ jest.mock(
 );
 
 import "@testing-library/jest-native/extend-expect";
+import {
+  mockAuthState,
+  mockChallengesState,
+  mockRouter,
+  mockSearchParams,
+} from "./mockState";
+import { resetAllMockState } from "./factories/testHelpers";
 
 // =============================================================================
 // EXPO/RN MODULE MOCKS
@@ -80,16 +87,6 @@ jest.mock("@react-native-community/datetimepicker", () => {
 // EXPO ROUTER MOCKS
 // =============================================================================
 
-const mockRouter = {
-  push: jest.fn(),
-  replace: jest.fn(),
-  back: jest.fn(),
-  canGoBack: jest.fn(() => true),
-  setParams: jest.fn(),
-};
-
-const mockSearchParams: Record<string, string> = {};
-
 jest.mock("expo-router", () => {
   const React = require("react");
   const { View } = require("react-native");
@@ -130,20 +127,6 @@ export { mockRouter, mockSearchParams };
 // AUTH MOCK
 // =============================================================================
 
-const mockAuthState = {
-  session: null as any,
-  user: null as any,
-  profile: null as any,
-  loading: false,
-  error: null as any,
-  pendingEmailConfirmation: false,
-  signUp: jest.fn(),
-  signIn: jest.fn(),
-  signOut: jest.fn(),
-  refreshProfile: jest.fn(),
-  clearError: jest.fn(),
-};
-
 jest.mock("@/hooks/useAuth", () => ({
   useAuth: () => mockAuthState,
 }));
@@ -160,63 +143,6 @@ export { mockAuthState };
 // CHALLENGES HOOKS MOCK
 // =============================================================================
 
-const mockChallengesState = {
-  activeChallenges: {
-    data: [] as any[],
-    isLoading: false,
-    error: null as any,
-    refetch: jest.fn(),
-  },
-  completedChallenges: {
-    data: [] as any[],
-    isLoading: false,
-    error: null as any,
-    refetch: jest.fn(),
-  },
-  pendingInvites: {
-    data: [] as any[],
-    isLoading: false,
-    error: null as any,
-    refetch: jest.fn(),
-  },
-  challenge: {
-    data: null as any,
-    isLoading: false,
-    error: null as any,
-    refetch: jest.fn(),
-  },
-  leaderboard: {
-    data: [] as any[],
-    isLoading: false,
-    error: null as any,
-    refetch: jest.fn(),
-  },
-  respondToInvite: {
-    mutateAsync: jest.fn(),
-    isPending: false,
-  },
-  createChallenge: {
-    mutateAsync: jest.fn(),
-    isPending: false,
-  },
-  logActivity: {
-    mutateAsync: jest.fn(),
-    isPending: false,
-  },
-  inviteUser: {
-    mutateAsync: jest.fn(),
-    isPending: false,
-  },
-  leaveChallenge: {
-    mutateAsync: jest.fn(),
-    isPending: false,
-  },
-  cancelChallenge: {
-    mutateAsync: jest.fn(),
-    isPending: false,
-  },
-};
-
 jest.mock("@/hooks/useChallenges", () => ({
   useActiveChallenges: () => mockChallengesState.activeChallenges,
   useCompletedChallenges: () => mockChallengesState.completedChallenges,
@@ -232,6 +158,7 @@ jest.mock("@/hooks/useChallenges", () => ({
 }));
 
 export { mockChallengesState };
+export * from "./factories";
 
 // =============================================================================
 // REALTIME SUBSCRIPTION MOCK
@@ -552,48 +479,14 @@ export { mockTheme };
 // GLOBAL TEST UTILITIES
 // =============================================================================
 
-// Helper to reset challenges state
-const resetChallengesState = () => {
-  mockChallengesState.activeChallenges.data = [];
-  mockChallengesState.activeChallenges.isLoading = false;
-  mockChallengesState.activeChallenges.error = null;
-  mockChallengesState.completedChallenges.data = [];
-  mockChallengesState.completedChallenges.isLoading = false;
-  mockChallengesState.pendingInvites.data = [];
-  mockChallengesState.pendingInvites.isLoading = false;
-  mockChallengesState.challenge.data = null;
-  mockChallengesState.challenge.isLoading = false;
-  mockChallengesState.challenge.error = null;
-  mockChallengesState.leaderboard.data = [];
-  mockChallengesState.respondToInvite.isPending = false;
-  mockChallengesState.createChallenge.isPending = false;
-  mockChallengesState.logActivity.isPending = false;
-};
-
 // Reset all mocks between tests
 beforeEach(() => {
-  jest.clearAllMocks();
-
-  // Reset auth state to defaults
-  mockAuthState.session = null;
-  mockAuthState.user = null;
-  mockAuthState.profile = null;
-  mockAuthState.loading = false;
-  mockAuthState.error = null;
-  mockAuthState.pendingEmailConfirmation = false;
-
-  // Reset challenges state
-  resetChallengesState();
+  resetAllMockState();
 
   // Reset challenge status mock
   mockChallengeStatus.effectiveStatus = "active";
   mockChallengeStatus.canLog = true;
-
-  // Reset search params
-  Object.keys(mockSearchParams).forEach((key) => delete mockSearchParams[key]);
 });
-
-export { resetChallengesState };
 
 // Silence console.error for expected errors in tests
 const originalError = console.error;
