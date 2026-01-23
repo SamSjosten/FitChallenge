@@ -8,6 +8,18 @@ import type { ChallengeType } from "@/types/database";
 // TYPE DEFINITIONS
 // =============================================================================
 
+/** Challenge status - matches database enum */
+export type ChallengeStatus =
+  | "draft"
+  | "pending"
+  | "active"
+  | "completed"
+  | "archived"
+  | "cancelled";
+
+/** Invite status for participants */
+export type InviteStatus = "pending" | "accepted" | "declined" | "removed";
+
 export interface MockChallenge {
   id: string;
   title: string;
@@ -15,7 +27,7 @@ export interface MockChallenge {
   challenge_type: ChallengeType;
   goal_value: number;
   goal_unit: string;
-  status: string;
+  status: ChallengeStatus;
   start_date: string;
   end_date: string;
   creator_id: string;
@@ -24,7 +36,7 @@ export interface MockChallenge {
   my_participation?: {
     current_progress: number;
     current_streak: number;
-    invite_status: "pending" | "accepted" | "declined" | "removed";
+    invite_status: InviteStatus;
   };
 }
 
@@ -36,7 +48,7 @@ export interface MockInvite {
     challenge_type: ChallengeType;
     goal_value: number;
     goal_unit: string;
-    status: string;
+    status: ChallengeStatus;
     start_date: string;
     end_date: string;
     creator_id: string;
@@ -76,16 +88,20 @@ export interface MockLeaderboardEntry {
  * Use for active challenges on home screen and challenge detail
  */
 export function createMockChallenge(
-  overrides: Partial<MockChallenge> = {},
+  overrides: Partial<Omit<MockChallenge, "my_participation">> & {
+    my_participation?: Partial<NonNullable<MockChallenge["my_participation"]>>;
+  } = {},
 ): MockChallenge {
-  return {
+  const { my_participation: participationOverrides, ...rest } = overrides;
+
+  const base = {
     id: "challenge-1",
     title: "10K Steps Challenge",
     description: "Walk 10,000 steps daily",
-    challenge_type: "steps",
+    challenge_type: "steps" as const,
     goal_value: 70000,
     goal_unit: "steps",
-    status: "active",
+    status: "active" as ChallengeStatus,
     start_date: "2025-01-01T00:00:00Z",
     end_date: "2025-01-22T00:00:00Z",
     creator_id: "user-1",
@@ -94,9 +110,16 @@ export function createMockChallenge(
     my_participation: {
       current_progress: 35000,
       current_streak: 5,
-      invite_status: "accepted",
+      invite_status: "accepted" as InviteStatus,
     },
-    ...overrides,
+  };
+
+  return {
+    ...base,
+    ...rest,
+    my_participation: participationOverrides
+      ? { ...base.my_participation, ...participationOverrides }
+      : base.my_participation,
   };
 }
 
@@ -137,6 +160,7 @@ export function createMockInvite(
 
   return {
     ...base,
+    ...overrides,
     challenge: { ...base.challenge, ...overrides.challenge },
     creator: { ...base.creator, ...overrides.creator },
     my_participation: {
