@@ -271,10 +271,28 @@ jest.mock("@/lib/serverTime", () => ({
   getDaysRemaining: jest.fn(() => 7),
 }));
 
+// Controllable challenge status mocks
+export const mockChallengeStatus = {
+  effectiveStatus: "active" as string,
+  canLog: true,
+};
+
 jest.mock("@/lib/challengeStatus", () => ({
-  getEffectiveStatus: jest.fn(() => "active"),
-  canLogActivity: jest.fn(() => true),
-  getStatusLabel: jest.fn(() => "Active"),
+  getEffectiveStatus: jest.fn(() => mockChallengeStatus.effectiveStatus),
+  canLogActivity: jest.fn(() => mockChallengeStatus.canLog),
+  getStatusLabel: jest.fn((status: string) => {
+    switch (status) {
+      case "upcoming":
+        return "Starting Soon";
+      case "active":
+        return "Active";
+      case "completed":
+        return "Completed";
+      default:
+        return "Active";
+    }
+  }),
+  getStatusColor: jest.fn(() => "#34C759"),
 }));
 
 // =============================================================================
@@ -566,6 +584,10 @@ beforeEach(() => {
 
   // Reset challenges state
   resetChallengesState();
+
+  // Reset challenge status mock
+  mockChallengeStatus.effectiveStatus = "active";
+  mockChallengeStatus.canLog = true;
 
   // Reset search params
   Object.keys(mockSearchParams).forEach((key) => delete mockSearchParams[key]);
