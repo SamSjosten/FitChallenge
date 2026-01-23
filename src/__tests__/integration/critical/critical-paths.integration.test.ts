@@ -298,10 +298,10 @@ describe("Critical Path Integration Tests", () => {
         p_client_event_id: clientEventId,
       });
 
-      // Should fail with unique constraint violation
-      expect(error2).not.toBeNull();
+      // Duplicate returns silent success (true idempotency - no error, no increment)
+      expect(error2).toBeNull();
 
-      // Progress should NOT have increased
+      // Critical invariant: progress should NOT have increased
       const { data: afterSecond } = await user1.client
         .from("challenge_participants")
         .select("current_progress")
@@ -421,30 +421,25 @@ describe("Critical Path Integration Tests", () => {
       expect(acceptedCount).toBeGreaterThanOrEqual(2);
     });
 
-    it("leaderboard join with profiles_public works", async () => {
+    it("leaderboard RPC returns participants with profile data", async () => {
       if (!challengeId) throw new Error("Challenge not created");
 
-      const { data: leaderboard, error } = await user1.client
-        .from("challenge_participants")
-        .select(
-          `
-          user_id,
-          current_progress,
-          invite_status,
-          profiles_public!inner(username, display_name)
-        `,
-        )
-        .eq("challenge_id", challengeId)
-        .eq("invite_status", "accepted")
-        .order("current_progress", { ascending: false });
+      // Use get_leaderboard RPC (matches production code path)
+      const { data: leaderboard, error } = await user1.client.rpc(
+        "get_leaderboard",
+        { p_challenge_id: challengeId },
+      );
 
       expect(error).toBeNull();
       expect(leaderboard).toBeDefined();
       expect(leaderboard!.length).toBeGreaterThan(0);
 
-      // Verify profile data is included
+      // Verify profile data is included (flattened by RPC)
       const firstEntry = leaderboard![0];
-      expect(firstEntry.profiles_public).toBeDefined();
+      expect(firstEntry.user_id).toBeDefined();
+      expect(firstEntry.current_progress).toBeDefined();
+      expect(firstEntry.rank).toBeDefined();
+      expect(firstEntry.username).toBeDefined(); // From profiles_public
     });
   });
 });
