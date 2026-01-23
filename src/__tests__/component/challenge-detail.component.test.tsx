@@ -17,7 +17,7 @@ import {
   mockChallengeStatus,
 } from "./jest.setup";
 import { Alert } from "react-native";
-import { createMockChallenge, createMockLeaderboardEntry } from "./factories";
+import { createMockChallenge, createMockLeaderboardEntry } from "../factories";
 
 // Mock Alert
 jest.spyOn(Alert, "alert");

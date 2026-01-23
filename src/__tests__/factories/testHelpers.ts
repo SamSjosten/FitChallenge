@@ -7,7 +7,7 @@ import {
   mockChallengesState,
   mockSearchParams,
   mockChallengeStatus,
-} from "../jest.setup";
+} from "../component/jest.setup";
 import {
   createMockChallenge,
   createMockInvite,

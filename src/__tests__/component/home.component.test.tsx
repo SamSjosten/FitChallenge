@@ -10,54 +10,7 @@ import {
 } from "@testing-library/react-native";
 import HomeScreen from "@/app/(tabs)/index";
 import { mockAuthState, mockChallengesState, mockRouter } from "./jest.setup";
-
-// =============================================================================
-// TEST DATA FACTORIES
-// =============================================================================
-
-const createMockChallenge = (overrides = {}) => ({
-  id: "challenge-1",
-  title: "10K Steps Challenge",
-  description: "Walk 10,000 steps daily",
-  challenge_type: "steps",
-  goal_value: 70000,
-  goal_unit: "steps",
-  status: "active",
-  start_date: "2025-01-01T00:00:00Z",
-  end_date: "2025-01-22T00:00:00Z",
-  creator_id: "user-1",
-  participant_count: 3,
-  my_rank: 1,
-  my_participation: {
-    current_progress: 35000,
-    current_streak: 5,
-    invite_status: "accepted",
-  },
-  ...overrides,
-});
-
-const createMockInvite = (overrides = {}) => ({
-  challenge: {
-    id: "invite-1",
-    title: "Marathon Training",
-    description: "Train for marathon together",
-    challenge_type: "distance",
-    goal_value: 100,
-    goal_unit: "km",
-    status: "pending",
-    start_date: "2025-01-20T00:00:00Z",
-    end_date: "2025-02-20T00:00:00Z",
-    creator_id: "user-2",
-  },
-  creator: {
-    username: "john_runner",
-    display_name: "John Runner",
-  },
-  my_participation: {
-    invite_status: "pending",
-  },
-  ...overrides,
-});
+import { createMockChallenge, createMockInvite } from "../factories";
 
 // =============================================================================
 // TESTS
@@ -172,7 +125,9 @@ describe("HomeScreen", () => {
       ];
 
       render(<HomeScreen />);
-      expect(screen.getByText("1st")).toBeTruthy();
+      // Multiple rank displays may exist; verify at least one "1st" is shown
+      const rankElements = screen.getAllByText("1st");
+      expect(rankElements.length).toBeGreaterThanOrEqual(1);
     });
 
     it("navigates to challenge detail when View Challenge is pressed", async () => {
