@@ -10,6 +10,7 @@
     "web": "expo start --web",
     "test": "jest --selectProjects unit",
     "test:unit": "jest --selectProjects unit",
+    "test:coverage": "jest --selectProjects unit --coverage",
     "test:component": "jest --selectProjects component",
     "test:component:integration": "jest --selectProjects component-integration",
     "test:component:all": "jest --selectProjects component component-integration",
