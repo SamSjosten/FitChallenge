@@ -69,4 +69,29 @@ module.exports = {
       testTimeout: 30000,
     },
   ],
+
+  // Coverage thresholds - prevents shipping untested code
+  // Thresholds set conservatively; ratchet upward as coverage improves
+  coverageThreshold: {
+    global: {
+      lines: 60,
+      branches: 50,
+      functions: 55,
+      statements: 60,
+    },
+    // Per-file thresholds for src/lib (set to floor of current coverage)
+    "./src/lib/**/*.ts": {
+      lines: 35,
+      branches: 25,
+      functions: 30,
+      statements: 35,
+    },
+    // Services have lower thresholds - primarily covered by integration tests
+    "./src/services/**/*.ts": {
+      lines: 20,
+      branches: 5,
+      functions: 20,
+      statements: 20,
+    },
+  },
 };
