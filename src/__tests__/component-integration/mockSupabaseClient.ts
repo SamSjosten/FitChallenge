@@ -236,3 +236,260 @@ export function createMockUser(overrides: Partial<User> = {}): User {
     ...overrides,
   } as User;
 }
+
+// =============================================================================
+// STATE BUILDERS (for consistent test setup)
+// =============================================================================
+
+export interface MockProfile {
+  id: string;
+  username: string;
+  display_name: string | null;
+  avatar_url: string | null;
+  xp_total: number;
+  current_streak: number;
+  longest_streak: number;
+  is_premium: boolean;
+  timezone: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MockChallenge {
+  id: string;
+  creator_id: string;
+  title: string;
+  description: string | null;
+  challenge_type: string;
+  goal_value: number;
+  goal_unit: string;
+  win_condition: string;
+  start_date: string;
+  end_date: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  my_participation?: MockParticipation;
+}
+
+export interface MockParticipation {
+  id: string;
+  challenge_id: string;
+  user_id: string;
+  invite_status: "pending" | "accepted" | "declined";
+  current_progress: number;
+  current_streak: number;
+  joined_at: string;
+}
+
+export interface MockLeaderboardEntry {
+  user_id: string;
+  username: string;
+  display_name: string | null;
+  avatar_url: string | null;
+  current_progress: number;
+  rank: number;
+}
+
+export interface MockProfilePublic {
+  id: string;
+  username: string;
+  display_name: string | null;
+  avatar_url: string | null;
+}
+
+/**
+ * Create a mock profile with sensible defaults
+ */
+export function createMockProfile(
+  overrides: Partial<MockProfile> = {},
+): MockProfile {
+  return {
+    id: overrides.id ?? "test-user-id",
+    username: overrides.username ?? "testuser",
+    display_name:
+      "display_name" in overrides ? overrides.display_name! : "Test User",
+    avatar_url: "avatar_url" in overrides ? overrides.avatar_url! : null,
+    xp_total: overrides.xp_total ?? 1000,
+    current_streak: overrides.current_streak ?? 5,
+    longest_streak: overrides.longest_streak ?? 10,
+    is_premium: overrides.is_premium ?? false,
+    timezone: overrides.timezone ?? "America/New_York",
+    created_at: overrides.created_at ?? "2025-01-01T00:00:00Z",
+    updated_at: overrides.updated_at ?? "2025-01-01T00:00:00Z",
+  };
+}
+
+/**
+ * Create a mock challenge with sensible defaults
+ */
+export function createMockChallenge(
+  overrides: Partial<MockChallenge> = {},
+): MockChallenge {
+  const now = new Date();
+  const startDate = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000); // 2 days ago
+  const endDate = new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000); // 5 days from now
+
+  return {
+    id: overrides.id ?? "challenge-1",
+    creator_id: overrides.creator_id ?? "test-user-id",
+    title: overrides.title ?? "Test Challenge",
+    description: overrides.description ?? "A test challenge description",
+    challenge_type: overrides.challenge_type ?? "steps",
+    goal_value: overrides.goal_value ?? 10000,
+    goal_unit: overrides.goal_unit ?? "steps",
+    win_condition: overrides.win_condition ?? "highest_total",
+    start_date: overrides.start_date ?? startDate.toISOString(),
+    end_date: overrides.end_date ?? endDate.toISOString(),
+    status: overrides.status ?? "active",
+    created_at: overrides.created_at ?? "2025-01-01T00:00:00Z",
+    updated_at: overrides.updated_at ?? "2025-01-01T00:00:00Z",
+    my_participation: overrides.my_participation,
+  };
+}
+
+/**
+ * Create a mock participation record
+ */
+export function createMockParticipation(
+  overrides: Partial<MockParticipation> = {},
+): MockParticipation {
+  return {
+    id: overrides.id ?? "participation-1",
+    challenge_id: overrides.challenge_id ?? "challenge-1",
+    user_id: overrides.user_id ?? "test-user-id",
+    invite_status: overrides.invite_status ?? "accepted",
+    current_progress: overrides.current_progress ?? 5000,
+    current_streak: overrides.current_streak ?? 3,
+    joined_at: overrides.joined_at ?? "2025-01-01T00:00:00Z",
+  };
+}
+
+/**
+ * Create a mock leaderboard entry
+ */
+export function createMockLeaderboardEntry(
+  overrides: Partial<MockLeaderboardEntry> = {},
+): MockLeaderboardEntry {
+  return {
+    user_id: overrides.user_id ?? "user-1",
+    username: overrides.username ?? "user1",
+    display_name: overrides.display_name ?? "User One",
+    avatar_url: overrides.avatar_url ?? null,
+    current_progress: overrides.current_progress ?? 5000,
+    rank: overrides.rank ?? 1,
+  };
+}
+
+/**
+ * Seed authenticated user state in mock client.
+ * Sets up session, user, and profile data.
+ */
+export function seedAuthenticatedUser(
+  client: MockSupabaseClient,
+  profileOverrides: Partial<MockProfile> = {},
+): { profile: MockProfile; session: Session } {
+  const profile = createMockProfile(profileOverrides);
+  const session = createMockSession({
+    user: createMockUser({ id: profile.id }),
+  });
+
+  client.__setSession(session);
+  client.__setTableData("profiles", profile);
+
+  return { profile, session };
+}
+
+/**
+ * Seed challenge data with optional participation.
+ * Configures RPC mock to return challenge data.
+ */
+export function seedChallenge(
+  client: MockSupabaseClient,
+  challengeOverrides: Partial<MockChallenge> = {},
+  participationOverrides?: Partial<MockParticipation>,
+): MockChallenge {
+  const participation = participationOverrides
+    ? createMockParticipation(participationOverrides)
+    : createMockParticipation();
+
+  const challenge = createMockChallenge({
+    ...challengeOverrides,
+    my_participation: participation,
+  });
+
+  // Mock the challenges table for direct queries
+  client.__setTableData("challenges", challenge);
+
+  return challenge;
+}
+
+/**
+ * Seed leaderboard data for a challenge.
+ * Returns array of leaderboard entries.
+ */
+export function seedLeaderboard(
+  client: MockSupabaseClient,
+  entries: Partial<MockLeaderboardEntry>[] = [],
+): MockLeaderboardEntry[] {
+  const leaderboard =
+    entries.length > 0
+      ? entries.map((e, i) =>
+          createMockLeaderboardEntry({ ...e, rank: e.rank ?? i + 1 }),
+        )
+      : [
+          createMockLeaderboardEntry({
+            user_id: "user-1",
+            username: "leader",
+            current_progress: 8000,
+            rank: 1,
+          }),
+          createMockLeaderboardEntry({
+            user_id: "user-2",
+            username: "second",
+            current_progress: 6000,
+            rank: 2,
+          }),
+          createMockLeaderboardEntry({
+            user_id: "test-user-id",
+            username: "testuser",
+            current_progress: 5000,
+            rank: 3,
+          }),
+        ];
+
+  return leaderboard;
+}
+
+/**
+ * Seed user search results for invite flow.
+ */
+export function seedSearchResults(
+  client: MockSupabaseClient,
+  users: Partial<MockProfilePublic>[] = [],
+): MockProfilePublic[] {
+  const results: MockProfilePublic[] =
+    users.length > 0
+      ? users.map((u, i) => ({
+          id: u.id ?? `search-user-${i}`,
+          username: u.username ?? `searchuser${i}`,
+          display_name: u.display_name ?? `Search User ${i}`,
+          avatar_url: u.avatar_url ?? null,
+        }))
+      : [
+          {
+            id: "search-1",
+            username: "alice",
+            display_name: "Alice Smith",
+            avatar_url: null,
+          },
+          {
+            id: "search-2",
+            username: "bob",
+            display_name: "Bob Jones",
+            avatar_url: null,
+          },
+        ];
+
+  return results;
+}

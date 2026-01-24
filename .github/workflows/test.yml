@@ -57,8 +57,8 @@ jobs:
       - name: TypeScript type check
         run: npx tsc --noEmit
 
-      - name: Run unit tests
-        run: npm run test:unit
+      - name: Run unit tests with coverage
+        run: npm run test:coverage
 
       - name: Run component tests
         run: npm run test:component
