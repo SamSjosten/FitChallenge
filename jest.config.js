@@ -55,6 +55,33 @@ module.exports = {
       automock: false,
     },
     {
+      displayName: "component-integration",
+      // Use jest-expo preset which handles RN transforms and environment
+      preset: "jest-expo/ios",
+      roots: ["<rootDir>/src", "<rootDir>/app"],
+      // Custom resolver to handle @/ path aliases
+      resolver: "<rootDir>/jest.resolver.js",
+      // Transform app directory along with src
+      transformIgnorePatterns: [
+        "node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|react-native-svg)",
+      ],
+      // Match component-integration tests
+      testMatch: [
+        "<rootDir>/src/__tests__/component-integration/**/*.integration.test.tsx",
+      ],
+      setupFilesAfterEnv: [
+        "<rootDir>/src/__tests__/component-integration/jest.setup.ts",
+      ],
+      // Configure test environment
+      testEnvironmentOptions: {
+        customExportConditions: ["react-native"],
+      },
+      // Longer timeout for real provider/hook execution
+      testTimeout: 15000,
+      // Disable automocking
+      automock: false,
+    },
+    {
       displayName: "integration",
       testEnvironment: "node",
       transform: {

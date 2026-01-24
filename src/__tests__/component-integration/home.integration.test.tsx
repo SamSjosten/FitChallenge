@@ -99,9 +99,13 @@ describe("HomeScreen Integration", () => {
       render(<HomeScreen />, { wrapper: TestWrapper });
 
       // Assert: Greeting should use profile from AuthProvider
-      await waitFor(() => {
-        expect(screen.getByText("Hello, Sarah!")).toBeTruthy();
-      });
+      // First test may need longer timeout as providers initialize
+      await waitFor(
+        () => {
+          expect(screen.getByText("Hello, Sarah!")).toBeTruthy();
+        },
+        { timeout: 5000 },
+      );
     });
 
     it("renders greeting with username when no display name", async () => {

@@ -11,11 +11,13 @@
     "test": "jest --selectProjects unit",
     "test:unit": "jest --selectProjects unit",
     "test:component": "jest --selectProjects component",
+    "test:component:integration": "jest --selectProjects component-integration",
+    "test:component:all": "jest --selectProjects component component-integration",
     "test:integration": "jest --selectProjects integration",
     "test:integration:critical": "jest --selectProjects integration --testPathPatterns=critical",
     "test:integration:full": "jest --selectProjects integration",
     "test:all": "jest",
-    "test:ci": "jest --selectProjects unit component && jest --selectProjects integration --testPathPatterns=critical"
+    "test:ci": "jest --selectProjects unit component component-integration && jest --selectProjects integration --testPathPatterns=critical"
   },
   "dependencies": {
     "@expo-google-fonts/plus-jakarta-sans": "^0.4.2",
