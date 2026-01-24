@@ -701,9 +701,11 @@ describe("Activity Integration Tests", () => {
         expect(seenIds.has(row.id)).toBe(false);
         seenIds.add(row.id);
 
-        // Update cursor for next iteration (preserving full timestamp precision)
+        // Update cursor for next iteration
+        // IMPORTANT: Use timestamp directly from PostgreSQL to preserve microsecond precision
+        // Do NOT round-trip through JavaScript Date (only millisecond precision)
         cursor = {
-          beforeRecordedAt: new Date(row.recorded_at!).toISOString(),
+          beforeRecordedAt: row.recorded_at!,
           beforeId: row.id,
         };
       }
@@ -747,9 +749,8 @@ describe("Activity Integration Tests", () => {
       expect(activities?.length).toBe(3);
 
       const middleActivity = activities![1];
-      const cursorTimestamp = new Date(
-        middleActivity.recorded_at!,
-      ).toISOString();
+      // Use timestamp directly from PostgreSQL to preserve full precision
+      const cursorTimestamp = middleActivity.recorded_at!;
 
       // Verify the timestamp has fractional seconds (most databases include them)
       // If not, the test still validates the query works
@@ -802,8 +803,9 @@ describe("Activity Integration Tests", () => {
       await Promise.all(createPromises);
 
       // Simulate the extractCursor pattern from activities service
+      // IMPORTANT: Use timestamp directly to preserve PostgreSQL microsecond precision
       const extractCursor = (row: { id: string; recorded_at: string }) => ({
-        beforeRecordedAt: new Date(row.recorded_at).toISOString(),
+        beforeRecordedAt: row.recorded_at,
         beforeId: row.id,
       });
 
@@ -1187,9 +1189,10 @@ describe("Activity Integration Tests", () => {
 
       const cursor = activityService.extractCursor(activities[0]);
 
-      // Cursor should be valid ISO format
+      // Cursor should be valid ISO format with up to 6 decimal places (PostgreSQL microseconds)
+      // PostgreSQL uses +00:00 suffix; JS Date.toISOString() uses Z - accept both
       expect(cursor.beforeRecordedAt).toMatch(
-        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?Z$/,
+        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?(Z|\+00:00)$/,
       );
       expect(cursor.beforeId).toMatch(
         /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,

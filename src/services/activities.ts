@@ -138,17 +138,21 @@ export const activityService = {
    * Extract a cursor from an activity log row for pagination.
    * Preserves full timestamp precision (including fractional seconds) to avoid skipping rows.
    *
+   * IMPORTANT: Uses the timestamp string directly from PostgreSQL to preserve
+   * microsecond precision (6 decimal places). Do NOT round-trip through JavaScript
+   * Date which only has millisecond precision (3 decimal places).
+   *
    * Note: PostgREST .or() uses commas as delimiters, not periods, so fractional
-   * seconds in timestamps (e.g., "16:47:05.123Z") are safely parsed as values.
+   * seconds in timestamps (e.g., "16:47:05.123456Z") are safely parsed as values.
    */
   extractCursor(row: ActivityLog): {
     beforeRecordedAt: string;
     beforeId: string;
   } {
-    // Normalize to ISO format, preserving fractional seconds for precision
-    const recordedAt = new Date(row.recorded_at).toISOString();
+    // Use timestamp directly from PostgreSQL to preserve microsecond precision
+    // PostgreSQL timestamptz has 6 decimal places; JS Date only has 3
     return {
-      beforeRecordedAt: recordedAt,
+      beforeRecordedAt: row.recorded_at,
       beforeId: row.id,
     };
   },
@@ -199,10 +203,12 @@ export const activityService = {
     }
 
     // Validate timestamp format: ISO 8601 UTC with optional fractional seconds
+    // PostgreSQL returns up to 6 decimal places (microseconds); accept 1-6
+    // PostgreSQL uses +00:00 suffix; JS Date.toISOString() uses Z - accept both
     // PostgREST .or() uses commas as delimiters, so periods in timestamps are safe
     if (
       beforeRecordedAt &&
-      !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?Z$/.test(
+      !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?(Z|\+00:00)$/.test(
         beforeRecordedAt,
       )
     ) {
