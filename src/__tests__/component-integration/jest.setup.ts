@@ -76,6 +76,7 @@ jest.mock("@/constants/config", () => ({
     supabaseAnonKey: "test-anon-key",
     sentryDsn: "",
     environment: "test",
+    enableRealtime: false, // Disable realtime to prevent unmocked channel() calls
   },
   configValidation: {
     isValid: true,

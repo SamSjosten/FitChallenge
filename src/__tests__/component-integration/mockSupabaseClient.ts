@@ -402,7 +402,8 @@ export function seedAuthenticatedUser(
 
 /**
  * Seed challenge data with optional participation.
- * Configures RPC mock to return challenge data.
+ * Configures table data mock to return challenge data in the format expected by getChallenge.
+ * The getChallenge service expects challenge_participants nested array in the response.
  */
 export function seedChallenge(
   client: MockSupabaseClient,
@@ -419,7 +420,17 @@ export function seedChallenge(
   });
 
   // Mock the challenges table for direct queries
-  client.__setTableData("challenges", challenge);
+  // getChallenge expects response with nested challenge_participants array
+  const tableResponse = {
+    ...challenge,
+    challenge_participants: [
+      {
+        invite_status: participation.invite_status,
+        current_progress: participation.current_progress,
+      },
+    ],
+  };
+  client.__setTableData("challenges", tableResponse);
 
   return challenge;
 }
