@@ -51,7 +51,13 @@
           "color": "#00D26A"
         }
       ],
-      "@sentry/react-native"
+      [
+        "@sentry/react-native",
+        {
+          "organization": "sps-u3",
+          "project": "react-native"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
