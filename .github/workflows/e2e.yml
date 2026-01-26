@@ -1,15 +1,18 @@
 # .github/workflows/e2e.yml
 # E2E Test Workflow - Runs Detox tests on iOS and Android simulators
 #
-# Schedule: Nightly at 4am UTC (after full integration tests at 3am)
+# Schedule:
+#   - Nightly at 4am UTC (single device, quick smoke test)
+#   - Weekly on Sunday at 4am UTC (full device matrix)
 # Manual: Can be triggered via workflow_dispatch
 
 name: E2E Tests
 
 on:
-  # Nightly run (after integration tests complete)
+  # Nightly run (single device)
   schedule:
-    - cron: "0 4 * * *"
+    - cron: "0 4 * * 1-6" # Mon-Sat at 4am UTC
+    - cron: "0 4 * * 0" # Sunday at 4am UTC (full matrix)
 
   # Manual trigger with options
   workflow_dispatch:
@@ -33,6 +36,11 @@ on:
           - smoke
           - auth
           - challenges
+      full_matrix:
+        description: "Run full device matrix (uses more CI minutes)"
+        required: true
+        default: false
+        type: boolean
 
 # Cancel in-progress runs
 concurrency:
@@ -47,13 +55,24 @@ jobs:
   # iOS E2E Tests
   # ===========================================================================
   e2e-ios:
-    name: E2E Tests (iOS)
-    runs-on: macos-15 # M1 Mac for faster iOS builds
+    name: E2E Tests (iOS - ${{ matrix.device }})
+    runs-on: macos-15
     if: |
       github.event_name == 'schedule' ||
       github.event.inputs.platform == 'ios' ||
       github.event.inputs.platform == 'both'
     timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        # Full matrix on: Sunday schedule OR manual with full_matrix=true
+        # Single device on: Mon-Sat schedule OR manual with full_matrix=false
+        device: ${{
+          (github.event.schedule == '0 4 * * 0' || github.event.inputs.full_matrix == 'true')
+          && fromJSON('["iPhone 17", "iPhone 17 Pro Max", "iPhone SE (3rd generation)"]')
+          || fromJSON('["iPhone 17"]')
+          }}
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -146,12 +165,13 @@ jobs:
       # --- Run Tests ---
       - name: Boot iOS Simulator
         run: |
-          xcrun simctl boot "iPhone 15" || true
-          xcrun simctl bootstatus "iPhone 15" -b
+          xcrun simctl boot "${{ matrix.device }}" || true
+          xcrun simctl bootstatus "${{ matrix.device }}" -b
 
       - name: Run E2E tests (iOS)
         env:
           E2E_TEST_SUITE: ${{ github.event.inputs.test_suite || 'all' }}
+          DETOX_DEVICE: ${{ matrix.device }}
         run: |
           if [ "$E2E_TEST_SUITE" = "smoke" ]; then
             detox test --configuration ios.sim.release --testNamePattern "Happy Path"
