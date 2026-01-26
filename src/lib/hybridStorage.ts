@@ -357,18 +357,8 @@ async function getItemHybridEncrypted(key: string): Promise<string | null> {
   const encKeyName = getEncKeyName(key);
   const payloadKeyName = getPayloadKeyName(key);
 
-  console.log(
-    `[HybridStorage] getItemHybridEncrypted: encKeyName=${encKeyName}`,
-  );
-  console.log(
-    `[HybridStorage] getItemHybridEncrypted: payloadKeyName=${payloadKeyName}`,
-  );
-
   // Get encryption key from SecureStore
   const encKeyHex = await SecureStore.getItemAsync(encKeyName);
-  console.log(
-    `[HybridStorage] getItemHybridEncrypted: encKeyHex=${encKeyHex ? "found" : "null"}`,
-  );
 
   if (!encKeyHex) {
     // No key means no data (or data was cleared)
@@ -377,9 +367,6 @@ async function getItemHybridEncrypted(key: string): Promise<string | null> {
 
   // Get encrypted payload from AsyncStorage
   const encrypted = await AsyncStorage.getItem(payloadKeyName);
-  console.log(
-    `[HybridStorage] getItemHybridEncrypted: encrypted payload=${encrypted ? `${encrypted.length} chars` : "null"}`,
-  );
 
   if (!encrypted) {
     // Payload missing but key exists - inconsistent state, clean up
@@ -393,12 +380,8 @@ async function getItemHybridEncrypted(key: string): Promise<string | null> {
   }
 
   // Decrypt using AES-256-CTR
-  console.log(`[HybridStorage] getItemHybridEncrypted: decrypting...`);
   const encKey = hexToUint8Array(encKeyHex);
   const decrypted = decrypt(encrypted, encKey);
-  console.log(
-    `[HybridStorage] getItemHybridEncrypted: decrypted=${decrypted ? `${decrypted.length} chars` : "null"}`,
-  );
   return decrypted;
 }
 
@@ -670,22 +653,13 @@ async function demoteToUnencrypted(
 export function createHybridStorageAdapter(): StorageAdapter {
   return {
     getItem: async (key: string): Promise<string | null> => {
-      console.log(
-        `[HybridStorage] getItem called for key: ${key.substring(0, 30)}...`,
-      );
-
       await hybridStorageReady;
-      console.log(
-        `[HybridStorage] getItem: storage ready, mode=${storageStatus?.mode}`,
-      );
 
       try {
         // Check for legacy migration first
         const legacyValue = await migrateLegacySession(key);
         if (legacyValue) {
-          console.log(
-            `[HybridStorage] getItem: found legacy session, migrating`,
-          );
+          console.log("[HybridStorage] Migrating legacy session");
           // Store in new format and return
           try {
             await createHybridStorageAdapter().setItem(key, legacyValue);
@@ -701,13 +675,7 @@ export function createHybridStorageAdapter(): StorageAdapter {
 
         switch (storageStatus?.mode) {
           case "hybrid-encrypted":
-            console.log(
-              `[HybridStorage] getItem: reading from hybrid-encrypted`,
-            );
             value = await getItemHybridEncrypted(key);
-            console.log(
-              `[HybridStorage] getItem: got value=${value ? "yes" : "null"}`,
-            );
             break;
           case "async-unencrypted":
             value = await getItemAsyncUnencrypted(key);
@@ -736,21 +704,12 @@ export function createHybridStorageAdapter(): StorageAdapter {
     },
 
     setItem: async (key: string, value: string): Promise<void> => {
-      console.log(
-        `[HybridStorage] setItem called for key: ${key.substring(0, 30)}... (${value.length} chars)`,
-      );
-
       await hybridStorageReady;
-      console.log(
-        `[HybridStorage] setItem: storage ready, mode=${storageStatus?.mode}`,
-      );
 
       try {
         switch (storageStatus?.mode) {
           case "hybrid-encrypted":
-            console.log(`[HybridStorage] setItem: writing to hybrid-encrypted`);
             await setItemHybridEncrypted(key, value);
-            console.log(`[HybridStorage] setItem: write complete`);
             break;
           case "async-unencrypted":
             await setItemAsyncUnencrypted(key, value);

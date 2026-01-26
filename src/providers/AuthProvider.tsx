@@ -88,6 +88,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // Prevents listener from redundantly processing the same event
   const authActionHandledRef = useRef(false);
 
+  // Guard against concurrent profile loading
+  const profileLoadingRef = useRef(false);
+
   // ==========================================================================
   // PROFILE LOADING HELPER
   // ==========================================================================
@@ -97,10 +100,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
    * Used by initialization, signIn, signUp, and auth listener.
    */
   const loadProfileAndSetState = useCallback(async (session: Session) => {
-    console.log(
-      "[AuthProvider] loadProfileAndSetState: starting for user",
-      session.user.id,
-    );
+    // Guard against concurrent calls - check and set atomically
+    if (profileLoadingRef.current) {
+      return;
+    }
+    profileLoadingRef.current = true;
 
     // Sync server time (non-blocking)
     syncServerTime().catch((err) =>
@@ -108,16 +112,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
     );
 
     try {
-      console.log("[AuthProvider] loadProfileAndSetState: fetching profile...");
-      const profile = await authService.getMyProfile();
-      console.log("[AuthProvider] loadProfileAndSetState: profile fetched", {
-        hasProfile: !!profile,
-      });
+      // Use getMyProfileWithUserId to avoid redundant getUser() call during initialization
+      // We already have the userId from the session
+      const profile = await authService.getMyProfileWithUserId(session.user.id);
 
       if (mountedRef.current) {
-        console.log(
-          "[AuthProvider] loadProfileAndSetState: setting authenticated state",
-        );
         setState({
           session,
           user: session.user,
@@ -133,10 +132,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           .catch((err) => console.warn("Push token registration failed:", err));
       }
     } catch (err) {
-      console.error(
-        "[AuthProvider] loadProfileAndSetState: error fetching profile",
-        err,
-      );
+      console.error("[AuthProvider] Error fetching profile:", err);
       if (mountedRef.current) {
         setState({
           session,
@@ -147,6 +143,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
           pendingEmailConfirmation: false,
         });
       }
+    } finally {
+      profileLoadingRef.current = false;
     }
   }, []);
 
@@ -157,64 +155,53 @@ export function AuthProvider({ children }: AuthProviderProps) {
   useEffect(() => {
     // Reset mounted ref on mount
     mountedRef.current = true;
-    let initialLoadHandled = false;
 
-    const initSession = async () => {
-      try {
-        console.log("[AuthProvider] initSession: calling getSession...");
-        const {
-          data: { session },
-          error,
-        } = await getSupabaseClient().auth.getSession();
+    // Track if we've processed the initial session
+    let initialSessionProcessed = false;
 
-        console.log("[AuthProvider] initSession: getSession returned", {
-          hasSession: !!session,
-          hasError: !!error,
-          errorMsg: error?.message,
-        });
+    // Listen for auth changes - handles INITIAL_SESSION, token refresh, sign out, etc.
+    // Note: We rely on INITIAL_SESSION event instead of calling getSession() directly
+    // to avoid race conditions between getSession and onAuthStateChange
+    const {
+      data: { subscription },
+    } = getSupabaseClient().auth.onAuthStateChange(async (event, session) => {
+      if (!mountedRef.current) return;
 
-        if (!mountedRef.current || initialLoadHandled) return;
-        initialLoadHandled = true;
-
-        if (error) {
-          console.log("[AuthProvider] initSession: setting error state");
-          setState((prev) => ({ ...prev, loading: false, error }));
-          return;
-        }
-
-        if (session?.user) {
-          console.log(
-            "[AuthProvider] initSession: loading profile for user",
-            session.user.id,
-          );
-          await loadProfileAndSetState(session);
-          console.log("[AuthProvider] initSession: profile loaded");
-        } else {
-          console.log(
-            "[AuthProvider] initSession: no session, setting unauthenticated state",
-          );
-          setState({
-            session: null,
-            user: null,
-            profile: null,
-            loading: false,
-            error: null,
-            pendingEmailConfirmation: false,
-          });
-        }
-      } catch (err) {
-        console.error("[AuthProvider] initSession: caught error", err);
-        if (mountedRef.current) {
-          setState((prev) => ({
-            ...prev,
-            loading: false,
-            error: err as Error,
-          }));
-        }
+      // During initial startup, SIGNED_IN often fires before INITIAL_SESSION
+      // Skip SIGNED_IN if we haven't processed INITIAL_SESSION yet - it will handle auth
+      if (event === "SIGNED_IN" && !initialSessionProcessed) {
+        return;
       }
-    };
 
-    initSession();
+      // Skip SIGNED_IN if signIn/signUp already handled it explicitly
+      if (event === "SIGNED_IN" && authActionHandledRef.current) {
+        authActionHandledRef.current = false; // Reset for future auth actions
+        return;
+      }
+
+      if (event === "SIGNED_OUT" || !session) {
+        initialSessionProcessed = true; // Mark as processed even for signed out
+        setState({
+          session: null,
+          user: null,
+          profile: null,
+          loading: false,
+          error: null,
+          pendingEmailConfirmation: false,
+        });
+        return;
+      }
+
+      // Mark INITIAL_SESSION as processed
+      if (event === "INITIAL_SESSION") {
+        initialSessionProcessed = true;
+      }
+
+      // INITIAL_SESSION, SIGNED_IN (after initial), TOKEN_REFRESHED - load profile
+      if (session.user) {
+        await loadProfileAndSetState(session);
+      }
+    });
 
     // Safety timeout: set explicit error if auth hangs
     const safetyTimeout = setTimeout(() => {
@@ -232,45 +219,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
         });
       }
     }, 10000);
-
-    // Listen for auth changes - BACKUP mechanism for token refresh, sign out, etc.
-    const {
-      data: { subscription },
-    } = getSupabaseClient().auth.onAuthStateChange(async (event, session) => {
-      if (!mountedRef.current) return;
-
-      // Skip INITIAL_SESSION if initSession already handled it
-      if (event === "INITIAL_SESSION" && initialLoadHandled) {
-        return;
-      }
-
-      if (event === "INITIAL_SESSION") {
-        initialLoadHandled = true;
-      }
-
-      // Skip SIGNED_IN if signIn/signUp already handled it explicitly
-      if (event === "SIGNED_IN" && authActionHandledRef.current) {
-        authActionHandledRef.current = false; // Reset for future auth actions
-        return;
-      }
-
-      if (event === "SIGNED_OUT" || !session) {
-        setState({
-          session: null,
-          user: null,
-          profile: null,
-          loading: false,
-          error: null,
-          pendingEmailConfirmation: false,
-        });
-        return;
-      }
-
-      // Token refresh or external auth change
-      if (session.user) {
-        await loadProfileAndSetState(session);
-      }
-    });
 
     return () => {
       mountedRef.current = false;

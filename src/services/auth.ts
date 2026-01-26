@@ -160,16 +160,46 @@ export const authService = {
    */
   async getMyProfile(): Promise<Profile> {
     return withAuth(async (userId) => {
-      const { data, error } = await getSupabaseClient()
+      return this.getMyProfileWithUserId(userId);
+    });
+  },
+
+  /**
+   * Get the current user's full profile by userId (private data)
+   * Use this variant when you already have the userId to avoid redundant getUser() calls.
+   * CONTRACT: Only returns self data via RLS
+   */
+  async getMyProfileWithUserId(userId: string): Promise<Profile> {
+    // Create a timeout promise to catch hanging queries
+    const timeoutMs = 15000;
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => {
+        reject(
+          new Error(
+            `Profile query timed out after ${timeoutMs}ms - check network connectivity`,
+          ),
+        );
+      }, timeoutMs);
+    });
+
+    const queryPromise = (async () => {
+      // Small delay to ensure Supabase client is fully initialized
+      // This helps avoid race conditions during app startup
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      return getSupabaseClient()
         .from("profiles")
         .select("*")
         .eq("id", userId)
         .single();
+    })();
 
-      if (error) throw error;
-      if (!data) throw new Error("Profile not found");
-      return data;
-    });
+    // Race between query and timeout
+    const { data, error } = await Promise.race([queryPromise, timeoutPromise]);
+
+    if (error) throw error;
+    if (!data) throw new Error("Profile not found");
+    return data;
   },
 
   /**
