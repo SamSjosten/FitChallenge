@@ -97,14 +97,27 @@ export function AuthProvider({ children }: AuthProviderProps) {
    * Used by initialization, signIn, signUp, and auth listener.
    */
   const loadProfileAndSetState = useCallback(async (session: Session) => {
+    console.log(
+      "[AuthProvider] loadProfileAndSetState: starting for user",
+      session.user.id,
+    );
+
     // Sync server time (non-blocking)
     syncServerTime().catch((err) =>
       console.warn("Server time sync failed:", err),
     );
 
     try {
+      console.log("[AuthProvider] loadProfileAndSetState: fetching profile...");
       const profile = await authService.getMyProfile();
+      console.log("[AuthProvider] loadProfileAndSetState: profile fetched", {
+        hasProfile: !!profile,
+      });
+
       if (mountedRef.current) {
+        console.log(
+          "[AuthProvider] loadProfileAndSetState: setting authenticated state",
+        );
         setState({
           session,
           user: session.user,
@@ -120,6 +133,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
           .catch((err) => console.warn("Push token registration failed:", err));
       }
     } catch (err) {
+      console.error(
+        "[AuthProvider] loadProfileAndSetState: error fetching profile",
+        err,
+      );
       if (mountedRef.current) {
         setState({
           session,
@@ -144,22 +161,38 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     const initSession = async () => {
       try {
+        console.log("[AuthProvider] initSession: calling getSession...");
         const {
           data: { session },
           error,
         } = await getSupabaseClient().auth.getSession();
 
+        console.log("[AuthProvider] initSession: getSession returned", {
+          hasSession: !!session,
+          hasError: !!error,
+          errorMsg: error?.message,
+        });
+
         if (!mountedRef.current || initialLoadHandled) return;
         initialLoadHandled = true;
 
         if (error) {
+          console.log("[AuthProvider] initSession: setting error state");
           setState((prev) => ({ ...prev, loading: false, error }));
           return;
         }
 
         if (session?.user) {
+          console.log(
+            "[AuthProvider] initSession: loading profile for user",
+            session.user.id,
+          );
           await loadProfileAndSetState(session);
+          console.log("[AuthProvider] initSession: profile loaded");
         } else {
+          console.log(
+            "[AuthProvider] initSession: no session, setting unauthenticated state",
+          );
           setState({
             session: null,
             user: null,
@@ -170,6 +203,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           });
         }
       } catch (err) {
+        console.error("[AuthProvider] initSession: caught error", err);
         if (mountedRef.current) {
           setState((prev) => ({
             ...prev,
