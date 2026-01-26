@@ -50,7 +50,7 @@ jobs:
   # ===========================================================================
   e2e-ios:
     name: E2E Tests (iOS)
-    runs-on: macos-14 # M1 Mac for faster iOS builds
+    runs-on: macos-15 # M1 Mac for faster iOS builds
     if: |
       github.event_name == 'schedule' ||
       github.event.inputs.platform == 'ios' ||
