@@ -3,13 +3,6 @@
 #
 # Schedule: Nightly at 4am UTC (after full integration tests at 3am)
 # Manual: Can be triggered via workflow_dispatch
-#
-# This workflow:
-# 1. Builds native iOS/Android apps
-# 2. Starts Supabase Local for isolated test database
-# 3. Seeds test data (E2E test users)
-# 4. Runs Detox E2E tests
-# 5. Uploads artifacts (screenshots, videos on failure)
 
 name: E2E Tests
 
@@ -77,34 +70,18 @@ jobs:
       - name: Install Detox CLI
         run: npm install -g detox-cli
 
-      - name: Setup Ruby (for CocoaPods)
-        uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: "3.2"
-          bundler-cache: true
-
-      - name: Cache CocoaPods
-        uses: actions/cache@v4
-        with:
-          path: ios/Pods
-          key: ${{ runner.os }}-pods-${{ hashFiles('**/Podfile.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-pods-
-
-      - name: Install CocoaPods
-        run: |
-          cd ios
-          pod install --repo-update
-
+      # --- Supabase Setup ---
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
           version: latest
 
       - name: Start Supabase Local
+        id: supabase-start
         run: |
           supabase start
           supabase db reset
+          echo "started=true" >> $GITHUB_OUTPUT
 
       - name: Get Supabase credentials
         id: supabase
@@ -127,12 +104,35 @@ jobs:
           echo "EXPO_PUBLIC_SUPABASE_URL=${{ steps.supabase.outputs.url }}" > .env
           echo "EXPO_PUBLIC_SUPABASE_ANON_KEY=${{ steps.supabase.outputs.anon_key }}" >> .env
 
+      # --- iOS Build ---
+      - name: Setup Ruby (for CocoaPods)
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.2"
+          bundler-cache: true
+
       - name: Prebuild iOS
-        run: npx expo prebuild --platform ios --clean
+        run: |
+          npx expo prebuild --platform ios --clean
+          echo "Prebuild complete. Checking ios directory..."
+          ls -la ios/
+
+      - name: Cache CocoaPods
+        uses: actions/cache@v4
+        with:
+          path: ios/Pods
+          key: ${{ runner.os }}-pods-${{ hashFiles('ios/Podfile.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pods-
+
+      - name: Install CocoaPods
+        working-directory: ios
+        run: pod install --repo-update
 
       - name: Build iOS app (Release)
         run: detox build --configuration ios.sim.release
 
+      # --- Run Tests ---
       - name: Boot iOS Simulator
         run: |
           xcrun simctl boot "iPhone 15" || true
@@ -152,6 +152,7 @@ jobs:
             detox test --configuration ios.sim.release
           fi
 
+      # --- Cleanup ---
       - name: Upload test artifacts
         if: failure()
         uses: actions/upload-artifact@v4
@@ -162,8 +163,8 @@ jobs:
           retention-days: 7
 
       - name: Stop Supabase
-        if: always()
-        run: supabase stop
+        if: always() && steps.supabase-start.outputs.started == 'true'
+        run: supabase stop || true
 
   # ===========================================================================
   # Android E2E Tests
@@ -201,25 +202,18 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Cache Gradle
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
-
+      # --- Supabase Setup ---
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
           version: latest
 
       - name: Start Supabase Local
+        id: supabase-start
         run: |
           supabase start
           supabase db reset
+          echo "started=true" >> $GITHUB_OUTPUT
 
       - name: Get Supabase credentials
         id: supabase
@@ -242,12 +236,27 @@ jobs:
           echo "EXPO_PUBLIC_SUPABASE_URL=${{ steps.supabase.outputs.url }}" > .env
           echo "EXPO_PUBLIC_SUPABASE_ANON_KEY=${{ steps.supabase.outputs.anon_key }}" >> .env
 
+      # --- Android Build ---
       - name: Prebuild Android
-        run: npx expo prebuild --platform android --clean
+        run: |
+          npx expo prebuild --platform android --clean
+          echo "Prebuild complete. Checking android directory..."
+          ls -la android/
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
 
       - name: Build Android app (Release)
         run: detox build --configuration android.emu.release
 
+      # --- Run Tests ---
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -285,6 +294,7 @@ jobs:
               detox test --configuration android.emu.release
             fi
 
+      # --- Cleanup ---
       - name: Upload test artifacts
         if: failure()
         uses: actions/upload-artifact@v4
@@ -295,8 +305,8 @@ jobs:
           retention-days: 7
 
       - name: Stop Supabase
-        if: always()
-        run: supabase stop
+        if: always() && steps.supabase-start.outputs.started == 'true'
+        run: supabase stop || true
 
   # ===========================================================================
   # Summary Job
