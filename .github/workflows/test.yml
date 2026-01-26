@@ -8,7 +8,7 @@
 #   - Integration (Critical): Core paths only, runs on PR (~2-3 min)
 #   - Integration (Full): Complete suite, runs on main/nightly
 #
-# Integration tests run against Supabase Local (Docker) for isolation.
+# Integration tests run against Supabase cloud test branch for isolation.
 
 name: Test
 
@@ -87,67 +87,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Setup Supabase CLI
-        uses: supabase/setup-cli@v1
-        with:
-          version: latest
-
-      - name: Start Supabase local
-        run: |
-          supabase start
-          echo "Supabase local started"
-
-      - name: Apply migrations
-        run: supabase db reset
-
-      - name: Get Supabase local credentials
-        id: supabase
-        run: |
-          # Debug: show the actual JSON structure
-          echo "=== Supabase status JSON ==="
-          supabase status --output json
-          echo ""
-          echo "=== JSON keys ==="
-          supabase status --output json | jq 'keys'
-          echo "=== End debug ==="
-
-          # Extract credentials - try old and new formats
-          # Old format: anon_key, service_role_key
-          # New format: publishable, secret (or ANON_KEY, SERVICE_ROLE_KEY)
-          echo "url=http://127.0.0.1:54321" >> $GITHUB_OUTPUT
-
-          JSON=$(supabase status --output json)
-
-          # Try multiple possible key names
-          ANON_KEY=$(echo "$JSON" | jq -r '.anon_key // .ANON_KEY // .publishable // .Publishable // .API.anon_key // empty')
-          SERVICE_KEY=$(echo "$JSON" | jq -r '.service_role_key // .SERVICE_ROLE_KEY // .secret // .Secret // .API.service_role_key // empty')
-
-          echo "anon_key=${ANON_KEY}" >> $GITHUB_OUTPUT
-          echo "service_role_key=${SERVICE_KEY}" >> $GITHUB_OUTPUT
-
-          # Verify keys were extracted
-          echo "Anon key: ${ANON_KEY:0:20}..."
-          echo "Service key: ${SERVICE_KEY:0:20}..."
-          echo "Anon key length: ${#ANON_KEY}"
-          echo "Service role key length: ${#SERVICE_KEY}"
-
-          if [ -z "$SERVICE_KEY" ] || [ "$SERVICE_KEY" = "null" ]; then
-            echo "ERROR: Service role key not extracted!"
-            echo "Available keys in JSON:"
-            echo "$JSON" | jq 'keys'
-            exit 1
-          fi
-
       - name: Run critical integration tests
         env:
-          SUPABASE_URL: ${{ steps.supabase.outputs.url }}
-          SUPABASE_ANON_KEY: ${{ steps.supabase.outputs.anon_key }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ steps.supabase.outputs.service_role_key }}
+          SUPABASE_URL: ${{ secrets.TEST_SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.TEST_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.TEST_SUPABASE_SERVICE_ROLE_KEY }}
         run: npm run test:integration:critical
-
-      - name: Stop Supabase
-        if: always()
-        run: supabase stop
 
   # ===========================================================================
   # Tier B: Full Integration Tests (main branch / nightly / manual)
@@ -175,48 +120,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Setup Supabase CLI
-        uses: supabase/setup-cli@v1
-        with:
-          version: latest
-
-      - name: Start Supabase local
-        run: |
-          supabase start
-          echo "Supabase local started"
-
-      - name: Apply migrations
-        run: supabase db reset
-
-      - name: Get Supabase local credentials
-        id: supabase
-        run: |
-          echo "url=http://127.0.0.1:54321" >> $GITHUB_OUTPUT
-
-          JSON=$(supabase status --output json)
-
-          # Try multiple possible key names (old and new CLI formats)
-          ANON_KEY=$(echo "$JSON" | jq -r '.anon_key // .ANON_KEY // .publishable // .Publishable // .API.anon_key // empty')
-          SERVICE_KEY=$(echo "$JSON" | jq -r '.service_role_key // .SERVICE_ROLE_KEY // .secret // .Secret // .API.service_role_key // empty')
-
-          echo "anon_key=${ANON_KEY}" >> $GITHUB_OUTPUT
-          echo "service_role_key=${SERVICE_KEY}" >> $GITHUB_OUTPUT
-
-          if [ -z "$SERVICE_KEY" ] || [ "$SERVICE_KEY" = "null" ]; then
-            echo "ERROR: Service role key not extracted!"
-            exit 1
-          fi
-
       - name: Run full integration tests
         env:
-          SUPABASE_URL: ${{ steps.supabase.outputs.url }}
-          SUPABASE_ANON_KEY: ${{ steps.supabase.outputs.anon_key }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ steps.supabase.outputs.service_role_key }}
+          SUPABASE_URL: ${{ secrets.TEST_SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.TEST_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.TEST_SUPABASE_SERVICE_ROLE_KEY }}
         run: npm run test:integration:full
-
-      - name: Stop Supabase
-        if: always()
-        run: supabase stop
 
   # ===========================================================================
   # Summary Job (for branch protection rules)
