@@ -13,6 +13,7 @@ import {
   UpdateProfileInput,
 } from "@/lib/validation";
 import { normalizeUsername } from "@/lib/username";
+import { clearPersistedQueryCache } from "@/lib/queryPersister";
 import type { Profile, ProfilePublic } from "@/types/database";
 
 // Re-export normalizeUsername for backward compatibility
@@ -143,10 +144,14 @@ export const authService = {
 
   /**
    * Sign out the current user
+   * GUARDRAIL 6: Clears persisted query cache to prevent data leakage
    */
   async signOut(): Promise<void> {
     const { error } = await getSupabaseClient().auth.signOut();
     if (error) throw error;
+
+    // Clear persisted cache to prevent cross-account data leakage
+    await clearPersistedQueryCache();
   },
 
   /**

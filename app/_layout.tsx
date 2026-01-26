@@ -1,9 +1,15 @@
 // app/_layout.tsx
 // Root layout with providers and auth routing
+//
+// GUARDRAIL 0: Non-blocking hydration
+// GUARDRAIL 1: Preserves auth storage adapter
+// GUARDRAIL 2: Query persistence with selective caching
+// GUARDRAIL 3: Offline queue processing
 
 import React, { useEffect, useRef } from "react";
 import { Stack, useRouter, useSegments } from "expo-router";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient } from "@tanstack/react-query";
+import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { StatusBar } from "expo-status-bar";
 import {
   View,
@@ -15,18 +21,21 @@ import {
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import * as Notifications from "expo-notifications";
 import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
+import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { ThemeProvider, useAppTheme } from "@/providers/ThemeProvider";
 import { AuthProvider, useAuth } from "@/providers/AuthProvider";
 import { ToastProvider } from "@/providers/ToastProvider";
-import { ServerTimeBanner } from "@/components/ui";
+import { ServerTimeBanner, OfflineIndicator } from "@/components/ui";
 import {
   supabaseConfigError,
   getStorageStatus,
   storageProbePromise,
   subscribeToStorageStatus,
 } from "@/lib/supabase";
+import { persistOptions } from "@/lib/queryPersister";
 import { queryRetryFn, mutationRetryFn } from "@/lib/queryRetry";
 import { initSentry, setUserContext } from "@/lib/sentry";
+import { useOfflineStore } from "@/stores/offlineStore";
 import { useToast } from "@/providers/ToastProvider";
 import type { Session } from "@supabase/supabase-js";
 
@@ -192,10 +201,13 @@ const configErrorStyles = StyleSheet.create({
 });
 
 // Create a client
+// GUARDRAIL 2: Maintain current retry policies
+// gcTime must be >= maxAge for persistence to work properly
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 1000 * 60 * 5, // 5 minutes
+      gcTime: 1000 * 60 * 60 * 24, // 24 hours (>= maxAge for persistence)
       retry: queryRetryFn, // Smart retry: skips auth/RLS errors
     },
     mutations: {
@@ -232,6 +244,13 @@ function RootLayoutNav() {
   // Track if we've shown storage warning for this session
   const storageWarningShown = useRef(false);
 
+  // GUARDRAIL 3: Network status monitoring
+  const { isConnected } = useNetworkStatus();
+
+  // GUARDRAIL 3: Offline queue state
+  const processQueue = useOfflineStore((s) => s.processQueue);
+  const queueLength = useOfflineStore((s) => s.queue.length);
+
   useProtectedRoute(session, isLoading);
 
   // Update Sentry user context on auth state change
@@ -242,6 +261,15 @@ function RootLayoutNav() {
       setUserContext(null);
     }
   }, [session?.user?.id]);
+
+  // GUARDRAIL 3: Process offline queue when authenticated and online
+  useEffect(() => {
+    if (session?.user?.id && isConnected && queueLength > 0) {
+      processQueue().catch((error) => {
+        console.error("[RootLayout] Queue processing failed:", error);
+      });
+    }
+  }, [session?.user?.id, isConnected, queueLength, processQueue]);
 
   // Check storage status and warn if degraded (once per login)
   useEffect(() => {
@@ -280,7 +308,7 @@ function RootLayoutNav() {
     }
   }, [session]);
 
-  // Subscribe to mid-session storage degradation
+  // GUARDRAIL 1: Subscribe to mid-session storage degradation
   // This catches the case where SecureStore fails AFTER initial probe
   useEffect(() => {
     const unsubscribe = subscribeToStorageStatus((status) => {
@@ -305,7 +333,7 @@ function RootLayoutNav() {
     return unsubscribe;
   }, [showToast]);
 
-  // Enable realtime updates when logged in
+  // GUARDRAIL 4: Enable realtime updates when logged in
   useRealtimeSubscription();
 
   // Set up notification channel on mount (Android only)
@@ -329,6 +357,12 @@ function RootLayoutNav() {
       <StatusBar style={isDark ? "light" : "dark"} />
       {/* Show time sync warning when logged in and sync has failed */}
       {session && <ServerTimeBanner />}
+      {/* GUARDRAIL 5: Show offline/sync indicator when logged in */}
+      {session && (
+        <View style={styles.offlineIndicatorContainer}>
+          <OfflineIndicator />
+        </View>
+      )}
       <Stack
         screenOptions={{
           headerStyle: {
@@ -394,7 +428,7 @@ function RootLayoutNav() {
 }
 
 export default function RootLayout() {
-  // Block app if Supabase config is invalid (production error screen)
+  // GUARDRAIL 0: Block app if Supabase config is invalid (production error screen)
   if (supabaseConfigError) {
     return (
       <SafeAreaProvider>
@@ -405,7 +439,14 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <QueryClientProvider client={queryClient}>
+      {/* GUARDRAIL 0: Non-blocking hydration via PersistQueryClientProvider */}
+      <PersistQueryClientProvider
+        client={queryClient}
+        persistOptions={persistOptions}
+        onSuccess={() => {
+          console.log("[QueryPersister] Cache hydrated");
+        }}
+      >
         <AuthProvider>
           <ThemeProvider>
             <ToastProvider>
@@ -413,7 +454,7 @@ export default function RootLayout() {
             </ToastProvider>
           </ThemeProvider>
         </AuthProvider>
-      </QueryClientProvider>
+      </PersistQueryClientProvider>
     </SafeAreaProvider>
   );
 }
@@ -423,5 +464,11 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+  },
+  offlineIndicatorContainer: {
+    position: "absolute",
+    top: 50, // Below status bar
+    right: 16,
+    zIndex: 1000,
   },
 });

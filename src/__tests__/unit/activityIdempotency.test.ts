@@ -21,6 +21,26 @@ jest.mock("expo-crypto", () => ({
   randomUUID: () => require("crypto").randomUUID(),
 }));
 
+// Mock network status hook - always return online for unit tests
+jest.mock("@/hooks/useNetworkStatus", () => ({
+  checkNetworkStatus: jest.fn().mockResolvedValue(true),
+  useNetworkStatus: jest.fn(() => ({
+    isConnected: true,
+    isInternetReachable: true,
+    type: "wifi",
+  })),
+}));
+
+// Mock offline store - no-op for unit tests
+jest.mock("@/stores/offlineStore", () => ({
+  useOfflineStore: {
+    getState: jest.fn(() => ({
+      addToQueue: jest.fn(),
+      queue: [],
+    })),
+  },
+}));
+
 // Track all client_event_ids passed to the RPC
 const capturedEventIds: string[] = [];
 let rpcCallCount = 0;
@@ -253,14 +273,15 @@ describe("Activity Logging Idempotency (P1-1)", () => {
       });
 
       // Should not throw - duplicates are expected during retries
-      await expect(
-        activityService.logActivity({
-          challenge_id: "challenge-1",
-          activity_type: "steps",
-          value: 5000,
-          client_event_id: "duplicate-test-id",
-        }),
-      ).resolves.toBeUndefined();
+      // Returns { queued: false } to indicate it was processed (not queued)
+      const result = await activityService.logActivity({
+        challenge_id: "challenge-1",
+        activity_type: "steps",
+        value: 5000,
+        client_event_id: "duplicate-test-id",
+      });
+
+      expect(result).toEqual({ queued: false });
     });
   });
 });

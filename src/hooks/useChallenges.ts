@@ -1,5 +1,7 @@
 // src/hooks/useChallenges.ts
 // Challenges data hook with React Query
+//
+// GUARDRAIL 3: Optimistic updates with rollback on failure
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -8,7 +10,12 @@ import {
   PendingInvite,
   ChallengeWithParticipation,
 } from "@/services/challenges";
-import { activityService, generateClientEventId } from "@/services/activities";
+import {
+  activityService,
+  generateClientEventId,
+  LogActivityResult,
+} from "@/services/activities";
+import { useAuth } from "@/hooks/useAuth";
 import type { Challenge, ChallengeType } from "@/types/database";
 
 // =============================================================================
@@ -23,6 +30,62 @@ export const challengeKeys = {
   leaderboard: (id: string) =>
     [...challengeKeys.all, "leaderboard", id] as const,
 };
+
+// =============================================================================
+// OPTIMISTIC UPDATE HELPERS
+// =============================================================================
+
+/**
+ * Optimistically update leaderboard with new activity value.
+ *
+ * GUARDRAIL 3: Returns new array for immutable update
+ */
+function optimisticallyUpdateLeaderboard(
+  leaderboard: LeaderboardEntry[] | undefined,
+  userId: string,
+  additionalValue: number,
+): LeaderboardEntry[] {
+  if (!leaderboard) return [];
+
+  return (
+    leaderboard
+      .map((entry) => {
+        if (entry.user_id === userId) {
+          return {
+            ...entry,
+            current_progress: entry.current_progress + additionalValue,
+          };
+        }
+        return entry;
+      })
+      // Re-sort by progress (descending)
+      .sort((a, b) => b.current_progress - a.current_progress)
+      // Re-rank
+      .map((entry, index) => ({
+        ...entry,
+        rank: index + 1,
+      }))
+  );
+}
+
+/**
+ * Optimistically update challenge detail with new progress.
+ */
+function optimisticallyUpdateChallengeDetail(
+  challenge: ChallengeWithParticipation | null | undefined,
+  additionalValue: number,
+): ChallengeWithParticipation | null | undefined {
+  if (!challenge?.my_participation) return challenge;
+
+  return {
+    ...challenge,
+    my_participation: {
+      ...challenge.my_participation,
+      current_progress:
+        challenge.my_participation.current_progress + additionalValue,
+    },
+  };
+}
 
 // =============================================================================
 // HOOKS
@@ -130,7 +193,9 @@ export function useInviteUser() {
 }
 
 /**
- * Respond to a challenge invite
+ * Respond to a challenge invite with optimistic updates.
+ *
+ * GUARDRAIL 3: Optimistic UI with rollback
  */
 export function useRespondToInvite() {
   const queryClient = useQueryClient();
@@ -140,16 +205,58 @@ export function useRespondToInvite() {
       challenge_id: string;
       response: "accepted" | "declined";
     }) => challengeService.respondToInvite(input),
-    onSuccess: () => {
-      // Invalidate both pending and active lists
+
+    // GUARDRAIL 3: Optimistic update - remove from pending immediately
+    onMutate: async (variables) => {
+      await queryClient.cancelQueries({ queryKey: challengeKeys.pending() });
+
+      const previousInvites = queryClient.getQueryData<PendingInvite[]>(
+        challengeKeys.pending(),
+      );
+
+      // Optimistically remove the invite
+      queryClient.setQueryData<PendingInvite[]>(
+        challengeKeys.pending(),
+        (old) =>
+          old?.filter(
+            (invite) => invite.challenge.id !== variables.challenge_id,
+          ) ?? [],
+      );
+
+      return { previousInvites };
+    },
+
+    // GUARDRAIL 3: Rollback on error
+    onError: (error, variables, context) => {
+      console.warn(
+        "[useRespondToInvite] Rolling back optimistic update:",
+        error,
+      );
+      if (context?.previousInvites) {
+        queryClient.setQueryData(
+          challengeKeys.pending(),
+          context.previousInvites,
+        );
+      }
+    },
+
+    onSuccess: (_, variables) => {
+      // If accepted, also invalidate active challenges
+      if (variables.response === "accepted") {
+        queryClient.invalidateQueries({ queryKey: challengeKeys.active() });
+      }
+    },
+
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: challengeKeys.pending() });
-      queryClient.invalidateQueries({ queryKey: challengeKeys.active() });
     },
   });
 }
 
 /**
- * Log activity for a challenge
+ * Log activity for a challenge with optimistic updates.
+ *
+ * GUARDRAIL 3: Optimistic UI with rollback
  * CONTRACT: Uses atomic RPC function with idempotency key
  *
  * IMPORTANT: client_event_id must be generated ONCE at the call site before
@@ -158,6 +265,7 @@ export function useRespondToInvite() {
  */
 export function useLogActivity() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   return useMutation({
     mutationFn: async (input: {
@@ -165,16 +273,89 @@ export function useLogActivity() {
       activity_type: ChallengeType;
       value: number;
       client_event_id: string;
-    }) => {
-      await activityService.logActivity(input);
+    }): Promise<LogActivityResult> => {
+      return activityService.logActivity(input);
     },
-    onSuccess: (_, variables) => {
-      // Invalidate challenge detail and leaderboard to reflect new progress
-      queryClient.invalidateQueries({
+
+    // GUARDRAIL 3: Optimistic update before network request
+    onMutate: async (variables) => {
+      const userId = user?.id;
+      if (!userId) return {};
+
+      // Cancel outgoing refetches to prevent race conditions
+      await queryClient.cancelQueries({
+        queryKey: challengeKeys.leaderboard(variables.challenge_id),
+      });
+      await queryClient.cancelQueries({
         queryKey: challengeKeys.detail(variables.challenge_id),
       });
+
+      // Snapshot previous values for rollback
+      const previousLeaderboard = queryClient.getQueryData<LeaderboardEntry[]>(
+        challengeKeys.leaderboard(variables.challenge_id),
+      );
+      const previousDetail =
+        queryClient.getQueryData<ChallengeWithParticipation | null>(
+          challengeKeys.detail(variables.challenge_id),
+        );
+
+      // Optimistically update leaderboard
+      if (previousLeaderboard) {
+        queryClient.setQueryData(
+          challengeKeys.leaderboard(variables.challenge_id),
+          optimisticallyUpdateLeaderboard(
+            previousLeaderboard,
+            userId,
+            variables.value,
+          ),
+        );
+      }
+
+      // Optimistically update challenge detail
+      if (previousDetail) {
+        queryClient.setQueryData(
+          challengeKeys.detail(variables.challenge_id),
+          optimisticallyUpdateChallengeDetail(previousDetail, variables.value),
+        );
+      }
+
+      // Return context for rollback
+      return { previousLeaderboard, previousDetail };
+    },
+
+    // GUARDRAIL 3: Rollback on error
+    onError: (error, variables, context) => {
+      console.warn("[useLogActivity] Rolling back optimistic update:", error);
+
+      if (context?.previousLeaderboard) {
+        queryClient.setQueryData(
+          challengeKeys.leaderboard(variables.challenge_id),
+          context.previousLeaderboard,
+        );
+      }
+
+      if (context?.previousDetail) {
+        queryClient.setQueryData(
+          challengeKeys.detail(variables.challenge_id),
+          context.previousDetail,
+        );
+      }
+    },
+
+    // Always refetch after mutation settles (success or error)
+    onSettled: (data, error, variables) => {
+      // If queued, don't invalidate yet - will happen on sync
+      if (data?.queued) {
+        console.log("[useLogActivity] Activity queued for offline sync");
+        return;
+      }
+
+      // Invalidate to get server-authoritative data
       queryClient.invalidateQueries({
         queryKey: challengeKeys.leaderboard(variables.challenge_id),
+      });
+      queryClient.invalidateQueries({
+        queryKey: challengeKeys.detail(variables.challenge_id),
       });
     },
   });

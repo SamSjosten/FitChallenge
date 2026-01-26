@@ -1,9 +1,13 @@
 // src/services/activities.ts
 // Activity logging service - all writes via atomic RPC function
+//
+// GUARDRAIL 3: Falls back to queue if offline
 
 import { SupabaseClient } from "@supabase/supabase-js";
 import { getSupabaseClient, withAuth } from "@/lib/supabase";
 import { validate, logActivitySchema } from "@/lib/validation";
+import { checkNetworkStatus } from "@/hooks/useNetworkStatus";
+import { useOfflineStore } from "@/stores/offlineStore";
 import type { ActivityLog, Database } from "@/types/database";
 
 type LogActivityArgs = Database["public"]["Functions"]["log_activity"]["Args"];
@@ -16,6 +20,11 @@ export interface ActivitySummary {
   total_value: number;
   count: number;
   last_recorded_at: string | null;
+}
+
+/** Result of logActivity indicating whether it was queued for later */
+export interface LogActivityResult {
+  queued: boolean;
 }
 
 // Re-export generateClientEventId for backward compatibility
@@ -40,6 +49,21 @@ function toNumber(value: unknown, fallback = 0): number {
   return fallback;
 }
 
+/**
+ * Check if an error is a network-related error worth queuing for retry.
+ */
+function isNetworkError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const message = error.message.toLowerCase();
+  return (
+    message.includes("network") ||
+    message.includes("fetch") ||
+    message.includes("timeout") ||
+    message.includes("econnreset") ||
+    message.includes("enotfound")
+  );
+}
+
 // =============================================================================
 // SERVICE
 // =============================================================================
@@ -52,10 +76,31 @@ export const activityService = {
    * CONTRACT: Must include client_event_id for idempotency
    * CONTRACT: Function handles insert + aggregation atomically
    * CONTRACT: Server time enforced - client cannot specify recorded_at
+   *
+   * GUARDRAIL 3: Falls back to offline queue if network unavailable
    */
-  async logActivity(input: unknown): Promise<void> {
+  async logActivity(input: unknown): Promise<LogActivityResult> {
     const validated = validate(logActivitySchema, input);
 
+    // Check network before attempting
+    const isOnline = await checkNetworkStatus();
+
+    if (!isOnline) {
+      // Queue for later
+      useOfflineStore.getState().addToQueue({
+        type: "LOG_ACTIVITY",
+        payload: {
+          challenge_id: validated.challenge_id,
+          activity_type: validated.activity_type,
+          value: validated.value,
+          client_event_id: validated.client_event_id,
+        },
+      });
+
+      return { queued: true };
+    }
+
+    // Online: attempt direct execution
     return withAuth(async () => {
       // Patch 2: Enforce server time for manual activity logs.
       // - Ignore any client-provided recorded_at unless explicitly trusted (manual is NOT trusted).
@@ -70,14 +115,35 @@ export const activityService = {
         // p_recorded_at intentionally omitted
       };
 
-      const { error } = await getSupabaseClient().rpc("log_activity", args);
+      try {
+        const { error } = await getSupabaseClient().rpc("log_activity", args);
 
-      if (error) {
-        // Idempotency: duplicate key errors are safe to ignore
-        if (error.message?.includes("duplicate") || error.code === "23505") {
-          console.log("Activity already logged (idempotent)");
-          return;
+        if (error) {
+          // Idempotency: duplicate key errors are safe to ignore
+          if (error.message?.includes("duplicate") || error.code === "23505") {
+            console.log("Activity already logged (idempotent)");
+            return { queued: false };
+          }
+          throw error;
         }
+
+        return { queued: false };
+      } catch (error) {
+        // Network error during request - queue it
+        if (isNetworkError(error)) {
+          useOfflineStore.getState().addToQueue({
+            type: "LOG_ACTIVITY",
+            payload: {
+              challenge_id: validated.challenge_id,
+              activity_type: validated.activity_type,
+              value: validated.value,
+              client_event_id: validated.client_event_id,
+            },
+          });
+
+          return { queued: true };
+        }
+
         throw error;
       }
     });

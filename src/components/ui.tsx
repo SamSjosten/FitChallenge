@@ -19,6 +19,9 @@ export { Toast, type ToastVariant, type ToastProps } from "./Toast";
 // Re-export ServerTimeBanner
 export { ServerTimeBanner } from "./ServerTimeBanner";
 
+// Re-export OfflineIndicator
+export { OfflineIndicator } from "./OfflineIndicator";
+
 import {
   StyleProp,
   TouchableOpacity,
