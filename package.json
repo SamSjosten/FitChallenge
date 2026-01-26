@@ -18,7 +18,18 @@
     "test:integration:critical": "jest --selectProjects integration --testPathPatterns=critical",
     "test:integration:full": "jest --selectProjects integration",
     "test:all": "jest",
-    "test:ci": "jest --selectProjects unit component component-integration && jest --selectProjects integration --testPathPatterns=critical"
+    "test:ci": "jest --selectProjects unit component component-integration && jest --selectProjects integration --testPathPatterns=critical",
+    "e2e:seed": "npx ts-node e2e/scripts/seed-users.ts",
+    "e2e:build:ios": "detox build --configuration ios.sim.debug",
+    "e2e:build:ios:release": "detox build --configuration ios.sim.release",
+    "e2e:build:android": "detox build --configuration android.emu.debug",
+    "e2e:build:android:release": "detox build --configuration android.emu.release",
+    "e2e:test:ios": "detox test --configuration ios.sim.debug",
+    "e2e:test:ios:release": "detox test --configuration ios.sim.release",
+    "e2e:test:android": "detox test --configuration android.emu.debug",
+    "e2e:test:android:release": "detox test --configuration android.emu.release",
+    "e2e:smoke:ios": "detox test --configuration ios.sim.debug --testNamePattern 'Happy Path'",
+    "e2e:smoke:android": "detox test --configuration android.emu.debug --testNamePattern 'Happy Path'"
   },
   "dependencies": {
     "@expo-google-fonts/plus-jakarta-sans": "^0.4.2",
@@ -71,6 +82,8 @@
     "@types/jest": "^30.0.0",
     "@types/react": "~19.1.10",
     "babel-plugin-module-resolver": "^5.0.2",
+    "detox": "^20.47.0",
+    "detox-cli": "^20.47.0",
     "jest": "^30.2.0",
     "jest-environment-jsdom": "^30.2.0",
     "jest-expo": "~54.0.0",

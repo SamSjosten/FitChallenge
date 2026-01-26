@@ -21,6 +21,7 @@ import {
   ProgressBar,
   Badge,
 } from "@/components/ui";
+import { TestIDs } from "@/constants/testIDs";
 import { ChevronRightIcon } from "react-native-heroicons/outline";
 import { TrophyIcon as TrophyIconSolid } from "react-native-heroicons/solid";
 
@@ -62,6 +63,7 @@ export default function ChallengesScreen() {
 
   return (
     <ScreenContainer
+      testID={TestIDs.screens.challenges}
       onRefresh={handleRefresh}
       edges={["top"]}
       header={<ScreenHeader title="Challenges" />}

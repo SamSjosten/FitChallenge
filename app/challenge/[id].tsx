@@ -40,6 +40,7 @@ import {
   getStatusLabel,
 } from "@/lib/challengeStatus";
 import { getServerNow, syncServerTime } from "@/lib/serverTime";
+import { TestIDs } from "@/constants/testIDs";
 import {
   ChevronLeftIcon,
   PlusIcon,
@@ -217,7 +218,10 @@ export default function ChallengeDetailScreen() {
   );
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background }}>
+    <View
+      testID={TestIDs.screens.challengeDetail}
+      style={{ flex: 1, backgroundColor: colors.background }}
+    >
       <ScrollView
         contentContainerStyle={{ paddingBottom: 100 }}
         refreshControl={
@@ -241,6 +245,7 @@ export default function ChallengeDetailScreen() {
         >
           {/* Back Button */}
           <TouchableOpacity
+            testID={TestIDs.nav.backButton}
             style={{
               flexDirection: "row",
               alignItems: "center",
@@ -381,6 +386,7 @@ export default function ChallengeDetailScreen() {
 
           {leaderboard && leaderboard.length > 0 ? (
             <View
+              testID={TestIDs.challengeDetail.leaderboardSection}
               style={{
                 backgroundColor: colors.surface,
                 borderRadius: radius.card,
@@ -390,9 +396,17 @@ export default function ChallengeDetailScreen() {
             >
               {leaderboard.map((entry, index) => {
                 const isMe = entry.user_id === profile?.id;
+                const username = entry.profile.username;
                 return (
                   <View
                     key={entry.user_id}
+                    testID={
+                      isMe
+                        ? TestIDs.challengeDetail.leaderboardEntryHighlighted(
+                            username,
+                          )
+                        : TestIDs.challengeDetail.leaderboardEntry(index)
+                    }
                     style={{
                       flexDirection: "row",
                       alignItems: "center",
@@ -470,6 +484,7 @@ export default function ChallengeDetailScreen() {
             </View>
           ) : myInviteStatus === "pending" ? (
             <View
+              testID={TestIDs.challengeDetail.leaderboardLocked}
               style={{
                 backgroundColor: colors.surface,
                 borderRadius: radius.card,
@@ -502,6 +517,7 @@ export default function ChallengeDetailScreen() {
             style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.xl }}
           >
             <TouchableOpacity
+              testID={TestIDs.challengeDetail.logActivityButton}
               style={{
                 flexDirection: "row",
                 alignItems: "center",
@@ -533,6 +549,7 @@ export default function ChallengeDetailScreen() {
             style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md }}
           >
             <TouchableOpacity
+              testID={TestIDs.challengeDetail.inviteButton}
               style={{
                 flexDirection: "row",
                 alignItems: "center",
@@ -605,6 +622,7 @@ export default function ChallengeDetailScreen() {
           }}
         >
           <View
+            testID={TestIDs.logActivity.modal}
             style={{
               backgroundColor: colors.surface,
               borderRadius: radius.modal,
@@ -648,6 +666,7 @@ export default function ChallengeDetailScreen() {
               ({challenge.goal_unit})
             </Text>
             <TextInput
+              testID={TestIDs.logActivity.valueInput}
               style={{
                 backgroundColor: colors.background,
                 borderRadius: radius.input,
@@ -670,6 +689,7 @@ export default function ChallengeDetailScreen() {
 
             <View style={{ flexDirection: "row", gap: spacing.sm }}>
               <TouchableOpacity
+                testID={TestIDs.logActivity.cancelButton}
                 style={{
                   flex: 1,
                   backgroundColor: "transparent",
@@ -695,6 +715,7 @@ export default function ChallengeDetailScreen() {
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
+                testID={TestIDs.logActivity.submitButton}
                 style={{
                   flex: 1,
                   backgroundColor: colors.primary.main,
@@ -737,6 +758,7 @@ export default function ChallengeDetailScreen() {
           }}
         >
           <View
+            testID={TestIDs.invite.modal}
             style={{
               backgroundColor: colors.surface,
               borderRadius: radius.modal,
@@ -762,6 +784,7 @@ export default function ChallengeDetailScreen() {
                 Invite Friends
               </Text>
               <TouchableOpacity
+                testID={TestIDs.invite.closeButton}
                 onPress={() => {
                   setShowInviteModal(false);
                   setSearchQuery("");
@@ -795,6 +818,7 @@ export default function ChallengeDetailScreen() {
               >
                 <MagnifyingGlassIcon size={18} color={colors.textMuted} />
                 <TextInput
+                  testID={TestIDs.invite.searchInput}
                   style={{
                     flex: 1,
                     fontSize: typography.fontSize.base,
@@ -810,6 +834,7 @@ export default function ChallengeDetailScreen() {
                 />
               </View>
               <TouchableOpacity
+                testID={TestIDs.invite.searchButton}
                 style={{
                   backgroundColor: colors.primary.main,
                   paddingHorizontal: spacing.lg,

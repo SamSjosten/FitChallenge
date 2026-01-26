@@ -5,8 +5,10 @@
 import React from "react";
 import { Tabs, router } from "expo-router";
 import { View, Pressable, Text, Platform } from "react-native";
+import { BottomTabBarButtonProps } from "@react-navigation/bottom-tabs";
 import { useUnreadNotificationCount } from "@/hooks/useNotifications";
 import { useAppTheme } from "@/providers/ThemeProvider";
+import { TestIDs } from "@/constants/testIDs";
 import {
   HomeIcon,
   TrophyIcon,
@@ -66,6 +68,36 @@ function TabIcon({
   );
 }
 
+// Custom tab bar button wrapper with testID support
+function TabBarButton({
+  testID,
+  props,
+}: {
+  testID: string;
+  props: BottomTabBarButtonProps;
+}) {
+  const { children, onPress, accessibilityState, style } = props;
+
+  return (
+    <Pressable
+      testID={testID}
+      onPress={onPress}
+      style={[
+        style,
+        {
+          flex: 1,
+          alignItems: "center",
+          justifyContent: "center",
+        },
+      ]}
+      accessibilityRole="button"
+      accessibilityState={accessibilityState}
+    >
+      {children}
+    </Pressable>
+  );
+}
+
 // Notification bell for header
 function NotificationBell() {
   const { colors } = useAppTheme();
@@ -73,6 +105,7 @@ function NotificationBell() {
 
   return (
     <Pressable
+      testID={TestIDs.nav.notificationBell}
       style={{
         marginRight: 16,
         position: "relative",
@@ -83,6 +116,7 @@ function NotificationBell() {
       <BellIcon size={22} color={colors.textSecondary} />
       {unreadCount !== undefined && unreadCount > 0 && (
         <View
+          testID={TestIDs.nav.notificationBadge}
           style={{
             position: "absolute",
             top: 4,
@@ -124,6 +158,7 @@ function CreateButton() {
       }}
     >
       <Pressable
+        testID={TestIDs.nav.createChallengeFab}
         style={({ pressed }) => ({
           width: 56,
           height: 56,
@@ -183,6 +218,9 @@ export default function TabLayout() {
         name="index"
         options={{
           title: "Home",
+          tabBarButton: (props) => (
+            <TabBarButton testID={TestIDs.nav.tabHome} props={props} />
+          ),
           tabBarIcon: ({ focused, color }) => (
             <TabIcon name="home" focused={focused} color={color} />
           ),
@@ -193,6 +231,9 @@ export default function TabLayout() {
         name="challenges"
         options={{
           title: "Compete",
+          tabBarButton: (props) => (
+            <TabBarButton testID={TestIDs.nav.tabChallenges} props={props} />
+          ),
           tabBarIcon: ({ focused, color }) => (
             <TabIcon name="compete" focused={focused} color={color} />
           ),
@@ -216,6 +257,9 @@ export default function TabLayout() {
         name="friends"
         options={{
           title: "Friends",
+          tabBarButton: (props) => (
+            <TabBarButton testID={TestIDs.nav.tabFriends} props={props} />
+          ),
           tabBarIcon: ({ focused, color }) => (
             <TabIcon name="friends" focused={focused} color={color} />
           ),
@@ -226,6 +270,9 @@ export default function TabLayout() {
         name="profile"
         options={{
           title: "Profile",
+          tabBarButton: (props) => (
+            <TabBarButton testID={TestIDs.nav.tabProfile} props={props} />
+          ),
           tabBarIcon: ({ focused, color }) => (
             <TabIcon name="profile" focused={focused} color={color} />
           ),

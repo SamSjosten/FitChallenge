@@ -319,6 +319,7 @@ interface CardProps {
   style?: StyleProp<ViewStyle>;
   onPress?: () => void;
   elevated?: boolean;
+  testID?: string;
 }
 
 export function Card({
@@ -326,12 +327,14 @@ export function Card({
   style,
   onPress,
   elevated = false,
+  testID,
 }: CardProps) {
   const { colors, shadows: themeShadows } = useTheme();
   const Wrapper = onPress ? TouchableOpacity : View;
 
   return (
     <Wrapper
+      testID={testID}
       style={[
         {
           backgroundColor: colors.surface,

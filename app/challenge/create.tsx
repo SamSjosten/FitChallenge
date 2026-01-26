@@ -21,6 +21,7 @@ import { useCreateChallenge } from "@/hooks/useChallenges";
 import { useAppTheme } from "@/providers/ThemeProvider";
 import { pushTokenService } from "@/services/pushTokens";
 import { getServerNow } from "@/lib/serverTime";
+import { TestIDs } from "@/constants/testIDs";
 import { ChevronLeftIcon, XMarkIcon } from "react-native-heroicons/outline";
 import type { ChallengeType } from "@/types/database";
 
@@ -109,7 +110,7 @@ export default function CreateChallengeScreen() {
 
   const handleDateChange = (
     event: DateTimePickerEvent,
-    selectedDate?: Date
+    selectedDate?: Date,
   ) => {
     if (Platform.OS === "android") {
       setShowDatePicker(false);
@@ -128,7 +129,7 @@ export default function CreateChallengeScreen() {
 
   const handleTimeChange = (
     event: DateTimePickerEvent,
-    selectedTime?: Date
+    selectedTime?: Date,
   ) => {
     if (Platform.OS === "android") {
       setShowTimePicker(false);
@@ -202,7 +203,7 @@ export default function CreateChallengeScreen() {
       Alert.alert(
         "Challenge Created! 🎉",
         `Your challenge is ready, ${startMsg}. Invite friends to join!`,
-        [{ text: "OK", onPress: () => router.back() }]
+        [{ text: "OK", onPress: () => router.back() }],
       );
     } catch (err: any) {
       setError(err.message || "Failed to create challenge");
@@ -213,6 +214,7 @@ export default function CreateChallengeScreen() {
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: colors.background }}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
+      testID={TestIDs.screens.createChallenge}
     >
       <ScrollView
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: 100 }}
@@ -255,6 +257,7 @@ export default function CreateChallengeScreen() {
           Challenge Title
         </Text>
         <TextInput
+          testID={TestIDs.createChallenge.titleInput}
           style={{
             backgroundColor: colors.surface,
             borderRadius: radius.input,
@@ -333,6 +336,7 @@ export default function CreateChallengeScreen() {
             return (
               <TouchableOpacity
                 key={type.value}
+                testID={`challenge-type-${type.value}`}
                 style={{
                   width: "48%",
                   backgroundColor: isSelected
@@ -441,6 +445,7 @@ export default function CreateChallengeScreen() {
           Goal ({displayUnit})
         </Text>
         <TextInput
+          testID={TestIDs.createChallenge.goalInput}
           style={{
             backgroundColor: colors.surface,
             borderRadius: radius.input,
@@ -700,6 +705,11 @@ export default function CreateChallengeScreen() {
             return (
               <TouchableOpacity
                 key={preset.value}
+                testID={
+                  preset.value === 0
+                    ? TestIDs.createChallenge.durationCustom
+                    : `duration-${preset.value}`
+                }
                 style={{
                   flex: 1,
                   paddingVertical: spacing.sm,
@@ -867,6 +877,7 @@ export default function CreateChallengeScreen() {
 
         {/* Create Button */}
         <TouchableOpacity
+          testID={TestIDs.createChallenge.createButton}
           style={{
             backgroundColor: colors.primary.main,
             borderRadius: radius.button,
@@ -890,6 +901,7 @@ export default function CreateChallengeScreen() {
 
         {/* Cancel */}
         <TouchableOpacity
+          testID={TestIDs.createChallenge.cancelButton}
           style={{
             backgroundColor: "transparent",
             borderWidth: 1,

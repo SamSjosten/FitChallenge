@@ -63,6 +63,11 @@ interface ScreenContainerProps {
   children: ReactNode;
 
   /**
+   * Test ID for E2E testing
+   */
+  testID?: string;
+
+  /**
    * Whether to wrap content in ScrollView
    * @default true
    */
@@ -122,6 +127,7 @@ interface ScreenContainerProps {
 
 export function ScreenContainer({
   children,
+  testID,
   scrollable = true,
   onRefresh,
   edges = ["top"],
@@ -206,6 +212,7 @@ export function ScreenContainer({
 
   return (
     <SafeAreaView
+      testID={testID}
       edges={edges}
       style={[styles.container, { backgroundColor: colors.background }, style]}
     >

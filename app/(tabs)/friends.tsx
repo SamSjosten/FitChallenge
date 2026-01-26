@@ -32,6 +32,7 @@ import {
   Avatar,
 } from "@/components/ui";
 import { useAppTheme } from "@/providers/ThemeProvider";
+import { TestIDs } from "@/constants/testIDs";
 import {
   MagnifyingGlassIcon,
   ChevronRightIcon,
@@ -69,7 +70,7 @@ export default function FriendsScreen() {
     React.useCallback(() => {
       refetchFriends();
       refetchRequests();
-    }, [refetchFriends, refetchRequests])
+    }, [refetchFriends, refetchRequests]),
   );
 
   const handleRefresh = async () => {
@@ -84,10 +85,10 @@ export default function FriendsScreen() {
       // Filter out existing friends and pending requests
       const friendIds = new Set(friends?.map((f) => f.friend_profile.id) || []);
       const pendingIds = new Set(
-        pendingRequests?.map((r) => r.requester.id) || []
+        pendingRequests?.map((r) => r.requester.id) || [],
       );
       setSearchResults(
-        results.filter((r) => !friendIds.has(r.id) && !pendingIds.has(r.id))
+        results.filter((r) => !friendIds.has(r.id) && !pendingIds.has(r.id)),
       );
     } catch (err) {
       console.error("Search failed:", err);
@@ -139,7 +140,7 @@ export default function FriendsScreen() {
             }
           },
         },
-      ]
+      ],
     );
   };
 
@@ -150,6 +151,7 @@ export default function FriendsScreen() {
   return (
     <>
       <ScreenContainer
+        testID={TestIDs.screens.friends}
         onRefresh={handleRefresh}
         edges={["top"]}
         header={<ScreenHeader title="Friends" />}
@@ -171,6 +173,7 @@ export default function FriendsScreen() {
           >
             <MagnifyingGlassIcon size={18} color={colors.textMuted} />
             <TextInput
+              testID={TestIDs.friends.searchInput}
               style={{
                 flex: 1,
                 fontSize: typography.fontSize.base,
@@ -401,14 +404,14 @@ export default function FriendsScreen() {
                             handleRemoveFriend(friend.id, friendName),
                         },
                         { text: "Cancel", style: "cancel" },
-                      ]
+                      ],
                     );
                   }}
                   onLongPress={() =>
                     handleRemoveFriend(
                       friend.id,
                       friend.friend_profile.display_name ||
-                        friend.friend_profile.username
+                        friend.friend_profile.username,
                     )
                   }
                 >
@@ -467,6 +470,7 @@ export default function FriendsScreen() {
         {/* Add Friend Button */}
         <ScreenSection style={{ paddingTop: spacing.xl }}>
           <TouchableOpacity
+            testID={TestIDs.friends.addFriendButton}
             style={{
               flexDirection: "row",
               alignItems: "center",

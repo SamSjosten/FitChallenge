@@ -28,6 +28,7 @@ import {
   LoadingScreen,
 } from "@/components/ui";
 import { useAppTheme } from "@/providers/ThemeProvider";
+import { TestIDs } from "@/constants/testIDs";
 import { Cog6ToothIcon, XMarkIcon } from "react-native-heroicons/outline";
 
 export default function ProfileScreen() {
@@ -110,12 +111,14 @@ export default function ProfileScreen() {
   return (
     <>
       <ScreenContainer
+        testID={TestIDs.screens.profile}
         edges={["top"]}
         header={
           <ScreenHeader
             title="Profile"
             rightAction={
               <TouchableOpacity
+                testID={TestIDs.profile.settingsButton}
                 style={{ padding: spacing.sm }}
                 onPress={() => router.push("/settings")}
               >
@@ -358,6 +361,7 @@ export default function ProfileScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
+            testID={TestIDs.settings.signOutButton}
             style={{
               backgroundColor: colors.error,
               borderRadius: radius.card,

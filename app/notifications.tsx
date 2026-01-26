@@ -17,6 +17,7 @@ import {
 } from "@/hooks/useNotifications";
 import { LoadingScreen, EmptyState } from "@/components/ui";
 import { useAppTheme } from "@/providers/ThemeProvider";
+import { TestIDs } from "@/constants/testIDs";
 import { BellIcon } from "react-native-heroicons/outline";
 
 export default function NotificationsScreen() {
@@ -71,6 +72,7 @@ export default function NotificationsScreen() {
         }}
       />
       <ScrollView
+        testID={TestIDs.screens.notifications}
         style={{ flex: 1, backgroundColor: colors.background }}
         contentContainerStyle={{ padding: spacing.lg }}
         refreshControl={

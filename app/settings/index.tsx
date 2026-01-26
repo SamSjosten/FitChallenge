@@ -17,6 +17,7 @@ import {
 } from "react-native-heroicons/outline";
 import { useAppTheme } from "@/providers/ThemeProvider";
 import { useAuth } from "@/hooks/useAuth";
+import { TestIDs } from "@/constants/testIDs";
 
 export default function SettingsScreen() {
   const { colors, spacing, radius, typography, shadows } = useAppTheme();
@@ -69,7 +70,10 @@ export default function SettingsScreen() {
   ];
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+    <SafeAreaView
+      testID={TestIDs.screens.settings}
+      style={{ flex: 1, backgroundColor: colors.background }}
+    >
       {/* Header */}
       <View
         style={{
@@ -164,6 +168,7 @@ export default function SettingsScreen() {
 
         {/* Sign Out Button */}
         <TouchableOpacity
+          testID={TestIDs.settings.signOutButton}
           onPress={handleSignOut}
           style={{
             marginTop: spacing.xl,

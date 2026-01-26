@@ -14,6 +14,7 @@ import {
 import { Link, router } from "expo-router";
 import { useAuth } from "@/hooks/useAuth";
 import { useAppTheme } from "@/providers/ThemeProvider";
+import { TestIDs } from "@/constants/testIDs";
 
 export default function SignupScreen() {
   const { colors, spacing, radius, typography } = useAppTheme();
@@ -74,6 +75,7 @@ export default function SignupScreen() {
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: colors.background }}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
+      testID={TestIDs.screens.signup}
     >
       <ScrollView
         contentContainerStyle={{
@@ -118,6 +120,7 @@ export default function SignupScreen() {
             Username
           </Text>
           <TextInput
+            testID={TestIDs.auth.usernameInput}
             style={{
               backgroundColor: colors.surface,
               borderRadius: radius.input,
@@ -139,6 +142,7 @@ export default function SignupScreen() {
           />
           {fieldErrors.username && (
             <Text
+              testID={TestIDs.auth.usernameError}
               style={{
                 fontSize: typography.fontSize.xs,
                 fontFamily: "PlusJakartaSans_500Medium",
@@ -162,6 +166,7 @@ export default function SignupScreen() {
             Email
           </Text>
           <TextInput
+            testID={TestIDs.auth.emailInput}
             style={{
               backgroundColor: colors.surface,
               borderRadius: radius.input,
@@ -184,6 +189,7 @@ export default function SignupScreen() {
           />
           {fieldErrors.email && (
             <Text
+              testID={TestIDs.auth.emailError}
               style={{
                 fontSize: typography.fontSize.xs,
                 fontFamily: "PlusJakartaSans_500Medium",
@@ -207,6 +213,7 @@ export default function SignupScreen() {
             Password
           </Text>
           <TextInput
+            testID={TestIDs.auth.passwordInput}
             style={{
               backgroundColor: colors.surface,
               borderRadius: radius.input,
@@ -240,6 +247,7 @@ export default function SignupScreen() {
           )}
           {fieldErrors.password && (
             <Text
+              testID={TestIDs.auth.passwordError}
               style={{
                 fontSize: typography.fontSize.xs,
                 fontFamily: "PlusJakartaSans_500Medium",
@@ -253,6 +261,7 @@ export default function SignupScreen() {
 
           {displayError && (
             <Text
+              testID={TestIDs.auth.signupError}
               style={{
                 fontSize: typography.fontSize.sm,
                 fontFamily: "PlusJakartaSans_500Medium",
@@ -266,6 +275,7 @@ export default function SignupScreen() {
           )}
 
           <TouchableOpacity
+            testID={TestIDs.auth.signUpButton}
             style={{
               backgroundColor: colors.primary.main,
               borderRadius: radius.button,
@@ -300,7 +310,7 @@ export default function SignupScreen() {
             Already have an account?{" "}
           </Text>
           <Link href="/(auth)/login" asChild>
-            <TouchableOpacity>
+            <TouchableOpacity testID={TestIDs.auth.signInLink}>
               <Text
                 style={{
                   fontSize: typography.fontSize.sm,

@@ -14,6 +14,7 @@ import {
 import { Link, router } from "expo-router";
 import { useAuth } from "@/hooks/useAuth";
 import { useAppTheme } from "@/providers/ThemeProvider";
+import { TestIDs } from "@/constants/testIDs";
 
 export default function LoginScreen() {
   const { colors, spacing, radius, typography } = useAppTheme();
@@ -49,6 +50,7 @@ export default function LoginScreen() {
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: colors.background }}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
+      testID={TestIDs.screens.login}
     >
       <ScrollView
         contentContainerStyle={{
@@ -93,6 +95,7 @@ export default function LoginScreen() {
             Email
           </Text>
           <TextInput
+            testID={TestIDs.auth.emailInput}
             style={{
               backgroundColor: colors.surface,
               borderRadius: radius.input,
@@ -126,6 +129,7 @@ export default function LoginScreen() {
             Password
           </Text>
           <TextInput
+            testID={TestIDs.auth.passwordInput}
             style={{
               backgroundColor: colors.surface,
               borderRadius: radius.input,
@@ -147,6 +151,7 @@ export default function LoginScreen() {
 
           {displayError && (
             <Text
+              testID={TestIDs.auth.loginError}
               style={{
                 fontSize: typography.fontSize.sm,
                 fontFamily: "PlusJakartaSans_500Medium",
@@ -160,6 +165,7 @@ export default function LoginScreen() {
           )}
 
           <TouchableOpacity
+            testID={TestIDs.auth.signInButton}
             style={{
               backgroundColor: colors.primary.main,
               borderRadius: radius.button,
@@ -194,7 +200,7 @@ export default function LoginScreen() {
             Don't have an account?{" "}
           </Text>
           <Link href="/(auth)/signup" asChild>
-            <TouchableOpacity>
+            <TouchableOpacity testID={TestIDs.auth.signUpLink}>
               <Text
                 style={{
                   fontSize: typography.fontSize.sm,
