@@ -92,13 +92,13 @@ jobs:
       # --- Supabase Setup (using real Supabase project) ---
       - name: Create .env for E2E
         run: |
-          echo "EXPO_PUBLIC_SUPABASE_URL=${{ secrets.SUPABASE_URL }}" > .env
-          echo "EXPO_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}" >> .env
+          echo "EXPO_PUBLIC_SUPABASE_URL=${{ secrets.TEST_SUPABASE_URL }}" > .env
+          echo "EXPO_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.TEST_SUPABASE_ANON_KEY }}" >> .env
 
       - name: Seed E2E test users
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_URL: ${{ secrets.TEST_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.TEST_SUPABASE_SERVICE_ROLE_KEY }}
         run: npm run e2e:seed
 
       # --- iOS Build ---
@@ -210,13 +210,13 @@ jobs:
       # --- Supabase Setup (using real Supabase project) ---
       - name: Create .env for E2E
         run: |
-          echo "EXPO_PUBLIC_SUPABASE_URL=${{ secrets.SUPABASE_URL }}" > .env
-          echo "EXPO_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}" >> .env
+          echo "EXPO_PUBLIC_SUPABASE_URL=${{ secrets.TEST_SUPABASE_URL }}" > .env
+          echo "EXPO_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.TEST_SUPABASE_ANON_KEY }}" >> .env
 
       - name: Seed E2E test users
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_URL: ${{ secrets.TEST_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.TEST_SUPABASE_SERVICE_ROLE_KEY }}
         run: npm run e2e:seed
 
       # --- Android Build ---
