@@ -3,8 +3,6 @@
 #
 # Schedule: Nightly at 4am UTC (after full integration tests at 3am)
 # Manual: Can be triggered via workflow_dispatch
-#
-# Uses Supabase cloud test branch for isolation.
 
 name: E2E Tests
 
@@ -72,16 +70,39 @@ jobs:
       - name: Install Detox CLI
         run: npm install -g detox-cli
 
+      # --- Supabase Setup ---
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Start Supabase Local
+        id: supabase-start
+        run: |
+          supabase start
+          supabase db reset
+          echo "started=true" >> $GITHUB_OUTPUT
+
+      - name: Get Supabase credentials
+        id: supabase
+        run: |
+          echo "url=http://127.0.0.1:54321" >> $GITHUB_OUTPUT
+          JSON=$(supabase status --output json)
+          ANON_KEY=$(echo "$JSON" | jq -r '.anon_key // .ANON_KEY // empty')
+          SERVICE_KEY=$(echo "$JSON" | jq -r '.service_role_key // .SERVICE_ROLE_KEY // empty')
+          echo "anon_key=${ANON_KEY}" >> $GITHUB_OUTPUT
+          echo "service_role_key=${SERVICE_KEY}" >> $GITHUB_OUTPUT
+
       - name: Seed E2E test users
         env:
-          SUPABASE_URL: ${{ secrets.TEST_SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.TEST_SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_URL: ${{ steps.supabase.outputs.url }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ steps.supabase.outputs.service_role_key }}
         run: npm run e2e:seed
 
       - name: Create .env for E2E
         run: |
-          echo "EXPO_PUBLIC_SUPABASE_URL=${{ secrets.TEST_SUPABASE_URL }}" > .env
-          echo "EXPO_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.TEST_SUPABASE_ANON_KEY }}" >> .env
+          echo "EXPO_PUBLIC_SUPABASE_URL=${{ steps.supabase.outputs.url }}" > .env
+          echo "EXPO_PUBLIC_SUPABASE_ANON_KEY=${{ steps.supabase.outputs.anon_key }}" >> .env
 
       # --- iOS Build ---
       - name: Setup Ruby (for CocoaPods)
@@ -108,7 +129,18 @@ jobs:
         working-directory: ios
         run: pod install --repo-update
 
+      - name: Create Sentry properties
+        run: |
+          cat > ios/sentry.properties << EOF
+          defaults.org=${{ secrets.SENTRY_ORG }}
+          defaults.project=${{ secrets.SENTRY_PROJECT }}
+          defaults.url=https://sentry.io/
+          auth.token=${{ secrets.SENTRY_AUTH_TOKEN }}
+          EOF
+
       - name: Build iOS app (Release)
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
         run: detox build --configuration ios.sim.release
 
       # --- Run Tests ---
@@ -140,6 +172,10 @@ jobs:
           path: |
             e2e/.artifacts/
           retention-days: 7
+
+      - name: Stop Supabase
+        if: always() && steps.supabase-start.outputs.started == 'true'
+        run: supabase stop || true
 
   # ===========================================================================
   # Android E2E Tests
@@ -177,16 +213,39 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
+      # --- Supabase Setup ---
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Start Supabase Local
+        id: supabase-start
+        run: |
+          supabase start
+          supabase db reset
+          echo "started=true" >> $GITHUB_OUTPUT
+
+      - name: Get Supabase credentials
+        id: supabase
+        run: |
+          echo "url=http://127.0.0.1:54321" >> $GITHUB_OUTPUT
+          JSON=$(supabase status --output json)
+          ANON_KEY=$(echo "$JSON" | jq -r '.anon_key // .ANON_KEY // empty')
+          SERVICE_KEY=$(echo "$JSON" | jq -r '.service_role_key // .SERVICE_ROLE_KEY // empty')
+          echo "anon_key=${ANON_KEY}" >> $GITHUB_OUTPUT
+          echo "service_role_key=${SERVICE_KEY}" >> $GITHUB_OUTPUT
+
       - name: Seed E2E test users
         env:
-          SUPABASE_URL: ${{ secrets.TEST_SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.TEST_SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_URL: ${{ steps.supabase.outputs.url }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ steps.supabase.outputs.service_role_key }}
         run: npm run e2e:seed
 
       - name: Create .env for E2E
         run: |
-          echo "EXPO_PUBLIC_SUPABASE_URL=${{ secrets.TEST_SUPABASE_URL }}" > .env
-          echo "EXPO_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.TEST_SUPABASE_ANON_KEY }}" >> .env
+          echo "EXPO_PUBLIC_SUPABASE_URL=${{ steps.supabase.outputs.url }}" > .env
+          echo "EXPO_PUBLIC_SUPABASE_ANON_KEY=${{ steps.supabase.outputs.anon_key }}" >> .env
 
       # --- Android Build ---
       - name: Prebuild Android
@@ -205,7 +264,18 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
+      - name: Create Sentry properties
+        run: |
+          cat > android/sentry.properties << EOF
+          defaults.org=${{ secrets.SENTRY_ORG }}
+          defaults.project=${{ secrets.SENTRY_PROJECT }}
+          defaults.url=https://sentry.io/
+          auth.token=${{ secrets.SENTRY_AUTH_TOKEN }}
+          EOF
+
       - name: Build Android app (Release)
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
         run: detox build --configuration android.emu.release
 
       # --- Run Tests ---
@@ -255,6 +325,10 @@ jobs:
           path: |
             e2e/.artifacts/
           retention-days: 7
+
+      - name: Stop Supabase
+        if: always() && steps.supabase-start.outputs.started == 'true'
+        run: supabase stop || true
 
   # ===========================================================================
   # Summary Job
