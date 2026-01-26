@@ -30,6 +30,27 @@ jest.mock("react-native", () => ({
   },
 }));
 
+// Mock react-native-get-random-values (polyfills crypto.getRandomValues)
+jest.mock("react-native-get-random-values", () => {
+  // Polyfill crypto.getRandomValues for tests
+  if (typeof global.crypto === "undefined") {
+    (global as any).crypto = {};
+  }
+  if (typeof global.crypto.getRandomValues !== "function") {
+    (global.crypto as any).getRandomValues = <T extends ArrayBufferView>(
+      array: T,
+    ): T => {
+      if (array instanceof Uint8Array) {
+        for (let i = 0; i < array.length; i++) {
+          array[i] = Math.floor(Math.random() * 256);
+        }
+      }
+      return array;
+    };
+  }
+  return {};
+});
+
 // Track storage operation results
 let secureStoreWorks = true;
 let asyncStorageWorks = true;
@@ -64,17 +85,6 @@ jest.mock("@react-native-async-storage/async-storage", () => ({
   removeItem: jest.fn(async (key: string) => {
     if (!asyncStorageWorks) throw new Error("AsyncStorage unavailable");
     mockAsyncStorage.delete(key);
-  }),
-}));
-
-// Mock expo-crypto for encryption
-jest.mock("expo-crypto", () => ({
-  getRandomBytesAsync: jest.fn(async (length: number) => {
-    const bytes = new Uint8Array(length);
-    for (let i = 0; i < length; i++) {
-      bytes[i] = (i * 17 + 42) % 256;
-    }
-    return bytes;
   }),
 }));
 

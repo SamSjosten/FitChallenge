@@ -6,6 +6,10 @@
 // GUARDRAIL 2: Query persistence with selective caching
 // GUARDRAIL 3: Offline queue processing
 
+// CRITICAL: This polyfill must be imported BEFORE any module that uses crypto.getRandomValues
+// It provides the global crypto.getRandomValues for React Native
+import "react-native-get-random-values";
+
 import React, { useEffect, useRef } from "react";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { QueryClient } from "@tanstack/react-query";
@@ -38,10 +42,10 @@ import { initSentry, setUserContext } from "@/lib/sentry";
 import { useOfflineStore } from "@/stores/offlineStore";
 import { useToast } from "@/providers/ToastProvider";
 import type { Session } from "@supabase/supabase-js";
-import * as Sentry from '@sentry/react-native';
+import * as Sentry from "@sentry/react-native";
 
 Sentry.init({
-  dsn: 'https://5355753a2ebdf238435764f54c6b1f57@o4510739478478848.ingest.us.sentry.io/4510739480576000',
+  dsn: "https://5355753a2ebdf238435764f54c6b1f57@o4510739478478848.ingest.us.sentry.io/4510739480576000",
 
   // Adds more context data to events (IP address, cookies, user, etc.)
   // For more information, visit: https://docs.sentry.io/platforms/react-native/data-management/data-collected/
@@ -53,7 +57,10 @@ Sentry.init({
   // Configure Session Replay
   replaysSessionSampleRate: 0.1,
   replaysOnErrorSampleRate: 1,
-  integrations: [Sentry.mobileReplayIntegration(), Sentry.feedbackIntegration()],
+  integrations: [
+    Sentry.mobileReplayIntegration(),
+    Sentry.feedbackIntegration(),
+  ],
 
   // uncomment the line below to enable Spotlight (https://spotlightjs.com)
   // spotlight: __DEV__,

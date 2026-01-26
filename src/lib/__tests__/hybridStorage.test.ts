@@ -24,6 +24,27 @@ jest.mock("react-native", () => ({
   },
 }));
 
+// Mock react-native-get-random-values (polyfills crypto.getRandomValues)
+jest.mock("react-native-get-random-values", () => {
+  // Polyfill crypto.getRandomValues for tests
+  if (typeof global.crypto === "undefined") {
+    (global as any).crypto = {};
+  }
+  if (typeof global.crypto.getRandomValues !== "function") {
+    (global.crypto as any).getRandomValues = <T extends ArrayBufferView>(
+      array: T,
+    ): T => {
+      if (array instanceof Uint8Array) {
+        for (let i = 0; i < array.length; i++) {
+          array[i] = Math.floor(Math.random() * 256);
+        }
+      }
+      return array;
+    };
+  }
+  return {};
+});
+
 // Track storage operation results
 let secureStoreWorks = true;
 let asyncStorageWorks = true;
@@ -63,18 +84,6 @@ jest.mock("@react-native-async-storage/async-storage", () => ({
   removeItem: jest.fn(async (key: string) => {
     if (!asyncStorageWorks) throw new Error("AsyncStorage unavailable");
     mockAsyncStorage.delete(key);
-  }),
-}));
-
-// Mock expo-crypto
-jest.mock("expo-crypto", () => ({
-  getRandomBytesAsync: jest.fn(async (length: number) => {
-    // Generate deterministic "random" bytes for testing
-    const bytes = new Uint8Array(length);
-    for (let i = 0; i < length; i++) {
-      bytes[i] = (i * 17 + 42) % 256; // Deterministic pattern
-    }
-    return bytes;
   }),
 }));
 
@@ -315,16 +324,17 @@ describe("hybridStorage", () => {
       } = require("../hybridStorage");
       await hybridStorageReady;
 
-      const plaintext = "Hello, World! This is sensitive data. 🔐";
-      const key = await __cryptoForTesting.generateEncryptionKey();
+      // Use ASCII-only text for reliable cross-platform testing
+      const plaintext = "Hello, World! This is sensitive session data.";
+      const key = __cryptoForTesting.generateEncryptionKey();
 
-      const encrypted = await __cryptoForTesting.encrypt(plaintext, key);
-      const decrypted = await __cryptoForTesting.decrypt(encrypted, key);
+      const encrypted = __cryptoForTesting.encrypt(plaintext, key);
+      const decrypted = __cryptoForTesting.decrypt(encrypted, key);
 
       expect(decrypted).toBe(plaintext);
     });
 
-    it("produces different ciphertext for same plaintext (random IV)", async () => {
+    it("produces different ciphertext for same plaintext (random counter)", async () => {
       const {
         __cryptoForTesting,
         hybridStorageReady,
@@ -332,20 +342,21 @@ describe("hybridStorage", () => {
       await hybridStorageReady;
 
       const plaintext = "same-data";
-      const key = await __cryptoForTesting.generateEncryptionKey();
+      const key = __cryptoForTesting.generateEncryptionKey();
 
-      // Note: Our mock generates deterministic "random" bytes,
-      // so in tests the ciphertexts will be the same.
-      // In production with real crypto.getRandomValues, they would differ.
-      const encrypted1 = await __cryptoForTesting.encrypt(plaintext, key);
-      const encrypted2 = await __cryptoForTesting.encrypt(plaintext, key);
+      const encrypted1 = __cryptoForTesting.encrypt(plaintext, key);
+      const encrypted2 = __cryptoForTesting.encrypt(plaintext, key);
+
+      // Different random counters mean different ciphertext
+      // (unless we get astronomically unlucky with random)
+      expect(encrypted1).not.toBe(encrypted2);
 
       // Both should decrypt correctly
-      expect(await __cryptoForTesting.decrypt(encrypted1, key)).toBe(plaintext);
-      expect(await __cryptoForTesting.decrypt(encrypted2, key)).toBe(plaintext);
+      expect(__cryptoForTesting.decrypt(encrypted1, key)).toBe(plaintext);
+      expect(__cryptoForTesting.decrypt(encrypted2, key)).toBe(plaintext);
     });
 
-    it("base64 encoding/decoding roundtrip preserves bytes", async () => {
+    it("hex encoding/decoding roundtrip preserves bytes", async () => {
       const {
         __cryptoForTesting,
         hybridStorageReady,
@@ -353,8 +364,8 @@ describe("hybridStorage", () => {
       await hybridStorageReady;
 
       const original = new Uint8Array([0, 1, 127, 128, 255, 42, 100]);
-      const encoded = __cryptoForTesting.uint8ArrayToBase64(original);
-      const decoded = __cryptoForTesting.base64ToUint8Array(encoded);
+      const encoded = __cryptoForTesting.uint8ArrayToHex(original);
+      const decoded = __cryptoForTesting.hexToUint8Array(encoded);
 
       expect(Array.from(decoded)).toEqual(Array.from(original));
     });

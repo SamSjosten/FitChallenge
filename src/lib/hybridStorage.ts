@@ -5,19 +5,21 @@
 // Solution: Store encryption key in SecureStore (small), encrypted payload in AsyncStorage
 //
 // Security model:
-// - Encryption key (32 bytes + metadata ≈ 100 bytes) stored in SecureStore (Keychain/Keystore)
+// - Encryption key (32 bytes = 256-bit AES key) stored in SecureStore (Keychain/Keystore)
 // - Encrypted session payload stored in AsyncStorage (no size limit)
-// - AES-GCM encryption via expo-crypto / Web Crypto API
+// - AES-256-CTR encryption via aes-js (pure JavaScript, React Native compatible)
+// - Random counter for each encryption (stored with ciphertext)
 // - Key rotation on each new session (login)
 //
 // Fallback chain:
 // - If SecureStore unavailable: AsyncStorage unencrypted (with UI warning)
 // - If AsyncStorage unavailable: Memory only (session-only)
 
+import "react-native-get-random-values"; // Must be imported before aes-js for crypto.getRandomValues
 import { Platform } from "react-native";
 import * as SecureStore from "expo-secure-store";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import * as ExpoCrypto from "expo-crypto";
+import * as aesjs from "aes-js";
 
 // =============================================================================
 // TYPES
@@ -59,10 +61,11 @@ const LEGACY_PREFIX = "sb-"; // Supabase's default key prefix for migration
 const PROBE_KEY = "__fitchallenge_hybrid_probe__";
 const PROBE_VALUE = "probe_test";
 
-// Encryption constants
-const KEY_LENGTH = 32; // 256-bit key for AES-256-GCM
-const IV_LENGTH = 12; // 96-bit IV for GCM (NIST recommended)
-const TAG_LENGTH = 128; // 128-bit auth tag
+// AES-256 key length (32 bytes = 256 bits)
+const KEY_LENGTH = 32;
+
+// CTR counter length (16 bytes for AES block size)
+const COUNTER_LENGTH = 16;
 
 // Failure thresholds
 const FAILURE_THRESHOLD = 2;
@@ -90,188 +93,95 @@ export const hybridStorageReady: Promise<HybridStorageStatus> = new Promise(
 );
 
 // =============================================================================
-// CRYPTO UTILITIES
+// CRYPTO UTILITIES (AES-256-CTR via aes-js)
 // =============================================================================
 
 /**
- * Generate a cryptographically secure random key
+ * Generate a cryptographically secure random key (256-bit for AES-256)
  */
-async function generateEncryptionKey(): Promise<Uint8Array> {
+function generateEncryptionKey(): Uint8Array {
   const key = new Uint8Array(KEY_LENGTH);
-
-  // Try expo-crypto first (React Native)
-  if (typeof ExpoCrypto?.getRandomBytes === "function") {
-    const randomBytes = await ExpoCrypto.getRandomBytesAsync(KEY_LENGTH);
-    key.set(new Uint8Array(randomBytes));
-    return key;
-  }
-
-  // Fall back to Web Crypto API
-  if (
-    typeof crypto !== "undefined" &&
-    typeof crypto.getRandomValues === "function"
-  ) {
-    crypto.getRandomValues(key);
-    return key;
-  }
-
-  throw new Error("No secure random source available for key generation");
+  // crypto.getRandomValues is polyfilled by react-native-get-random-values
+  crypto.getRandomValues(key);
+  return key;
 }
 
 /**
- * Generate a random IV for encryption
+ * Generate a random counter/nonce for CTR mode
  */
-async function generateIV(): Promise<Uint8Array> {
-  const iv = new Uint8Array(IV_LENGTH);
-
-  if (typeof ExpoCrypto?.getRandomBytes === "function") {
-    const randomBytes = await ExpoCrypto.getRandomBytesAsync(IV_LENGTH);
-    iv.set(new Uint8Array(randomBytes));
-    return iv;
-  }
-
-  if (
-    typeof crypto !== "undefined" &&
-    typeof crypto.getRandomValues === "function"
-  ) {
-    crypto.getRandomValues(iv);
-    return iv;
-  }
-
-  throw new Error("No secure random source available for IV generation");
+function generateCounter(): Uint8Array {
+  const counter = new Uint8Array(COUNTER_LENGTH);
+  crypto.getRandomValues(counter);
+  return counter;
 }
 
 /**
- * Convert Uint8Array to base64 string
+ * Convert Uint8Array to hex string
  */
-function uint8ArrayToBase64(bytes: Uint8Array): string {
-  // Use Buffer in Node.js/React Native, btoa in browser
-  if (typeof Buffer !== "undefined") {
-    return Buffer.from(bytes).toString("base64");
-  }
-
-  // Browser fallback
-  let binary = "";
-  for (let i = 0; i < bytes.length; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return btoa(binary);
+function uint8ArrayToHex(bytes: Uint8Array): string {
+  return aesjs.utils.hex.fromBytes(bytes);
 }
 
 /**
- * Convert base64 string to Uint8Array
+ * Convert hex string to Uint8Array
  */
-function base64ToUint8Array(base64: string): Uint8Array {
-  if (typeof Buffer !== "undefined") {
-    return new Uint8Array(Buffer.from(base64, "base64"));
-  }
-
-  // Browser fallback
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  return bytes;
+function hexToUint8Array(hex: string): Uint8Array {
+  return aesjs.utils.hex.toBytes(hex);
 }
 
 /**
- * Encrypt plaintext using AES-GCM
- * Returns base64-encoded string: IV (12 bytes) + ciphertext + tag
+ * Encrypt plaintext using AES-256-CTR
+ * Returns hex string: counter (32 hex chars = 16 bytes) + ciphertext
  */
-async function encrypt(
-  plaintext: string,
-  keyBytes: Uint8Array,
-): Promise<string> {
-  const iv = await generateIV();
+function encrypt(plaintext: string, keyBytes: Uint8Array): string {
+  // Convert plaintext to bytes using TextEncoder for proper UTF-8 handling
   const encoder = new TextEncoder();
-  const data = encoder.encode(plaintext);
+  const textBytes = encoder.encode(plaintext);
 
-  // Import key for Web Crypto
-  // Convert Uint8Array to ArrayBuffer for strict TypeScript compatibility
-  const keyBuffer = keyBytes.buffer.slice(
-    keyBytes.byteOffset,
-    keyBytes.byteOffset + keyBytes.byteLength,
-  ) as ArrayBuffer;
+  // Generate random counter for this encryption
+  const counter = generateCounter();
 
-  const cryptoKey = await crypto.subtle.importKey(
-    "raw",
-    keyBuffer,
-    { name: "AES-GCM" },
-    false,
-    ["encrypt"],
+  // Create AES-CTR cipher
+  const aesCtr = new aesjs.ModeOfOperation.ctr(
+    keyBytes,
+    new aesjs.Counter(counter),
   );
-
-  // Convert IV to ArrayBuffer for strict TypeScript compatibility
-  const ivBuffer = iv.buffer.slice(
-    iv.byteOffset,
-    iv.byteOffset + iv.byteLength,
-  ) as ArrayBuffer;
 
   // Encrypt
-  const ciphertext = await crypto.subtle.encrypt(
-    { name: "AES-GCM", iv: ivBuffer, tagLength: TAG_LENGTH },
-    cryptoKey,
-    data,
-  );
+  const encryptedBytes = aesCtr.encrypt(textBytes);
 
-  // Combine IV + ciphertext (tag is appended by Web Crypto)
-  const combined = new Uint8Array(iv.length + ciphertext.byteLength);
-  combined.set(iv, 0);
-  combined.set(new Uint8Array(ciphertext), iv.length);
+  // Combine counter + ciphertext as hex
+  const counterHex = uint8ArrayToHex(counter);
+  const ciphertextHex = uint8ArrayToHex(encryptedBytes);
 
-  return uint8ArrayToBase64(combined);
+  return counterHex + ciphertextHex;
 }
 
 /**
- * Decrypt ciphertext using AES-GCM
- * Expects base64-encoded string: IV (12 bytes) + ciphertext + tag
+ * Decrypt ciphertext using AES-256-CTR
+ * Expects hex string: counter (32 hex chars) + ciphertext
  */
-async function decrypt(
-  encryptedBase64: string,
-  keyBytes: Uint8Array,
-): Promise<string> {
-  const combined = base64ToUint8Array(encryptedBase64);
+function decrypt(encryptedHex: string, keyBytes: Uint8Array): string {
+  // Extract counter (first 32 hex chars = 16 bytes)
+  const counterHex = encryptedHex.slice(0, COUNTER_LENGTH * 2);
+  const ciphertextHex = encryptedHex.slice(COUNTER_LENGTH * 2);
 
-  // Extract IV and ciphertext
-  const iv = combined.slice(0, IV_LENGTH);
-  const ciphertext = combined.slice(IV_LENGTH);
+  // Convert from hex
+  const counter = hexToUint8Array(counterHex);
+  const ciphertext = hexToUint8Array(ciphertextHex);
 
-  // Convert Uint8Array to ArrayBuffer for strict TypeScript compatibility
-  const keyBuffer = keyBytes.buffer.slice(
-    keyBytes.byteOffset,
-    keyBytes.byteOffset + keyBytes.byteLength,
-  ) as ArrayBuffer;
-
-  // Import key for Web Crypto
-  const cryptoKey = await crypto.subtle.importKey(
-    "raw",
-    keyBuffer,
-    { name: "AES-GCM" },
-    false,
-    ["decrypt"],
+  // Create AES-CTR cipher with same counter
+  const aesCtr = new aesjs.ModeOfOperation.ctr(
+    keyBytes,
+    new aesjs.Counter(counter),
   );
-
-  // Convert IV and ciphertext to ArrayBuffer for strict TypeScript compatibility
-  const ivBuffer = iv.buffer.slice(
-    iv.byteOffset,
-    iv.byteOffset + iv.byteLength,
-  ) as ArrayBuffer;
-
-  const ciphertextBuffer = ciphertext.buffer.slice(
-    ciphertext.byteOffset,
-    ciphertext.byteOffset + ciphertext.byteLength,
-  ) as ArrayBuffer;
 
   // Decrypt
-  const decrypted = await crypto.subtle.decrypt(
-    { name: "AES-GCM", iv: ivBuffer, tagLength: TAG_LENGTH },
-    cryptoKey,
-    ciphertextBuffer,
-  );
+  const decryptedBytes = aesCtr.decrypt(ciphertext);
 
+  // Convert back to string using TextDecoder for proper UTF-8 handling
   const decoder = new TextDecoder();
-  return decoder.decode(decrypted);
+  return decoder.decode(decryptedBytes);
 }
 
 // =============================================================================
@@ -416,7 +326,7 @@ async function migrateLegacySession(
 // =============================================================================
 
 /**
- * Store a value using hybrid encrypted storage
+ * Store a value using hybrid AES-encrypted storage
  */
 async function setItemHybridEncrypted(
   key: string,
@@ -425,31 +335,31 @@ async function setItemHybridEncrypted(
   const encKeyName = getEncKeyName(key);
   const payloadKeyName = getPayloadKeyName(key);
 
-  // Generate new encryption key
-  const encKey = await generateEncryptionKey();
-  const encKeyBase64 = uint8ArrayToBase64(encKey);
+  // Generate new encryption key (256-bit for AES-256)
+  const encKey = generateEncryptionKey();
+  const encKeyHex = uint8ArrayToHex(encKey);
 
-  // Encrypt the value
-  const encrypted = await encrypt(value, encKey);
+  // Encrypt the value using AES-256-CTR
+  const encrypted = encrypt(value, encKey);
 
   // Store encrypted payload first (if this fails, no key is stored)
   await AsyncStorage.setItem(payloadKeyName, encrypted);
 
   // Store encryption key in SecureStore
-  // This is small (~64 bytes base64) so well under 2KB limit
-  await SecureStore.setItemAsync(encKeyName, encKeyBase64);
+  // Key is 64 hex chars (32 bytes), well under 2KB limit
+  await SecureStore.setItemAsync(encKeyName, encKeyHex);
 }
 
 /**
- * Retrieve a value from hybrid encrypted storage
+ * Retrieve a value from hybrid AES-encrypted storage
  */
 async function getItemHybridEncrypted(key: string): Promise<string | null> {
   const encKeyName = getEncKeyName(key);
   const payloadKeyName = getPayloadKeyName(key);
 
   // Get encryption key from SecureStore
-  const encKeyBase64 = await SecureStore.getItemAsync(encKeyName);
-  if (!encKeyBase64) {
+  const encKeyHex = await SecureStore.getItemAsync(encKeyName);
+  if (!encKeyHex) {
     // No key means no data (or data was cleared)
     return null;
   }
@@ -467,9 +377,9 @@ async function getItemHybridEncrypted(key: string): Promise<string | null> {
     return null;
   }
 
-  // Decrypt
-  const encKey = base64ToUint8Array(encKeyBase64);
-  return await decrypt(encrypted, encKey);
+  // Decrypt using AES-256-CTR
+  const encKey = hexToUint8Array(encKeyHex);
+  return decrypt(encrypted, encKey);
 }
 
 /**
@@ -600,7 +510,7 @@ async function startInitialization(): Promise<void> {
 
     // Log status
     if (status.mode === "hybrid-encrypted") {
-      console.log("[HybridStorage] Using hybrid encrypted storage");
+      console.log("[HybridStorage] Using AES-256-CTR encrypted storage");
     } else if (status.isPersistent) {
       console.warn(
         `[HybridStorage] Using ${status.mode}: ${status.error || "no encryption"}`,
@@ -733,8 +643,8 @@ async function demoteToUnencrypted(
  *
  * This adapter:
  * 1. Waits for initialization before any operation
- * 2. Uses hybrid encrypted storage when available
- * 3. Falls back gracefully on errors
+ * 2. Uses AES-256-CTR encrypted storage when available
+ * 3. Falls back gracefully: async-unencrypted → memory
  * 4. Migrates legacy sessions automatically
  */
 export function createHybridStorageAdapter(): StorageAdapter {
@@ -896,12 +806,12 @@ export function __getMemoryStorageForTesting(): Map<string, string> {
 }
 
 /**
- * Export encryption utilities for testing - FOR TESTING ONLY
+ * Export crypto utilities for testing - FOR TESTING ONLY
  */
 export const __cryptoForTesting = {
   encrypt,
   decrypt,
   generateEncryptionKey,
-  uint8ArrayToBase64,
-  base64ToUint8Array,
+  uint8ArrayToHex,
+  hexToUint8Array,
 };
