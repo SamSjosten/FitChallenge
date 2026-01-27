@@ -46,16 +46,32 @@ env:
 
 jobs:
   # ===========================================================================
-  # iOS E2E Tests
+  # iOS E2E Tests (Matrix - Multiple Devices)
   # ===========================================================================
   e2e-ios:
-    name: E2E Tests (iOS)
+    name: E2E Tests (iOS - ${{ matrix.device.name }})
     runs-on: macos-15 # M1 Mac for faster iOS builds
     if: |
       github.event_name == 'schedule' ||
       github.event.inputs.platform == 'ios' ||
       github.event.inputs.platform == 'both'
     timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        device:
+          - name: "iPhone 17 Pro Max"
+            simulator: "iPhone 17 Pro Max"
+            config: "ios.sim.release.iphone17promax"
+          - name: "iPhone 17"
+            simulator: "iPhone 17"
+            config: "ios.sim.release.iphone17"
+          - name: "iPhone SE"
+            simulator: "iPhone SE (3rd generation)"
+            config: "ios.sim.release.iphonese"
+          - name: "iPhone 14"
+            simulator: "iPhone 14"
+            config: "ios.sim.release.iphone14"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -91,6 +107,10 @@ jobs:
           bundler-cache: true
 
       - name: Prebuild iOS
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
         run: |
           npx expo prebuild --platform ios --clean
           echo "Prebuild complete. Checking ios directory..."
@@ -109,26 +129,30 @@ jobs:
         run: pod install --repo-update
 
       - name: Build iOS app (Release)
-        run: detox build --configuration ios.sim.release
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+        run: detox build --configuration ${{ matrix.device.config }}
 
       # --- Run Tests ---
       - name: Boot iOS Simulator
         run: |
-          xcrun simctl boot "iPhone 15" || true
-          xcrun simctl bootstatus "iPhone 15" -b
+          xcrun simctl boot "${{ matrix.device.simulator }}" || true
+          xcrun simctl bootstatus "${{ matrix.device.simulator }}" -b
 
-      - name: Run E2E tests (iOS)
+      - name: Run E2E tests (iOS - ${{ matrix.device.name }})
         env:
           E2E_TEST_SUITE: ${{ github.event.inputs.test_suite || 'all' }}
         run: |
           if [ "$E2E_TEST_SUITE" = "smoke" ]; then
-            detox test --configuration ios.sim.release --testNamePattern "Happy Path"
+            detox test --configuration ${{ matrix.device.config }} --testNamePattern "Happy Path"
           elif [ "$E2E_TEST_SUITE" = "auth" ]; then
-            detox test --configuration ios.sim.release e2e/auth.e2e.ts
+            detox test --configuration ${{ matrix.device.config }} e2e/auth.e2e.ts
           elif [ "$E2E_TEST_SUITE" = "challenges" ]; then
-            detox test --configuration ios.sim.release e2e/challenge-creation.e2e.ts e2e/activity-flow.e2e.ts e2e/invite-flow.e2e.ts
+            detox test --configuration ${{ matrix.device.config }} e2e/challenge-creation.e2e.ts e2e/activity-flow.e2e.ts e2e/invite-flow.e2e.ts
           else
-            detox test --configuration ios.sim.release
+            detox test --configuration ${{ matrix.device.config }}
           fi
 
       # --- Cleanup ---
@@ -136,7 +160,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: e2e-ios-artifacts
+          name: e2e-ios-${{ matrix.device.name }}-artifacts
           path: |
             e2e/.artifacts/
           retention-days: 7
@@ -190,6 +214,10 @@ jobs:
 
       # --- Android Build ---
       - name: Prebuild Android
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
         run: |
           npx expo prebuild --platform android --clean
           echo "Prebuild complete. Checking android directory..."
@@ -206,6 +234,10 @@ jobs:
             ${{ runner.os }}-gradle-
 
       - name: Build Android app (Release)
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
         run: detox build --configuration android.emu.release
 
       # --- Run Tests ---

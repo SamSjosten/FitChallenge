@@ -40,10 +40,29 @@ module.exports = {
     },
   },
   devices: {
+    // iOS Simulators - various screen sizes
+    "iphone.17.pro.max": {
+      type: "ios.simulator",
+      device: { type: "iPhone 17 Pro Max" }, // largest
+    },
+    "iphone.17": {
+      type: "ios.simulator",
+      device: { type: "iPhone 17" }, // standard
+    },
+    "iphone.se": {
+      type: "ios.simulator",
+      device: { type: "iPhone SE (3rd generation)" }, // smallest
+    },
+    "iphone.14": {
+      type: "ios.simulator",
+      device: { type: "iPhone 14" }, // previous gen
+    },
+    // Default simulator (for local dev)
     simulator: {
       type: "ios.simulator",
-      device: { type: "iPhone 15" },
+      device: { type: "iPhone 17" },
     },
+    // Android Emulator
     emulator: {
       type: "android.emulator",
       device: { avdName: "Pixel_4_API_34" },
@@ -59,7 +78,7 @@ module.exports = {
       device: "emulator",
       app: "android.debug",
     },
-    // Release configurations - for CI
+    // Release configurations - for CI (default device)
     "ios.sim.release": {
       device: "simulator",
       app: "ios.release",
@@ -67,6 +86,23 @@ module.exports = {
     "android.emu.release": {
       device: "emulator",
       app: "android.release",
+    },
+    // Release configurations - for CI matrix (specific devices)
+    "ios.sim.release.iphone17promax": {
+      device: "iphone.17.pro.max",
+      app: "ios.release",
+    },
+    "ios.sim.release.iphone17": {
+      device: "iphone.17",
+      app: "ios.release",
+    },
+    "ios.sim.release.iphonese": {
+      device: "iphone.se",
+      app: "ios.release",
+    },
+    "ios.sim.release.iphone14": {
+      device: "iphone.14",
+      app: "ios.release",
     },
   },
   // Artifacts configuration for debugging failures
