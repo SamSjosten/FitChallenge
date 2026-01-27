@@ -9,7 +9,19 @@ module.exports = {
   reporters: ["detox/runners/jest/reporter"],
   testEnvironment: "detox/runners/jest/testEnvironment",
   transform: {
-    "^.+\\.(ts|tsx)$": "ts-jest",
+    "^.+\\.(ts|tsx)$": [
+      "ts-jest",
+      {
+        tsconfig: "<rootDir>/tsconfig.json",
+      },
+    ],
+  },
+  moduleNameMapper: {
+    "^@/(.*)$": "<rootDir>/src/$1",
   },
   verbose: true,
+  // Retry failed tests once (helps with flaky device tests)
+  testRetries: 1,
+  // Report slow tests
+  slowTestThreshold: 30,
 };
