@@ -18,7 +18,13 @@
       "bundleIdentifier": "com.yourcompany.fitchallenge",
       "usesAppleSignIn": true,
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSHealthShareUsageDescription": "FitChallenge syncs your activity data to track challenge progress",
+        "NSHealthUpdateUsageDescription": "FitChallenge records your challenge activities"
+      },
+      "entitlements": {
+        "com.apple.developer.healthkit": true,
+        "com.apple.developer.healthkit.background-delivery": true
       },
       "runtimeVersion": {
         "policy": "appVersion"
