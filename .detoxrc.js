@@ -7,6 +7,7 @@ module.exports = {
     },
     jest: {
       setupTimeout: 120000,
+      retryAfterCircusRetries: 1,
     },
   },
   apps: {
@@ -41,13 +42,13 @@ module.exports = {
   },
   devices: {
     // iOS Simulators - various screen sizes
-    "iphone.17.pro.max": {
+    "iphone.16.pro.max": {
       type: "ios.simulator",
-      device: { type: "iPhone 17 Pro Max" }, // largest
+      device: { type: "iPhone 16 Pro Max" }, // largest
     },
-    "iphone.17": {
+    "iphone.16": {
       type: "ios.simulator",
-      device: { type: "iPhone 17" }, // standard
+      device: { type: "iPhone 16" }, // standard
     },
     "iphone.se": {
       type: "ios.simulator",
@@ -60,7 +61,7 @@ module.exports = {
     // Default simulator (for local dev)
     simulator: {
       type: "ios.simulator",
-      device: { type: "iPhone 17" },
+      device: { type: "iPhone 16" },
     },
     // Android Emulator
     emulator: {
@@ -88,12 +89,12 @@ module.exports = {
       app: "android.release",
     },
     // Release configurations - for CI matrix (specific devices)
-    "ios.sim.release.iphone17promax": {
-      device: "iphone.17.pro.max",
+    "ios.sim.release.iphone16promax": {
+      device: "iphone.16.pro.max",
       app: "ios.release",
     },
-    "ios.sim.release.iphone17": {
-      device: "iphone.17",
+    "ios.sim.release.iphone16": {
+      device: "iphone.16",
       app: "ios.release",
     },
     "ios.sim.release.iphonese": {

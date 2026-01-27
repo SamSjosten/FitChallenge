@@ -12,7 +12,7 @@ module.exports = {
     "^.+\\.(ts|tsx)$": [
       "ts-jest",
       {
-        tsconfig: "<rootDir>/tsconfig.json",
+        tsconfig: "<rootDir>/e2e/tsconfig.json",
       },
     ],
   },
@@ -20,8 +20,6 @@ module.exports = {
     "^@/(.*)$": "<rootDir>/src/$1",
   },
   verbose: true,
-  // Retry failed tests once (helps with flaky device tests)
-  testRetries: 1,
   // Report slow tests
   slowTestThreshold: 30,
 };
