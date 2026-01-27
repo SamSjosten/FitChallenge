@@ -39,6 +39,7 @@ import {
 import { FireIcon as FireIconSolid } from "react-native-heroicons/solid";
 import { getDaysRemaining } from "@/lib/serverTime";
 import { pushTokenService } from "@/services/pushTokens";
+import { TestIDs } from "@/constants/testIDs";
 import type { ChallengeWithParticipation } from "@/services/challenges";
 
 // =============================================================================
@@ -82,7 +83,7 @@ export default function HomeScreen() {
   const { profile } = useAuth();
   const [completedExpanded, setCompletedExpanded] = useState(false);
   const [expandedChallengeId, setExpandedChallengeId] = useState<string | null>(
-    null
+    null,
   );
 
   // Enable LayoutAnimation on Android (one-time setup)
@@ -113,7 +114,7 @@ export default function HomeScreen() {
       },
     });
     setExpandedChallengeId((prev) =>
-      prev === challengeId ? null : challengeId
+      prev === challengeId ? null : challengeId,
     );
   };
 
@@ -166,7 +167,7 @@ export default function HomeScreen() {
       refetchActive();
       refetchPending();
       refetchCompleted();
-    }, [refetchActive, refetchPending, refetchCompleted])
+    }, [refetchActive, refetchPending, refetchCompleted]),
   );
 
   const handleRefresh = async () => {
@@ -210,6 +211,7 @@ export default function HomeScreen() {
 
   return (
     <ScreenContainer
+      testID={TestIDs.screens.home}
       onRefresh={handleRefresh}
       edges={["top"]}
       header={
@@ -222,7 +224,10 @@ export default function HomeScreen() {
     >
       {/* ===== STREAK BANNER ===== */}
       <ScreenSection>
-        <TouchableOpacity activeOpacity={0.9}>
+        <TouchableOpacity
+          activeOpacity={0.9}
+          testID={TestIDs.home.streakBanner}
+        >
           <LinearGradient
             colors={[colors.energy.main, colors.energy.dark]}
             start={{ x: 0, y: 0 }}
@@ -270,6 +275,7 @@ export default function HomeScreen() {
       {pendingInvites && pendingInvites.length > 0 && (
         <ScreenSection>
           <View
+            testID={TestIDs.home.pendingInvitesSection}
             style={{
               flexDirection: "row",
               justifyContent: "space-between",
@@ -332,6 +338,7 @@ export default function HomeScreen() {
 
               <View style={{ flexDirection: "row", gap: spacing.sm }}>
                 <TouchableOpacity
+                  testID={TestIDs.home.acceptInviteButton(invite.challenge.id)}
                   style={{
                     flex: 1,
                     backgroundColor: colors.primary.main,
@@ -356,6 +363,7 @@ export default function HomeScreen() {
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
+                  testID={TestIDs.home.declineInviteButton(invite.challenge.id)}
                   style={{
                     flex: 1,
                     backgroundColor: colors.surfacePressed,
@@ -388,6 +396,7 @@ export default function HomeScreen() {
       {/* ===== ACTIVE CHALLENGES ===== */}
       <ScreenSection>
         <View
+          testID={TestIDs.home.activeChallengesSection}
           style={{
             flexDirection: "row",
             justifyContent: "space-between",
@@ -414,6 +423,7 @@ export default function HomeScreen() {
         {!activeChallenges || activeChallenges.length === 0 ? (
           // Empty state
           <Card
+            testID={TestIDs.home.emptyActiveChallenges}
             style={{ alignItems: "center", paddingVertical: spacing.xl }}
             onPress={() => router.push("/challenge/create")}
           >
@@ -574,20 +584,20 @@ function AccordionChallengeCard({
     rank === 1
       ? "#fbbf24" // gold text
       : rank === 2
-      ? "#9ca3af" // silver text
-      : rank === 3
-      ? "#cd7c2f" // bronze text
-      : colors.primary.main;
+        ? "#9ca3af" // silver text
+        : rank === 3
+          ? "#cd7c2f" // bronze text
+          : colors.primary.main;
 
   // Rank colors for badge background
   const rankBadgeColor =
     rank === 1
       ? "#d97706"
       : rank === 2
-      ? "#6b7280"
-      : rank === 3
-      ? "#a85d1e"
-      : colors.primary.main;
+        ? "#6b7280"
+        : rank === 3
+          ? "#a85d1e"
+          : colors.primary.main;
 
   return (
     <View
@@ -789,10 +799,10 @@ function CompletedChallengeRow({
     rank === 1
       ? "#fbbf24"
       : rank === 2
-      ? "#9ca3af"
-      : rank === 3
-      ? "#cd7c2f"
-      : colors.achievement.main;
+        ? "#9ca3af"
+        : rank === 3
+          ? "#cd7c2f"
+          : colors.achievement.main;
 
   return (
     <TouchableOpacity

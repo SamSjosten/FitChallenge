@@ -206,6 +206,7 @@ export default function FriendsScreen() {
               Friend Requests
             </Text>
             <View
+              testID={TestIDs.friends.pendingRequestsSection}
               style={{
                 backgroundColor: colors.surface,
                 borderRadius: radius.card,
@@ -262,6 +263,7 @@ export default function FriendsScreen() {
                   </View>
                   <View style={{ flexDirection: "row", gap: spacing.sm }}>
                     <TouchableOpacity
+                      testID={TestIDs.friends.acceptFriendButton(request.id)}
                       style={{
                         backgroundColor: colors.primary.main,
                         paddingHorizontal: spacing.md,
@@ -364,6 +366,7 @@ export default function FriendsScreen() {
             </View>
           ) : (
             <View
+              testID={TestIDs.friends.friendsList}
               style={{
                 backgroundColor: colors.surface,
                 borderRadius: radius.card,
@@ -380,6 +383,7 @@ export default function FriendsScreen() {
               {friends?.map((friend, index) => (
                 <Pressable
                   key={friend.id}
+                  testID={TestIDs.friends.friendRow(friend.id)}
                   style={{
                     flexDirection: "row",
                     alignItems: "center",

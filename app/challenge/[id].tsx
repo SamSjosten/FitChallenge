@@ -859,6 +859,7 @@ export default function ChallengeDetailScreen() {
               {searchResults.map((user) => (
                 <View
                   key={user.id}
+                  testID={TestIDs.invite.userResult(user.id)}
                   style={{
                     flexDirection: "row",
                     alignItems: "center",
@@ -890,6 +891,7 @@ export default function ChallengeDetailScreen() {
                     </Text>
                   </View>
                   <TouchableOpacity
+                    testID={TestIDs.invite.sendInviteButton(user.id)}
                     style={{
                       backgroundColor: colors.primary.main,
                       paddingHorizontal: spacing.md,
