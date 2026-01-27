@@ -1,19 +1,19 @@
 # .github/workflows/e2e.yml
 # E2E Test Workflow - Runs Detox tests on iOS and Android simulators
 #
-# Schedule: Nightly at 4am UTC (after full integration tests at 3am)
-# Manual: Can be triggered via workflow_dispatch
+# Schedule: Weekly on Sunday at 4am UTC (full matrix - all devices)
+# Manual: Can be triggered via workflow_dispatch (single device, default iPhone 17)
 #
 # Uses Supabase cloud test branch for isolation.
 
 name: E2E Tests
 
 on:
-  # Nightly run (after integration tests complete)
+  # Weekly run (full matrix - all devices)
   schedule:
-    - cron: "0 4 * * *"
+    - cron: "0 4 * * 0" # Sunday at 4am UTC
 
-  # Manual trigger with options
+  # Manual trigger with options (single device)
   workflow_dispatch:
     inputs:
       platform:
@@ -25,6 +25,16 @@ on:
           - ios
           - android
           - both
+      device:
+        description: "iOS Device to test"
+        required: true
+        default: "iPhone 17"
+        type: choice
+        options:
+          - iPhone 17
+          - iPhone 17 Pro Max
+          - iPhone SE
+          - iPhone 14
       test_suite:
         description: "Test suite to run"
         required: true
@@ -46,15 +56,12 @@ env:
 
 jobs:
   # ===========================================================================
-  # iOS E2E Tests (Matrix - Multiple Devices)
+  # iOS E2E Tests - Weekly Full Matrix (All Devices)
   # ===========================================================================
-  e2e-ios:
+  e2e-ios-matrix:
     name: E2E Tests (iOS - ${{ matrix.device.name }})
-    runs-on: macos-15 # M1 Mac for faster iOS builds
-    if: |
-      github.event_name == 'schedule' ||
-      github.event.inputs.platform == 'ios' ||
-      github.event.inputs.platform == 'both'
+    runs-on: macos-15
+    if: github.event_name == 'schedule'
     timeout-minutes: 60
     strategy:
       fail-fast: false
@@ -142,18 +149,7 @@ jobs:
           xcrun simctl bootstatus "${{ matrix.device.simulator }}" -b
 
       - name: Run E2E tests (iOS - ${{ matrix.device.name }})
-        env:
-          E2E_TEST_SUITE: ${{ github.event.inputs.test_suite || 'all' }}
-        run: |
-          if [ "$E2E_TEST_SUITE" = "smoke" ]; then
-            detox test --configuration ${{ matrix.device.config }} --testNamePattern "Happy Path"
-          elif [ "$E2E_TEST_SUITE" = "auth" ]; then
-            detox test --configuration ${{ matrix.device.config }} e2e/auth.e2e.ts
-          elif [ "$E2E_TEST_SUITE" = "challenges" ]; then
-            detox test --configuration ${{ matrix.device.config }} e2e/challenge-creation.e2e.ts e2e/activity-flow.e2e.ts e2e/invite-flow.e2e.ts
-          else
-            detox test --configuration ${{ matrix.device.config }}
-          fi
+        run: detox test --configuration ${{ matrix.device.config }}
 
       # --- Cleanup ---
       - name: Upload test artifacts
@@ -161,6 +157,133 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: e2e-ios-${{ matrix.device.name }}-artifacts
+          path: |
+            e2e/.artifacts/
+          retention-days: 7
+
+  # ===========================================================================
+  # iOS E2E Tests - Manual Single Device
+  # ===========================================================================
+  e2e-ios:
+    name: E2E Tests (iOS - ${{ github.event.inputs.device || 'iPhone 17' }})
+    runs-on: macos-15
+    if: |
+      github.event_name == 'workflow_dispatch' &&
+      (github.event.inputs.platform == 'ios' || github.event.inputs.platform == 'both')
+    timeout-minutes: 60
+    env:
+      DEVICE_NAME: ${{ github.event.inputs.device || 'iPhone 17' }}
+    steps:
+      - name: Set device config
+        id: device
+        run: |
+          case "${{ env.DEVICE_NAME }}" in
+            "iPhone 17 Pro Max")
+              echo "simulator=iPhone 17 Pro Max" >> $GITHUB_OUTPUT
+              echo "config=ios.sim.release.iphone17promax" >> $GITHUB_OUTPUT
+              ;;
+            "iPhone 17")
+              echo "simulator=iPhone 17" >> $GITHUB_OUTPUT
+              echo "config=ios.sim.release.iphone17" >> $GITHUB_OUTPUT
+              ;;
+            "iPhone SE")
+              echo "simulator=iPhone SE (3rd generation)" >> $GITHUB_OUTPUT
+              echo "config=ios.sim.release.iphonese" >> $GITHUB_OUTPUT
+              ;;
+            "iPhone 14")
+              echo "simulator=iPhone 14" >> $GITHUB_OUTPUT
+              echo "config=ios.sim.release.iphone14" >> $GITHUB_OUTPUT
+              ;;
+          esac
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Detox CLI
+        run: npm install -g detox-cli
+
+      - name: Seed E2E test users
+        env:
+          SUPABASE_URL: ${{ secrets.TEST_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.TEST_SUPABASE_SERVICE_ROLE_KEY }}
+        run: npm run e2e:seed
+
+      - name: Create .env for E2E
+        run: |
+          echo "EXPO_PUBLIC_SUPABASE_URL=${{ secrets.TEST_SUPABASE_URL }}" > .env
+          echo "EXPO_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.TEST_SUPABASE_ANON_KEY }}" >> .env
+
+      # --- iOS Build ---
+      - name: Setup Ruby (for CocoaPods)
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.2"
+          bundler-cache: true
+
+      - name: Prebuild iOS
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+        run: |
+          npx expo prebuild --platform ios --clean
+          echo "Prebuild complete. Checking ios directory..."
+          ls -la ios/
+
+      - name: Cache CocoaPods
+        uses: actions/cache@v4
+        with:
+          path: ios/Pods
+          key: ${{ runner.os }}-pods-${{ hashFiles('ios/Podfile.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pods-
+
+      - name: Install CocoaPods
+        working-directory: ios
+        run: pod install --repo-update
+
+      - name: Build iOS app (Release)
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+        run: detox build --configuration ${{ steps.device.outputs.config }}
+
+      # --- Run Tests ---
+      - name: Boot iOS Simulator
+        run: |
+          xcrun simctl boot "${{ steps.device.outputs.simulator }}" || true
+          xcrun simctl bootstatus "${{ steps.device.outputs.simulator }}" -b
+
+      - name: Run E2E tests (iOS)
+        env:
+          E2E_TEST_SUITE: ${{ github.event.inputs.test_suite || 'all' }}
+        run: |
+          if [ "$E2E_TEST_SUITE" = "smoke" ]; then
+            detox test --configuration ${{ steps.device.outputs.config }} --testNamePattern "Happy Path"
+          elif [ "$E2E_TEST_SUITE" = "auth" ]; then
+            detox test --configuration ${{ steps.device.outputs.config }} e2e/auth.e2e.ts
+          elif [ "$E2E_TEST_SUITE" = "challenges" ]; then
+            detox test --configuration ${{ steps.device.outputs.config }} e2e/challenge-creation.e2e.ts e2e/activity-flow.e2e.ts e2e/invite-flow.e2e.ts
+          else
+            detox test --configuration ${{ steps.device.outputs.config }}
+          fi
+
+      # --- Cleanup ---
+      - name: Upload test artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-ios-${{ env.DEVICE_NAME }}-artifacts
           path: |
             e2e/.artifacts/
           retention-days: 7
@@ -294,31 +417,33 @@ jobs:
   e2e-summary:
     name: E2E Summary
     runs-on: ubuntu-latest
-    needs: [e2e-ios, e2e-android]
+    needs: [e2e-ios-matrix, e2e-ios, e2e-android]
     if: always()
 
     steps:
       - name: Check results
         run: |
-          ios_result="${{ needs.e2e-ios.result }}"
+          ios_matrix_result="${{ needs.e2e-ios-matrix.result }}"
+          ios_single_result="${{ needs.e2e-ios.result }}"
           android_result="${{ needs.e2e-android.result }}"
 
-          echo "iOS E2E: $ios_result"
+          echo "iOS E2E (Matrix): $ios_matrix_result"
+          echo "iOS E2E (Single): $ios_single_result"
           echo "Android E2E: $android_result"
 
           # Check if any required job failed
-          if [ "$ios_result" = "failure" ] || [ "$android_result" = "failure" ]; then
+          if [ "$ios_matrix_result" = "failure" ] || [ "$ios_single_result" = "failure" ] || [ "$android_result" = "failure" ]; then
             echo "❌ E2E tests failed"
             exit 1
           fi
 
           # Handle skipped jobs (when running single platform)
-          if [ "$ios_result" = "success" ] || [ "$android_result" = "success" ]; then
+          if [ "$ios_matrix_result" = "success" ] || [ "$ios_single_result" = "success" ] || [ "$android_result" = "success" ]; then
             echo "✅ E2E tests passed"
             exit 0
           fi
 
-          # Both skipped (shouldn't happen)
+          # All skipped (shouldn't happen)
           echo "⚠️ No E2E tests ran"
           exit 1
 
@@ -330,7 +455,7 @@ jobs:
             github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title: '🚨 Nightly E2E Tests Failed',
-              body: `The nightly E2E test run failed.\n\nWorkflow: ${context.workflow}\nRun: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}\n\nPlease investigate and fix any regressions.`,
+              title: '🚨 Weekly E2E Tests Failed',
+              body: `The weekly E2E test run failed.\n\nWorkflow: ${context.workflow}\nRun: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}\n\nPlease investigate and fix any regressions.`,
               labels: ['bug', 'e2e', 'automated']
             })
