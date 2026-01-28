@@ -2,7 +2,11 @@
 // FITCHALLENGE DESIGN SYSTEM - THEME TOKENS
 // ============================================
 // Single source of truth for all design decisions
-// Generated: January 2025
+// Updated: January 2025
+//
+// CHANGE: Primary color updated from Electric Mint (#00D26A)
+//         to Tailwind Emerald (#10B981) for consistency with
+//         the prototype UI designs.
 // ============================================
 
 import { useColorScheme } from "react-native";
@@ -18,10 +22,10 @@ export const colors = {
   light: {
     // Brand Colors
     primary: {
-      main: "#00D26A", // Electric Mint - Growth, health, main actions
-      dark: "#00B85C", // Pressed/hover state
-      light: "#6EE7A0", // Lighter variant
-      subtle: "#D1FAE5", // Backgrounds, subtle fills
+      main: "#10B981", // Tailwind emerald-500 (was #00D26A Electric Mint)
+      dark: "#059669", // Tailwind emerald-600 - Pressed/hover state
+      light: "#34D399", // Tailwind emerald-400 - Lighter variant
+      subtle: "#D1FAE5", // Tailwind emerald-100 - Backgrounds, subtle fills
       contrast: "#FFFFFF", // Text on primary
     },
     energy: {
@@ -39,8 +43,17 @@ export const colors = {
       contrast: "#FFFFFF", // Text on achievement
     },
 
+    // NEW: Secondary accent for social features
+    social: {
+      main: "#3B82F6", // Blue - Friends, social actions
+      dark: "#2563EB",
+      light: "#60A5FA",
+      subtle: "#EFF6FF",
+      contrast: "#FFFFFF",
+    },
+
     // Semantic Colors
-    success: "#00D26A",
+    success: "#10B981", // Updated to match primary
     warning: "#F59E0B",
     error: "#EF4444",
     info: "#3B82F6",
@@ -51,32 +64,62 @@ export const colors = {
     surfaceElevated: "#FFFFFF",
     surfacePressed: "#F1F5F9",
 
+    // NEW: Input-specific surfaces
+    input: {
+      background: "#F9FAFB", // Tailwind gray-50
+      backgroundFocus: "#FFFFFF",
+      backgroundError: "#FEF2F2", // Tailwind red-50
+      backgroundDisabled: "#F3F4F6", // Tailwind gray-100
+    },
+
+    // NEW: Social login buttons
+    socialButton: {
+      apple: {
+        background: "#000000",
+        text: "#FFFFFF",
+      },
+      google: {
+        background: "#FFFFFF",
+        border: "#E5E7EB", // Tailwind gray-200
+        text: "#374151", // Tailwind gray-700
+      },
+    },
+
     // Borders
-    border: "#E2E8F0",
-    borderStrong: "#CBD5E1",
-    borderFocus: "#00D26A",
+    border: "#E5E7EB", // Tailwind gray-200
+    borderStrong: "#D1D5DB", // Tailwind gray-300
+    borderFocus: "#10B981", // Updated to match primary
 
     // Text
-    textPrimary: "#0F172A",
-    textSecondary: "#64748B",
-    textMuted: "#94A3B8",
+    textPrimary: "#111827", // Tailwind gray-900
+    textSecondary: "#6B7280", // Tailwind gray-500
+    textMuted: "#9CA3AF", // Tailwind gray-400
     textInverse: "#FFFFFF",
 
+    // NEW: Gradient stops (for LinearGradient)
+    gradient: {
+      primary: {
+        start: "#34D399", // emerald-400
+        middle: "#10B981", // emerald-500
+        end: "#0D9488", // teal-600
+      },
+    },
+
     // Overlays
-    overlay: "rgba(15, 23, 42, 0.5)",
-    scrim: "rgba(15, 23, 42, 0.3)",
+    overlay: "rgba(17, 24, 39, 0.5)", // gray-900 @ 50%
+    scrim: "rgba(17, 24, 39, 0.3)", // gray-900 @ 30%
   },
 
   // ===========================================
-  // DARK MODE (Dark Gray Strategy)
+  // DARK MODE
   // ===========================================
   dark: {
     // Brand Colors (slightly adjusted for dark backgrounds)
     primary: {
-      main: "#00D26A",
-      dark: "#00E676", // Brighter for dark mode
-      light: "#6EE7A0",
-      subtle: "rgba(0, 210, 106, 0.12)",
+      main: "#10B981", // Same emerald-500
+      dark: "#34D399", // Brighter for dark mode (emerald-400)
+      light: "#6EE7B7", // emerald-300
+      subtle: "rgba(16, 185, 129, 0.12)", // emerald with opacity
       contrast: "#FFFFFF",
     },
     energy: {
@@ -88,34 +131,73 @@ export const colors = {
     },
     achievement: {
       main: "#A78BFA", // Slightly lighter for dark mode
-      dark: "#B79FFC",
-      light: "#C4B5FD",
+      dark: "#C4B5FD",
+      light: "#DDD6FE",
       subtle: "rgba(167, 139, 250, 0.12)",
       contrast: "#FFFFFF",
     },
 
+    // Social accent
+    social: {
+      main: "#60A5FA", // Lighter blue for dark mode
+      dark: "#93C5FD",
+      light: "#BFDBFE",
+      subtle: "rgba(96, 165, 250, 0.12)",
+      contrast: "#FFFFFF",
+    },
+
     // Semantic Colors
-    success: "#00D26A",
+    success: "#10B981",
     warning: "#FBBF24",
     error: "#F87171",
     info: "#60A5FA",
 
     // Surfaces (Dark Gray)
-    background: "#121214",
-    surface: "#1C1C1F",
-    surfaceElevated: "#252528",
-    surfacePressed: "#2E2E32",
+    background: "#111827", // Tailwind gray-900
+    surface: "#1F2937", // Tailwind gray-800
+    surfaceElevated: "#374151", // Tailwind gray-700
+    surfacePressed: "#4B5563", // Tailwind gray-600
+
+    // Input surfaces (dark mode)
+    input: {
+      background: "#1F2937",
+      backgroundFocus: "#374151",
+      backgroundError: "rgba(239, 68, 68, 0.15)",
+      backgroundDisabled: "#111827",
+    },
+
+    // Social login buttons (dark mode)
+    socialButton: {
+      apple: {
+        background: "#FFFFFF", // Inverted for dark mode
+        text: "#000000",
+      },
+      google: {
+        background: "#1F2937",
+        border: "#374151",
+        text: "#F9FAFB",
+      },
+    },
 
     // Borders
-    border: "#2E2E32",
-    borderStrong: "#3F3F46",
-    borderFocus: "#00D26A",
+    border: "#374151", // Tailwind gray-700
+    borderStrong: "#4B5563", // Tailwind gray-600
+    borderFocus: "#10B981",
 
     // Text
-    textPrimary: "#FAFAFA",
-    textSecondary: "#A1A1AA",
-    textMuted: "#71717A",
-    textInverse: "#0F172A",
+    textPrimary: "#F9FAFB", // Tailwind gray-50
+    textSecondary: "#D1D5DB", // Tailwind gray-300
+    textMuted: "#9CA3AF", // Tailwind gray-400
+    textInverse: "#111827",
+
+    // Gradient stops (dark mode)
+    gradient: {
+      primary: {
+        start: "#34D399",
+        middle: "#10B981",
+        end: "#0D9488",
+      },
+    },
 
     // Overlays
     overlay: "rgba(0, 0, 0, 0.7)",
@@ -223,6 +305,44 @@ export const typography = {
       letterSpacing: 0.5,
       textTransform: "uppercase" as const,
     },
+
+    // NEW: Auth-specific text styles
+    authTitle: {
+      fontSize: 24,
+      fontWeight: "700",
+      lineHeight: 1.2,
+      letterSpacing: -0.5,
+    },
+    authSubtitle: {
+      fontSize: 14,
+      fontWeight: "500",
+      lineHeight: 1.5,
+      letterSpacing: 0,
+    },
+    inputText: {
+      fontSize: 16,
+      fontWeight: "400",
+      lineHeight: 1.5,
+      letterSpacing: 0,
+    },
+    inputError: {
+      fontSize: 12,
+      fontWeight: "500",
+      lineHeight: 1.4,
+      letterSpacing: 0,
+    },
+    link: {
+      fontSize: 14,
+      fontWeight: "600",
+      lineHeight: 1.4,
+      letterSpacing: 0,
+    },
+    terms: {
+      fontSize: 12,
+      fontWeight: "400",
+      lineHeight: 1.5,
+      letterSpacing: 0,
+    },
   },
 } as const;
 
@@ -257,8 +377,13 @@ export const spacing = {
     gap: 8,
   },
   input: {
-    paddingX: 14,
+    paddingX: 16,
     paddingY: 12,
+    // NEW: Auth input specifics
+    paddingWithIcon: 44, // Left padding when icon present
+    iconOffset: 16, // Icon distance from left edge
+    gap: 16, // Gap between stacked inputs
+    errorGap: 4, // Gap between input and error text
   },
   list: {
     itemGap: 12,
@@ -277,6 +402,14 @@ export const spacing = {
     padding: 24,
     gap: 16,
   },
+  // NEW: Auth-specific spacing
+  auth: {
+    headerPaddingTop: 48,
+    headerPaddingBottom: 80,
+    cardOverlap: 32,
+    cardPadding: 24,
+    sectionGap: 24,
+  },
 } as const;
 
 // ============================================
@@ -291,6 +424,7 @@ export const radius = {
   lg: 8,
   xl: 12,
   "2xl": 16,
+  "3xl": 24,
   full: 999,
 
   // Semantic aliases
@@ -303,6 +437,12 @@ export const radius = {
   avatar: 999,
   modal: 12,
   progressBar: 4,
+
+  // NEW: Auth-specific (larger for prominence)
+  inputLarge: 12, // rounded-xl for auth inputs
+  buttonLarge: 16, // rounded-2xl for primary CTAs
+  cardLarge: 32, // rounded-t-[2rem] for auth cards
+  toggle: 12, // Sign up/sign in toggle
 } as const;
 
 // ============================================
@@ -355,6 +495,22 @@ export const shadows = {
       shadowRadius: 14,
       elevation: 6,
     },
+    // NEW: Primary button with colored glow
+    primaryButton: {
+      shadowColor: "#10B981", // emerald-500
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 12,
+      elevation: 4,
+    },
+    // NEW: Logo on gradient background
+    logoOnGradient: {
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.15,
+      shadowRadius: 20,
+      elevation: 8,
+    },
   },
 
   // Dark mode shadows (more subtle)
@@ -401,6 +557,20 @@ export const shadows = {
       shadowOpacity: 0.5,
       shadowRadius: 16,
       elevation: 6,
+    },
+    primaryButton: {
+      shadowColor: "#10B981",
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.4,
+      shadowRadius: 12,
+      elevation: 4,
+    },
+    logoOnGradient: {
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.4,
+      shadowRadius: 20,
+      elevation: 8,
     },
   },
 } as const;
@@ -506,6 +676,19 @@ export const animation = {
       duration: 300,
       easing: "standard",
     },
+    // NEW: Auth screen transitions
+    authEnter: {
+      duration: 500,
+      easing: "enter",
+      from: { opacity: 0, translateY: 30 },
+      to: { opacity: 1, translateY: 0 },
+    },
+    authExit: {
+      duration: 400,
+      easing: "exit",
+      from: { opacity: 1, translateX: 0 },
+      to: { opacity: 0, translateX: -20 },
+    },
   },
 } as const;
 
@@ -548,6 +731,7 @@ export const iconSize = {
   xl: 28,
   "2xl": 32,
   "3xl": 40,
+  "4xl": 48,
 } as const;
 
 // ============================================
@@ -600,6 +784,17 @@ export const componentSize = {
     sm: 4,
     md: 6,
     lg: 8,
+  },
+
+  // NEW: Auth-specific sizes
+  auth: {
+    input: 48, // Taller inputs
+    button: 56, // Taller CTA button
+    socialButton: 48, // Social login buttons
+    logo: 48, // Trophy icon
+    logoContainer: 96, // White box on welcome (w-24)
+    logoContainerSmall: 64, // White box on auth header (w-16)
+    toggle: 44, // Sign up/in toggle height
   },
 } as const;
 

@@ -1,0 +1,211 @@
+# .github/workflows/ci.yml
+# ============================================
+# Continuous Integration Workflow
+# ============================================
+# Runs on every push and PR to verify code quality.
+
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  NODE_VERSION: "20"
+
+jobs:
+  # Type checking and linting
+  lint:
+    name: Lint & Type Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run TypeScript check
+        run: npx tsc --noEmit
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Run Prettier check
+        run: npm run format:check
+
+  # Unit and component tests
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test -- --coverage --watchAll=false
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage/lcov.info
+          fail_ci_if_error: false
+
+  # Build verification
+  build:
+    name: Build Verification
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Export Expo project
+        run: npx expo export --platform web
+
+  # Database migration check
+  migrations:
+    name: Migration Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify migration files
+        run: |
+          # Check migration files are numbered sequentially
+          cd supabase/migrations
+
+          # Get all migration files sorted
+          files=$(ls -1 *.sql 2>/dev/null | sort)
+
+          if [ -z "$files" ]; then
+            echo "No migration files found"
+            exit 0
+          fi
+
+          # Verify numbering
+          expected=1
+          for file in $files; do
+            # Extract number from filename (assumes format: NNN_name.sql)
+            num=$(echo $file | grep -oE '^[0-9]+' | sed 's/^0*//')
+
+            if [ "$num" != "$expected" ]; then
+              echo "❌ Migration gap: expected $expected, found $num in $file"
+              exit 1
+            fi
+
+            expected=$((expected + 1))
+          done
+
+          echo "✅ Migration files are sequentially numbered"
+
+      - name: Syntax check SQL files
+        run: |
+          # Basic SQL syntax verification
+          for file in supabase/migrations/*.sql; do
+            if [ -f "$file" ]; then
+              # Check for common issues
+              if grep -q "CREATE TABEL" "$file"; then
+                echo "❌ Typo found in $file: TABEL should be TABLE"
+                exit 1
+              fi
+              echo "✓ $file"
+            fi
+          done
+
+  # Security audit
+  security:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run npm audit
+        run: npm audit --audit-level=high
+        continue-on-error: true
+
+      - name: Check for secrets in code
+        run: |
+          # Simple check for common secret patterns
+          patterns=(
+            "sk_live_"
+            "pk_live_"
+            "SUPABASE_SERVICE_ROLE"
+            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"
+          )
+
+          for pattern in "${patterns[@]}"; do
+            if grep -r "$pattern" --include="*.ts" --include="*.tsx" --include="*.js" --exclude-dir=node_modules .; then
+              echo "❌ Potential secret found: $pattern"
+              exit 1
+            fi
+          done
+
+          echo "✅ No obvious secrets found in code"
+
+  # All checks passed
+  all-checks:
+    name: All Checks Passed
+    needs: [lint, test, build, migrations, security]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Check all jobs
+        run: |
+          if [ "${{ needs.lint.result }}" != "success" ] || \
+             [ "${{ needs.test.result }}" != "success" ] || \
+             [ "${{ needs.build.result }}" != "success" ] || \
+             [ "${{ needs.migrations.result }}" != "success" ] || \
+             [ "${{ needs.security.result }}" != "success" ]; then
+            echo "❌ One or more checks failed"
+            exit 1
+          fi
+          echo "✅ All checks passed"

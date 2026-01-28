@@ -1,0 +1,335 @@
+# .github/workflows/pr-checks.yml
+# ============================================
+# Pull Request Checks Workflow
+# ============================================
+# Comprehensive checks for pull requests.
+
+name: PR Checks
+
+on:
+  pull_request:
+    branches: [main, develop]
+    types: [opened, synchronize, reopened]
+
+env:
+  NODE_VERSION: "20"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Quick validation before expensive checks
+  validate:
+    name: Validate PR
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    outputs:
+      has_migrations: ${{ steps.changes.outputs.migrations }}
+      has_functions: ${{ steps.changes.outputs.functions }}
+      has_tests: ${{ steps.changes.outputs.tests }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for changes
+        id: changes
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            migrations:
+              - 'supabase/migrations/**'
+            functions:
+              - 'supabase/functions/**'
+            tests:
+              - '__tests__/**'
+              - 'e2e/**'
+            app:
+              - 'src/**'
+              - 'app/**'
+
+      - name: Validate PR title
+        run: |
+          PR_TITLE="${{ github.event.pull_request.title }}"
+
+          # Check for conventional commit format (optional)
+          if [[ ! "$PR_TITLE" =~ ^(feat|fix|docs|style|refactor|test|chore|perf|ci|build|revert)(\(.+\))?\: ]]; then
+            echo "⚠️ PR title doesn't follow conventional commit format"
+            echo "Expected: feat|fix|docs|style|refactor|test|chore|perf|ci|build|revert(scope): description"
+            echo "Got: $PR_TITLE"
+            # Warning only, not failing
+          else
+            echo "✅ PR title follows conventional commit format"
+          fi
+
+      - name: Check PR size
+        run: |
+          ADDITIONS=${{ github.event.pull_request.additions }}
+          DELETIONS=${{ github.event.pull_request.deletions }}
+          TOTAL=$((ADDITIONS + DELETIONS))
+
+          if [ "$TOTAL" -gt 1000 ]; then
+            echo "⚠️ Large PR detected: $TOTAL lines changed"
+            echo "Consider breaking this into smaller PRs for easier review"
+          else
+            echo "✅ PR size is reasonable: $TOTAL lines changed"
+          fi
+
+  # Type checking
+  typecheck:
+    name: TypeScript
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run TypeScript check
+        run: npx tsc --noEmit
+
+  # Linting
+  lint:
+    name: ESLint & Prettier
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint -- --max-warnings 0
+
+      - name: Run Prettier check
+        run: npm run format:check
+
+  # Unit tests
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test -- --coverage --watchAll=false --ci
+
+      - name: Check coverage thresholds
+        run: |
+          # Extract coverage summary
+          COVERAGE=$(cat coverage/coverage-summary.json 2>/dev/null || echo '{}')
+
+          if [ "$COVERAGE" != '{}' ]; then
+            echo "Coverage report generated"
+            # Could add threshold checks here
+          fi
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 7
+
+  # Migration validation
+  migrations:
+    name: Migration Check
+    runs-on: ubuntu-latest
+    needs: validate
+    if: needs.validate.outputs.has_migrations == 'true'
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify migration sequence
+        run: |
+          cd supabase/migrations
+
+          # Get all migration files sorted
+          files=$(ls -1 *.sql 2>/dev/null | sort)
+
+          if [ -z "$files" ]; then
+            echo "No migration files"
+            exit 0
+          fi
+
+          # Check for sequential numbering
+          expected=1
+          for file in $files; do
+            num=$(echo $file | grep -oE '^[0-9]+' | sed 's/^0*//')
+            
+            if [ "$num" != "$expected" ]; then
+              echo "❌ Gap in migration sequence at $file"
+              echo "Expected: $expected, Found: $num"
+              exit 1
+            fi
+            
+            expected=$((expected + 1))
+          done
+
+          echo "✅ Migration sequence is valid"
+
+      - name: Check migration syntax
+        run: |
+          for file in supabase/migrations/*.sql; do
+            if [ -f "$file" ]; then
+              # Basic syntax checks
+              if grep -qE "CREATE\s+TABEL" "$file"; then
+                echo "❌ Typo in $file: TABEL should be TABLE"
+                exit 1
+              fi
+              
+              # Check for DROP without IF EXISTS (warning)
+              if grep -qE "^DROP\s+(TABLE|INDEX|FUNCTION)" "$file"; then
+                if ! grep -qE "IF\s+EXISTS" "$file"; then
+                  echo "⚠️ Warning: DROP without IF EXISTS in $file"
+                fi
+              fi
+              
+              echo "✓ $file"
+            fi
+          done
+
+      - name: Review migration content
+        run: |
+          # Show what migrations are being added
+          echo "## Migration Changes" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          for file in supabase/migrations/*.sql; do
+            if [ -f "$file" ]; then
+              echo "### $(basename $file)" >> $GITHUB_STEP_SUMMARY
+              echo '```sql' >> $GITHUB_STEP_SUMMARY
+              head -50 "$file" >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+            fi
+          done
+
+  # Build check
+  build:
+    name: Build Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Export for web (build check)
+        run: npx expo export --platform web
+        continue-on-error: true
+
+      - name: Verify bundle
+        run: |
+          if [ -d "dist" ]; then
+            echo "✅ Build successful"
+            ls -la dist/
+          else
+            echo "⚠️ Build output not found"
+          fi
+
+  # All checks summary
+  summary:
+    name: PR Summary
+    runs-on: ubuntu-latest
+    needs: [validate, typecheck, lint, test, build]
+    if: always()
+
+    steps:
+      - name: Create summary
+        run: |
+          echo "## PR Check Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Validate
+          if [ "${{ needs.validate.result }}" == "success" ]; then
+            echo "✅ Validation passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Validation failed" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # TypeScript
+          if [ "${{ needs.typecheck.result }}" == "success" ]; then
+            echo "✅ TypeScript check passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ TypeScript check failed" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Lint
+          if [ "${{ needs.lint.result }}" == "success" ]; then
+            echo "✅ Linting passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Linting failed" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Tests
+          if [ "${{ needs.test.result }}" == "success" ]; then
+            echo "✅ Tests passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Tests failed" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Build
+          if [ "${{ needs.build.result }}" == "success" ]; then
+            echo "✅ Build check passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Build check failed" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Check for failures
+        run: |
+          if [ "${{ needs.typecheck.result }}" != "success" ] || \
+             [ "${{ needs.lint.result }}" != "success" ] || \
+             [ "${{ needs.test.result }}" != "success" ]; then
+            echo "❌ One or more required checks failed"
+            exit 1
+          fi
+          echo "✅ All required checks passed"

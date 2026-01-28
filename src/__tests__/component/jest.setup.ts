@@ -2,25 +2,85 @@
 // Jest setup for component tests - configures RNTL and common mocks
 
 // =============================================================================
+// REACT-NATIVE-REANIMATED MOCK (must be before other imports)
+// =============================================================================
+
+jest.mock("react-native-reanimated", () => {
+  const React = require("react");
+  const { View, Text } = require("react-native");
+
+  const AnimatedView = ({ children, style, ...props }: any) =>
+    React.createElement(View, { ...props, style }, children);
+  const AnimatedText = ({ children, style, ...props }: any) =>
+    React.createElement(Text, { ...props, style }, children);
+
+  return {
+    __esModule: true,
+    default: {
+      call: () => {},
+      createAnimatedComponent: (component: any) => component,
+      addWhitelistedNativeProps: () => {},
+      View: AnimatedView,
+      Text: AnimatedText,
+    },
+    View: AnimatedView,
+    Text: AnimatedText,
+    useSharedValue: (init: any) => ({ value: init }),
+    useAnimatedStyle: () => ({}),
+    useDerivedValue: (fn: () => any) => ({ value: fn() }),
+    useAnimatedProps: () => ({}),
+    withTiming: (val: any, _config?: any, callback?: any) => {
+      // Execute callback synchronously for testing
+      if (callback) callback(true);
+      return val;
+    },
+    withSpring: (val: any, _config?: any, callback?: any) => {
+      if (callback) callback(true);
+      return val;
+    },
+    withSequence: (...args: any[]) => args[args.length - 1],
+    withDelay: (_: number, val: any) => val,
+    withRepeat: (val: any) => val,
+    Easing: {
+      linear: (t: number) => t,
+      ease: (t: number) => t,
+      bezier: () => (t: number) => t,
+      in: (fn: any) => fn,
+      out: (fn: any) => fn,
+      inOut: (fn: any) => fn,
+    },
+    FadeIn: { duration: () => ({ build: () => ({}) }) },
+    FadeOut: { duration: () => ({ build: () => ({}) }) },
+    FadeInDown: { duration: () => ({ springify: () => ({}) }) },
+    FadeInUp: { duration: () => ({ springify: () => ({}) }) },
+    SlideInRight: { duration: () => ({ build: () => ({}) }) },
+    SlideOutLeft: { duration: () => ({ build: () => ({}) }) },
+    Layout: { duration: () => ({ build: () => ({}) }) },
+    runOnJS: (fn: Function) => fn,
+    runOnUI: (fn: Function) => fn,
+    interpolate: (val: number) => val,
+    Extrapolate: { CLAMP: "clamp", EXTEND: "extend" },
+    createAnimatedComponent: (comp: any) => comp,
+    useReducedMotion: () => false,
+    ReduceMotion: { Never: 0, Always: 1, System: 2 },
+  };
+});
+
+// =============================================================================
 // EXPO WINTER RUNTIME POLYFILLS
 // =============================================================================
-// Jest 30 has strict scope checking that conflicts with expo's lazy loading.
-// We provide all polyfills upfront to avoid runtime `require()` calls.
 
-// Polyfill structuredClone if not available (needed by expo)
 if (typeof globalThis.structuredClone === "undefined") {
   (globalThis as any).structuredClone = <T>(obj: T): T =>
     JSON.parse(JSON.stringify(obj));
 }
 
-// Polyfill __ExpoImportMetaRegistry
 if (typeof (globalThis as any).__ExpoImportMetaRegistry === "undefined") {
   (globalThis as any).__ExpoImportMetaRegistry = {
     url: "http://localhost:8081",
   };
 }
 
-// Mock expo winter runtime modules to prevent lazy loading
 jest.mock("expo/src/winter/runtime.native", () => ({}), { virtual: true });
 jest.mock(
   "expo/src/winter/installGlobal",
@@ -37,15 +97,23 @@ import "@testing-library/jest-native/extend-expect";
 // EXPO/RN MODULE MOCKS
 // =============================================================================
 
-// Mock expo-linear-gradient
-jest.mock("expo-linear-gradient", () => ({
-  LinearGradient: ({ children }: { children: any }) => children,
-}));
+jest.mock("expo-linear-gradient", () => {
+  const React = require("react");
+  const { View } = require("react-native");
+  return {
+    LinearGradient: ({ children, ...props }: any) =>
+      React.createElement(
+        View,
+        { ...props, testID: "linear-gradient" },
+        children,
+      ),
+  };
+});
 
-// Mock react-native-heroicons
 jest.mock("react-native-heroicons/outline", () => ({
   ChevronLeftIcon: () => null,
   ChevronRightIcon: () => null,
+  ChevronDownIcon: () => null,
   PlusIcon: () => null,
   XMarkIcon: () => null,
   MagnifyingGlassIcon: () => null,
@@ -56,6 +124,13 @@ jest.mock("react-native-heroicons/outline", () => ({
   CheckIcon: () => null,
   CheckCircleIcon: () => null,
   ExclamationCircleIcon: () => null,
+  ExclamationTriangleIcon: () => null,
+  InformationCircleIcon: () => null,
+  ArrowTrendingUpIcon: () => null,
+  MapPinIcon: () => null,
+  HeartIcon: () => null,
+  BoltIcon: () => null,
+  FunnelIcon: () => null,
 }));
 
 jest.mock("react-native-heroicons/solid", () => ({
@@ -63,9 +138,45 @@ jest.mock("react-native-heroicons/solid", () => ({
   PlusIcon: () => null,
   TrophyIcon: () => null,
   FireIcon: () => null,
+  CheckCircleIcon: () => null,
+  DevicePhoneMobileIcon: () => null,
 }));
 
-// Mock DateTimePicker
+jest.mock("react-native-svg", () => {
+  const React = require("react");
+  const { View } = require("react-native");
+
+  // Create proper function components that can be wrapped by createAnimatedComponent
+  const Svg = React.forwardRef(({ children, ...props }: any, ref: any) =>
+    React.createElement(View, { ...props, ref }, children),
+  );
+  const Circle = React.forwardRef((props: any, ref: any) =>
+    React.createElement(View, { ...props, ref }),
+  );
+  const Rect = React.forwardRef((props: any, ref: any) =>
+    React.createElement(View, { ...props, ref }),
+  );
+  const Path = React.forwardRef((props: any, ref: any) =>
+    React.createElement(View, { ...props, ref }),
+  );
+  const G = React.forwardRef(({ children, ...props }: any, ref: any) =>
+    React.createElement(View, { ...props, ref }, children),
+  );
+
+  return {
+    __esModule: true,
+    default: Svg,
+    Svg,
+    Circle,
+    Rect,
+    Path,
+    G,
+    Defs: ({ children }: any) => children,
+    LinearGradient: ({ children }: any) => children,
+    Stop: () => null,
+  };
+});
+
 jest.mock("@react-native-community/datetimepicker", () => {
   const React = require("react");
   const { View } = require("react-native");
@@ -123,8 +234,230 @@ jest.mock("expo-router", () => {
   };
 });
 
-// Export for test customization
 export { mockRouter, mockSearchParams };
+
+// =============================================================================
+// THEME MOCK
+// =============================================================================
+
+const mockTheme = {
+  colors: {
+    primary: {
+      main: "#10B981",
+      dark: "#059669",
+      light: "#34D399",
+      subtle: "#D1FAE5",
+      contrast: "#FFFFFF",
+    },
+    energy: {
+      main: "#F59E0B",
+      dark: "#D97706",
+      light: "#FCD34D",
+      subtle: "#FEF3C7",
+      contrast: "#FFFFFF",
+    },
+    achievement: {
+      main: "#8B5CF6",
+      dark: "#7C3AED",
+      light: "#A78BFA",
+      subtle: "#EDE9FE",
+      contrast: "#FFFFFF",
+    },
+    social: {
+      main: "#3B82F6",
+      dark: "#2563EB",
+      light: "#60A5FA",
+      subtle: "#DBEAFE",
+      contrast: "#FFFFFF",
+    },
+    success: "#10B981",
+    warning: "#F59E0B",
+    error: "#EF4444",
+    info: "#3B82F6",
+    background: "#FFFFFF",
+    surface: "#F9FAFB",
+    surfaceElevated: "#FFFFFF",
+    surfacePressed: "#F3F4F6",
+    border: "#E5E7EB",
+    borderStrong: "#D1D5DB",
+    borderFocus: "#10B981",
+    textPrimary: "#111827",
+    textSecondary: "#6B7280",
+    textMuted: "#9CA3AF",
+    textInverse: "#FFFFFF",
+    overlay: "rgba(0, 0, 0, 0.5)",
+    scrim: "rgba(0, 0, 0, 0.3)",
+  },
+  shadows: {
+    none: {},
+    sm: {
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.05,
+      shadowRadius: 2,
+      elevation: 1,
+    },
+    card: {
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.08,
+      shadowRadius: 8,
+      elevation: 3,
+    },
+    elevated: {
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.12,
+      shadowRadius: 12,
+      elevation: 5,
+    },
+    button: {
+      shadowColor: "#10B981",
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 8,
+      elevation: 4,
+    },
+    modal: {
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.15,
+      shadowRadius: 24,
+      elevation: 8,
+    },
+    float: {
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 12 },
+      shadowOpacity: 0.2,
+      shadowRadius: 32,
+      elevation: 12,
+    },
+  },
+  typography: {
+    fontFamily: {
+      regular: "PlusJakartaSans_400Regular",
+      medium: "PlusJakartaSans_500Medium",
+      semiBold: "PlusJakartaSans_600SemiBold",
+      bold: "PlusJakartaSans_700Bold",
+    },
+    fontWeight: {
+      regular: "400",
+      medium: "500",
+      semibold: "600",
+      bold: "700",
+    },
+    fontSize: {
+      xs: 12,
+      sm: 14,
+      base: 16,
+      lg: 18,
+      xl: 20,
+      "2xl": 24,
+      "3xl": 30,
+      "4xl": 36,
+    },
+    lineHeight: {
+      tight: 1.2,
+      normal: 1.5,
+      relaxed: 1.75,
+    },
+    textStyles: {
+      title: { fontSize: 20 },
+      body: { fontSize: 16 },
+      caption: { fontSize: 12 },
+      label: { fontSize: 14 },
+    },
+  },
+  spacing: {
+    xs: 4,
+    sm: 8,
+    md: 12,
+    lg: 16,
+    xl: 24,
+    "2xl": 32,
+    "3xl": 48,
+    "4xl": 64,
+  },
+  radius: {
+    none: 0,
+    sm: 4,
+    base: 8,
+    md: 12,
+    lg: 16,
+    xl: 24,
+    full: 9999,
+    card: 16,
+    cardInner: 12,
+    button: 12,
+    input: 10,
+    avatar: 9999,
+    badge: 6,
+    modal: 20,
+  },
+  animation: {
+    fast: 150,
+    normal: 300,
+    slow: 500,
+  },
+  zIndex: {
+    base: 0,
+    dropdown: 10,
+    sticky: 20,
+    modal: 30,
+    toast: 40,
+  },
+  breakpoints: {
+    sm: 640,
+    md: 768,
+    lg: 1024,
+  },
+  iconSize: {
+    xs: 12,
+    sm: 16,
+    md: 20,
+    lg: 24,
+    xl: 32,
+  },
+  componentSize: {
+    buttonHeight: 48,
+    inputHeight: 48,
+    avatarSm: 32,
+    avatarMd: 40,
+    avatarLg: 56,
+    tabBarHeight: 64,
+    headerHeight: 56,
+  },
+  isDark: false,
+  fontsLoaded: true,
+};
+
+export { mockTheme };
+
+// =============================================================================
+// THEME MOCKS (both providers)
+// =============================================================================
+
+jest.mock("@/providers/ThemeProvider", () => ({
+  useAppTheme: () => mockTheme,
+  ThemeProvider: ({ children }: { children: any }) => children,
+}));
+
+jest.mock("@/constants/theme", () => ({
+  useTheme: () => mockTheme,
+  colors: {
+    light: mockTheme.colors,
+    dark: mockTheme.colors,
+  },
+  typography: mockTheme.typography,
+  spacing: mockTheme.spacing,
+  radius: mockTheme.radius,
+  shadows: { light: mockTheme.shadows, dark: mockTheme.shadows },
+  animation: mockTheme.animation,
+  zIndex: mockTheme.zIndex,
+  iconSize: mockTheme.iconSize,
+  componentSize: mockTheme.componentSize,
+  theme: mockTheme,
+}));
 
 // =============================================================================
 // AUTH MOCK
@@ -153,7 +486,6 @@ jest.mock("@/providers/AuthProvider", () => ({
   AuthProvider: ({ children }: { children: any }) => children,
 }));
 
-// Export for test customization
 export { mockAuthState };
 
 // =============================================================================
@@ -271,7 +603,6 @@ jest.mock("@/lib/serverTime", () => ({
   getDaysRemaining: jest.fn(() => 7),
 }));
 
-// Controllable challenge status mocks
 export const mockChallengeStatus = {
   effectiveStatus: "active" as string,
   canLog: true,
@@ -359,200 +690,9 @@ jest.mock("@/components/ui", () => {
 });
 
 // =============================================================================
-// THEME MOCK
-// =============================================================================
-
-const mockTheme = {
-  colors: {
-    primary: {
-      main: "#00D26A",
-      dark: "#00B85C",
-      light: "#33DB88",
-      subtle: "#E6FBF0",
-      contrast: "#FFFFFF",
-    },
-    energy: {
-      main: "#FF6B35",
-      dark: "#E55A2B",
-      light: "#FF8A5C",
-      subtle: "#FFF0EB",
-      contrast: "#FFFFFF",
-    },
-    achievement: {
-      main: "#FFD700",
-      dark: "#E5C200",
-      light: "#FFDF33",
-      subtle: "#FFFBEB",
-      contrast: "#1A1A1A",
-    },
-    success: "#00D26A",
-    warning: "#FFB800",
-    error: "#FF4757",
-    info: "#3B82F6",
-    background: "#FFFFFF",
-    surface: "#F8F9FA",
-    surfaceElevated: "#FFFFFF",
-    surfacePressed: "#F0F0F0",
-    border: "#E5E5E5",
-    borderStrong: "#D0D0D0",
-    borderFocus: "#00D26A",
-    textPrimary: "#1A1A1A",
-    textSecondary: "#6B7280",
-    textMuted: "#9CA3AF",
-    textInverse: "#FFFFFF",
-    overlay: "rgba(0, 0, 0, 0.5)",
-    scrim: "rgba(0, 0, 0, 0.3)",
-  },
-  shadows: {
-    none: "none",
-    sm: {
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.05,
-      shadowRadius: 2,
-      elevation: 1,
-    },
-    card: {
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.08,
-      shadowRadius: 8,
-      elevation: 3,
-    },
-    elevated: {
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.12,
-      shadowRadius: 12,
-      elevation: 5,
-    },
-    button: {
-      shadowColor: "#00D26A",
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.3,
-      shadowRadius: 8,
-      elevation: 4,
-    },
-    modal: {
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: 0.15,
-      shadowRadius: 24,
-      elevation: 8,
-    },
-    float: {
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 12 },
-      shadowOpacity: 0.2,
-      shadowRadius: 32,
-      elevation: 12,
-    },
-  },
-  typography: {
-    fontFamily: {
-      regular: "PlusJakartaSans_400Regular",
-      medium: "PlusJakartaSans_500Medium",
-      semiBold: "PlusJakartaSans_600SemiBold",
-      bold: "PlusJakartaSans_700Bold",
-    },
-    fontSize: {
-      xs: 12,
-      sm: 14,
-      base: 16,
-      lg: 18,
-      xl: 20,
-      "2xl": 24,
-      "3xl": 30,
-      "4xl": 36,
-    },
-    lineHeight: {
-      tight: 1.2,
-      normal: 1.5,
-      relaxed: 1.75,
-    },
-    textStyles: {
-      title: { fontSize: 20 },
-      body: { fontSize: 16 },
-      caption: { fontSize: 12 },
-      label: { fontSize: 14 },
-    },
-  },
-  spacing: {
-    xs: 4,
-    sm: 8,
-    md: 12,
-    lg: 16,
-    xl: 24,
-    "2xl": 32,
-    "3xl": 48,
-    "4xl": 64,
-  },
-  radius: {
-    none: 0,
-    sm: 4,
-    base: 8,
-    md: 12,
-    lg: 16,
-    xl: 24,
-    full: 9999,
-    card: 16,
-    cardInner: 12,
-    button: 12,
-    input: 10,
-    avatar: 9999,
-    badge: 6,
-    modal: 20,
-  },
-  animation: {
-    fast: 150,
-    normal: 300,
-    slow: 500,
-  },
-  zIndex: {
-    base: 0,
-    dropdown: 10,
-    sticky: 20,
-    modal: 30,
-    toast: 40,
-  },
-  breakpoints: {
-    sm: 640,
-    md: 768,
-    lg: 1024,
-  },
-  iconSize: {
-    xs: 12,
-    sm: 16,
-    md: 20,
-    lg: 24,
-    xl: 32,
-  },
-  componentSize: {
-    buttonHeight: 48,
-    inputHeight: 48,
-    avatarSm: 32,
-    avatarMd: 40,
-    avatarLg: 56,
-    tabBarHeight: 64,
-    headerHeight: 56,
-  },
-  isDark: false,
-  fontsLoaded: true,
-};
-
-jest.mock("@/providers/ThemeProvider", () => ({
-  useAppTheme: () => mockTheme,
-  ThemeProvider: ({ children }: { children: any }) => children,
-}));
-
-// Export for test customization
-export { mockTheme };
-
-// =============================================================================
 // GLOBAL TEST UTILITIES
 // =============================================================================
 
-// Helper to reset challenges state
 const resetChallengesState = () => {
   mockChallengesState.activeChallenges.data = [];
   mockChallengesState.activeChallenges.isLoading = false;
@@ -570,11 +710,9 @@ const resetChallengesState = () => {
   mockChallengesState.logActivity.isPending = false;
 };
 
-// Reset all mocks between tests
 beforeEach(() => {
   jest.clearAllMocks();
 
-  // Reset auth state to defaults
   mockAuthState.session = null;
   mockAuthState.user = null;
   mockAuthState.profile = null;
@@ -582,24 +720,19 @@ beforeEach(() => {
   mockAuthState.error = null;
   mockAuthState.pendingEmailConfirmation = false;
 
-  // Reset challenges state
   resetChallengesState();
 
-  // Reset challenge status mock
   mockChallengeStatus.effectiveStatus = "active";
   mockChallengeStatus.canLog = true;
 
-  // Reset search params
   Object.keys(mockSearchParams).forEach((key) => delete mockSearchParams[key]);
 });
 
 export { resetChallengesState };
 
-// Silence console.error for expected errors in tests
 const originalError = console.error;
 beforeAll(() => {
   console.error = (...args: any[]) => {
-    // Filter out React Native expected warnings
     if (
       typeof args[0] === "string" &&
       (args[0].includes("Warning:") || args[0].includes("React Native"))

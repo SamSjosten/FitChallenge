@@ -1,14 +1,14 @@
 // Type declarations for react-native-heroicons
 import * as React from "react";
-import { SvgProps } from "react-native-svg";
+import { SvgProps, NumberProp } from "react-native-svg";
 
 type IconProps = SvgProps & {
-  size?: number;
+  size?: NumberProp;
   color?: string;
-  strokeWidth?: number;
+  strokeWidth?: NumberProp;
 };
 
-type IconComponent = React.FC<IconProps>;
+type IconComponent = (props: IconProps) => React.JSX.Element;
 
 // =============================================================================
 // EXPO LINEAR GRADIENT
