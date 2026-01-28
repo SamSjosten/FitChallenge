@@ -1,6 +1,6 @@
 // app/settings/index.tsx
 // Settings screen - Design System v1.0
-// Provides account management, sign out, and app info
+// Provides account management, health data, sign out, and app info
 
 import React from "react";
 import { View, Text, ScrollView, TouchableOpacity, Alert } from "react-native";
@@ -14,6 +14,7 @@ import {
   QuestionMarkCircleIcon,
   ArrowRightOnRectangleIcon,
   ChevronRightIcon,
+  HeartIcon,
 } from "react-native-heroicons/outline";
 import { useAppTheme } from "@/providers/ThemeProvider";
 import { useAuth } from "@/hooks/useAuth";
@@ -47,6 +48,13 @@ export default function SettingsScreen() {
       label: "Account",
       subtitle: "Profile, email, password",
       onPress: () => Alert.alert("Coming Soon", "Account settings coming soon"),
+    },
+    {
+      icon: HeartIcon,
+      label: "Health Data",
+      subtitle: "Connect Apple Health or Google Fit",
+      onPress: () => router.push("/settings/health"),
+      testID: TestIDs.settings.healthDataButton,
     },
     {
       icon: BellIcon,
@@ -120,6 +128,7 @@ export default function SettingsScreen() {
           {settingsItems.map((item, index) => (
             <TouchableOpacity
               key={item.label}
+              testID={item.testID}
               onPress={item.onPress}
               style={{
                 flexDirection: "row",

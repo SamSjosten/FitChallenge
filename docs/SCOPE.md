@@ -50,6 +50,22 @@ They define the core FitChallenge loop.
 - Pending invitees cannot view leaderboards
 - UI reflects database-denied states; it does not enforce authorization
 
+### Health Data Integration (Phase 1 Complete)
+
+- Connect Apple Health (iOS) or Google Fit (Android)
+- Health settings screen at `/settings/health`
+- Manual sync with deduplication
+- Batch activity import with challenge attribution
+- Sync history and stats display
+
+**Implementation:**
+
+- `health_connections` table tracks active connections
+- `health_sync_logs` table audits all sync operations
+- `log_health_activity` RPC handles batch insert with SHA-256 deduplication
+- Provider abstraction: HealthKitProvider (iOS), MockHealthProvider (testing)
+- React hooks: `useHealthConnection`, `useHealthSync`, `useHealthData`
+
 ---
 
 ## Implemented but NOT V1 (Experimental)
@@ -128,9 +144,10 @@ cleanup and reconnection handling may need hardening.
 
 These features are planned but **not implemented** yet.
 
-- Notification outbox + lifecycle processor
+- ~~Health data import (manual sync first, automation later)~~ ✅ Phase 1 complete
+- Background health sync automation
+- Push notification delivery (Expo Push API)
 - Challenge start/end notifications
-- Health data import (manual sync first, automation later)
 - Challenge window polish (editing rules, countdowns)
 - Apple Sign-In (requires Apple Developer account configuration)
 - Data export / account deletion UI (GDPR compliance)
@@ -187,6 +204,13 @@ log_activity(
 
 - Manual logs always use server `now()` regardless of `p_recorded_at`
 - Only trusted sources (`healthkit`, `googlefit`) can provide timestamps
+
+### Health Sync Deduplication
+
+- SHA-256 hash generated from immutable sample properties
+- Hash stored in `source_external_id` column
+- Unique constraint prevents duplicate imports
+- Batch processing: 100 activities per RPC call
 
 ---
 

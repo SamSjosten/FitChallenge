@@ -23,6 +23,7 @@ export const TestIDs = {
     friends: "friends-screen",
     profile: "profile-screen",
     settings: "settings-screen",
+    healthSettings: "health-settings-screen",
     createChallenge: "create-challenge-screen",
     challengeDetail: "challenge-detail-screen",
     notifications: "notifications-screen",
@@ -226,6 +227,25 @@ export const TestIDs = {
     notificationToggle: "notification-toggle",
     darkModeToggle: "dark-mode-toggle",
     versionText: "app-version",
+    healthDataButton: "health-data-button",
+  },
+
+  // ===========================================================================
+  // HEALTH SETTINGS SCREEN
+  // ===========================================================================
+  healthSettings: {
+    connectionStatus: "health-connection-status",
+    providerName: "health-provider-name",
+    lastSyncTime: "health-last-sync",
+    connectButton: "health-connect-button",
+    disconnectButton: "health-disconnect-button",
+    syncButton: "health-sync-button",
+    syncHistorySection: "health-sync-history",
+    syncHistoryItem: (id: string) => `health-sync-log-${id}`,
+    permissionsList: "health-permissions-list",
+    syncResultProcessed: "sync-result-processed",
+    syncResultInserted: "sync-result-inserted",
+    syncResultDeduplicated: "sync-result-deduplicated",
   },
 
   // ===========================================================================
