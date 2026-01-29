@@ -15,6 +15,7 @@ import {
   ArrowRightOnRectangleIcon,
   ChevronRightIcon,
   HeartIcon,
+  BeakerIcon,
 } from "react-native-heroicons/outline";
 import { useAppTheme } from "@/providers/ThemeProvider";
 import { useAuth } from "@/hooks/useAuth";
@@ -75,6 +76,17 @@ export default function SettingsScreen() {
       subtitle: "FAQ, contact us",
       onPress: () => Alert.alert("Coming Soon", "Help center coming soon"),
     },
+    ...(__DEV__
+      ? [
+          {
+            icon: BeakerIcon,
+            label: "Developer",
+            subtitle: "UI version, debug tools",
+            onPress: () => router.push("/settings/developer"),
+            testID: TestIDs.settings.developerButton,
+          },
+        ]
+      : []),
   ];
 
   return (

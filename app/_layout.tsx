@@ -43,6 +43,7 @@ import { useOfflineStore } from "@/stores/offlineStore";
 import { useToast } from "@/providers/ToastProvider";
 import type { Session } from "@supabase/supabase-js";
 import * as Sentry from "@sentry/react-native";
+import { useFeatureFlags } from "@/lib/featureFlags";
 
 Sentry.init({
   dsn: "https://5355753a2ebdf238435764f54c6b1f57@o4510739478478848.ingest.us.sentry.io/4510739480576000",
@@ -244,30 +245,111 @@ const queryClient = new QueryClient({
 });
 
 // Auth context to manage routing based on auth state
-function useProtectedRoute(session: Session | null, isLoading: boolean) {
+import type { Profile } from "@/types/database";
+
+// Auth context to manage routing based on auth state
+function useProtectedRoute(
+  session: Session | null,
+  isLoading: boolean,
+  uiVersion: "v1" | "v2" | null,
+  profile: Profile | null,
+) {
   const segments = useSegments();
   const router = useRouter();
 
   useEffect(() => {
-    if (isLoading) return;
+    if (isLoading || uiVersion === null) return;
 
-    const inAuthGroup = segments[0] === "(auth)";
+    const firstSegment = segments[0];
 
-    if (!session && !inAuthGroup) {
-      // Redirect to login if not signed in and not in auth group
-      router.replace("/(auth)/login");
-    } else if (session && inAuthGroup) {
-      // Redirect to home if signed in and in auth group
-      router.replace("/(tabs)");
+    const inV1Auth = firstSegment === "(auth)";
+    const inV2Auth = firstSegment === "(auth-v2)";
+    const inAnyAuth = inV1Auth || inV2Auth;
+
+    const inV1Tabs = firstSegment === "(tabs)";
+    const inV2Tabs = firstSegment === "(tabs-v2)";
+
+    // Check if already in V2 onboarding (don't redirect away from it)
+    const inV2Onboarding =
+      firstSegment === "(auth-v2)" && segments[1] === "onboarding";
+
+    // Determine targets based on UI version
+    const targetAuth =
+      uiVersion === "v2" ? "/(auth-v2)/welcome" : "/(auth)/login";
+    const targetTabs = uiVersion === "v2" ? "/(tabs-v2)" : "/(tabs)";
+
+    // Detect being in wrong version
+    const wrongAuth = uiVersion === "v2" ? inV1Auth : inV2Auth;
+    const wrongTabs = uiVersion === "v2" ? inV1Tabs : inV2Tabs;
+
+    // V2 users need onboarding if health setup not completed
+    const needsV2Onboarding =
+      uiVersion === "v2" && profile && !profile.health_setup_completed_at;
+
+    console.log("[useProtectedRoute] Decision:", {
+      firstSegment,
+      wrongTabs,
+      needsV2Onboarding,
+      targetTabs,
+    });
+
+    if (!session) {
+      // NOT LOGGED IN
+      if (!inAnyAuth || wrongAuth) {
+        // Not in auth OR in wrong auth version → go to correct auth
+        console.log("[useProtectedRoute] → Redirecting to auth:", targetAuth);
+        router.replace(targetAuth);
+      }
+    } else {
+      // LOGGED IN
+      if (inV2Onboarding) {
+        // Already in V2 onboarding - stay there
+        console.log("[useProtectedRoute] → Staying in onboarding");
+        return;
+      }
+
+      if (inAnyAuth) {
+        // In auth screens with session - need to leave auth
+        // For V2: wait for profile to load before deciding where to go
+        if (uiVersion === "v2" && profile === null) {
+          console.log("[useProtectedRoute] → Waiting for profile to load");
+          return;
+        }
+
+        if (needsV2Onboarding) {
+          console.log("[useProtectedRoute] → Redirecting to onboarding");
+          router.replace("/(auth-v2)/onboarding");
+        } else {
+          console.log("[useProtectedRoute] → Redirecting to tabs:", targetTabs);
+          router.replace(targetTabs);
+        }
+      } else if (wrongTabs || !firstSegment) {
+        // In wrong tabs OR at root - redirect to correct tabs
+        // But first check if V2 user needs onboarding
+        if (needsV2Onboarding) {
+          console.log(
+            "[useProtectedRoute] → Redirecting to onboarding (from wrong tabs)",
+          );
+          router.replace("/(auth-v2)/onboarding");
+        } else {
+          console.log(
+            "[useProtectedRoute] → Redirecting to correct tabs:",
+            targetTabs,
+          );
+          router.replace(targetTabs);
+        }
+      }
+      // If in correct tabs, do nothing
     }
-  }, [session, segments, isLoading]);
+  }, [session, segments, isLoading, uiVersion, profile, router]);
 }
 
 function RootLayoutNav() {
   const { colors, isDark } = useAppTheme();
   const { showToast } = useToast();
   // Use centralized auth state - NO MORE DUPLICATE SUBSCRIPTION
-  const { session, loading: isLoading } = useAuth();
+  const { session, loading: isLoading, profile } = useAuth();
+  const { uiVersion, isLoading: flagsLoading } = useFeatureFlags();
   // Track if we've shown storage warning for this session
   const storageWarningShown = useRef(false);
 
@@ -278,7 +360,7 @@ function RootLayoutNav() {
   const processQueue = useOfflineStore((s) => s.processQueue);
   const queueLength = useOfflineStore((s) => s.queue.length);
 
-  useProtectedRoute(session, isLoading);
+  useProtectedRoute(session, isLoading || flagsLoading, uiVersion, profile);
 
   // Update Sentry user context on auth state change
   useEffect(() => {
@@ -371,7 +453,7 @@ function RootLayoutNav() {
   // Handle notification taps for deep linking
   useNotificationResponseHandler();
 
-  if (isLoading) {
+  if (isLoading || flagsLoading) {
     return (
       <View style={[styles.loading, { backgroundColor: colors.background }]}>
         <ActivityIndicator size="large" color={colors.primary.main} />
@@ -420,6 +502,18 @@ function RootLayoutNav() {
         />
         <Stack.Screen
           name="(tabs)"
+          options={{
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="(auth-v2)"
+          options={{
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="(tabs-v2)"
           options={{
             headerShown: false,
           }}

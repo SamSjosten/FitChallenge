@@ -228,6 +228,7 @@ export const TestIDs = {
     darkModeToggle: "dark-mode-toggle",
     versionText: "app-version",
     healthDataButton: "health-data-button",
+    developerButton: "developer-settings-button",
   },
 
   // ===========================================================================
@@ -282,6 +283,26 @@ export const TestIDs = {
     okButton: "alert-ok-button",
     cancelButton: "alert-cancel-button",
     confirmButton: "alert-confirm-button",
+  },
+
+  // ===========================================================================
+  // DEVELOPER SETTINGS SCREEN
+  // ===========================================================================
+  developerSettings: {
+    screen: "developer-settings-screen",
+    uiVersionToggle: "ui-version-toggle",
+    resetButton: "reset-ui-version-button",
+    currentVersionLabel: "current-ui-version",
+  },
+
+  // ===========================================================================
+  // V2 SCREENS (new UI version)
+  // ===========================================================================
+  screensV2: {
+    home: "home-screen-v2",
+    challenges: "challenges-screen-v2",
+    friends: "friends-screen-v2",
+    profile: "profile-screen-v2",
   },
 } as const;
 
