@@ -1,23 +1,28 @@
 // src/components/v2/StreakBanner.tsx
-// Animated streak banner with swipe-to-dismiss
-// Design System v2.0 - Based on prototype
+// Animated streak banner with swipe-to-dismiss and shimmer effect
+// Design System v2.0 - Uses react-native-gesture-handler for ScrollView compatibility
 
-import React, { useState, useEffect, useRef } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  Animated,
-  PanResponder,
-  Dimensions,
-} from "react-native";
+import React, { useState, useEffect, useCallback } from "react";
+import { View, Text, StyleSheet, Dimensions } from "react-native";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  runOnJS,
+  withRepeat,
+  withSequence,
+  withDelay,
+  Easing,
+} from "react-native-reanimated";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { LinearGradient } from "expo-linear-gradient";
 import { FireIcon } from "react-native-heroicons/solid";
 import { useAppTheme } from "@/providers/ThemeProvider";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
-const SWIPE_THRESHOLD = 60; // Reduced for easier swipe
+const SWIPE_THRESHOLD = 80;
 const STORAGE_KEY = "fitchallenge_streak_banner_dismissed";
 
 export interface StreakBannerProps {
@@ -35,70 +40,75 @@ export function StreakBanner({
   const [isVisible, setIsVisible] = useState(true);
   const [isDismissedToday, setIsDismissedToday] = useState(false);
 
-  // Animation values
-  const translateX = useRef(new Animated.Value(0)).current;
-  const opacity = useRef(new Animated.Value(1)).current;
-  const scale = useRef(new Animated.Value(1)).current;
+  // Animation values using Reanimated
+  const translateX = useSharedValue(0);
+  const opacity = useSharedValue(1);
+  const scale = useSharedValue(1);
 
   // Flame animation
-  const flameScale = useRef(new Animated.Value(1)).current;
-  const flameRotation = useRef(new Animated.Value(0)).current;
+  const flameScale = useSharedValue(1);
+  const flameRotation = useSharedValue(0);
 
-  // Gradient animation phase
-  const [gradientPhase, setGradientPhase] = useState(0);
+  // Shimmer animation - moves from left to right
+  const shimmerTranslate = useSharedValue(-SCREEN_WIDTH);
 
   // Check if dismissed today on mount
   useEffect(() => {
     checkDismissedToday();
   }, []);
 
-  // Animate gradient colors
+  // Animate shimmer effect - sweeps across the banner
   useEffect(() => {
     if (!isVisible || isDismissedToday) return;
 
-    const interval = setInterval(() => {
-      setGradientPhase((prev) => prev + 0.02);
-    }, 50);
-
-    return () => clearInterval(interval);
-  }, [isVisible, isDismissedToday]);
-
-  // Animate flame breathing
-  useEffect(() => {
-    if (!isVisible || isDismissedToday) return;
-
-    const breatheAnimation = Animated.loop(
-      Animated.sequence([
-        Animated.parallel([
-          Animated.timing(flameScale, {
-            toValue: 1.15,
-            duration: 1000,
-            useNativeDriver: true,
-          }),
-          Animated.timing(flameRotation, {
-            toValue: 1,
-            duration: 1000,
-            useNativeDriver: true,
-          }),
-        ]),
-        Animated.parallel([
-          Animated.timing(flameScale, {
-            toValue: 1,
-            duration: 1000,
-            useNativeDriver: true,
-          }),
-          Animated.timing(flameRotation, {
-            toValue: 0,
-            duration: 1000,
-            useNativeDriver: true,
-          }),
-        ]),
-      ]),
+    // Shimmer animation: move from left (-SCREEN_WIDTH) to right (SCREEN_WIDTH)
+    // with a pause between sweeps
+    shimmerTranslate.value = withRepeat(
+      withSequence(
+        withTiming(SCREEN_WIDTH, {
+          duration: 1500,
+          easing: Easing.inOut(Easing.ease),
+        }),
+        withDelay(
+          2000, // Pause between shimmers
+          withTiming(-SCREEN_WIDTH, { duration: 0 }),
+        ),
+      ),
+      -1, // infinite
+      false,
     );
 
-    breatheAnimation.start();
+    return () => {
+      shimmerTranslate.value = -SCREEN_WIDTH;
+    };
+  }, [isVisible, isDismissedToday]);
 
-    return () => breatheAnimation.stop();
+  // Animate flame breathing using Reanimated
+  useEffect(() => {
+    if (!isVisible || isDismissedToday) return;
+
+    flameScale.value = withRepeat(
+      withSequence(
+        withTiming(1.15, { duration: 1000 }),
+        withTiming(1, { duration: 1000 }),
+      ),
+      -1, // infinite
+      false,
+    );
+
+    flameRotation.value = withRepeat(
+      withSequence(
+        withTiming(5, { duration: 1000 }),
+        withTiming(0, { duration: 1000 }),
+      ),
+      -1,
+      false,
+    );
+
+    return () => {
+      flameScale.value = 1;
+      flameRotation.value = 0;
+    };
   }, [isVisible, isDismissedToday]);
 
   const checkDismissedToday = async () => {
@@ -131,16 +141,16 @@ export function StreakBanner({
     }
   };
 
-  const handleUndo = () => {
+  const handleUndo = useCallback(() => {
     clearDismissedToday();
     setIsDismissedToday(false);
     setIsVisible(true);
-    translateX.setValue(0);
-    opacity.setValue(1);
-    scale.setValue(1);
-  };
+    translateX.value = 0;
+    opacity.value = 1;
+    scale.value = 1;
+  }, []);
 
-  const handleDismiss = () => {
+  const handleDismiss = useCallback(() => {
     setIsVisible(false);
     saveDismissedToday();
     onDismiss?.();
@@ -149,155 +159,140 @@ export function StreakBanner({
     if (showUndoToast) {
       showUndoToast(handleUndo);
     }
-  };
+  }, [onDismiss, showUndoToast, handleUndo]);
 
-  // Use ref for dismiss handler to avoid stale closure in panResponder
-  const handleDismissRef = useRef(handleDismiss);
-  handleDismissRef.current = handleDismiss;
+  // Pan gesture using react-native-gesture-handler
+  // This properly composes with ScrollView unlike PanResponder
+  const panGesture = Gesture.Pan()
+    .activeOffsetX([-15, 15]) // Only activate after 15px horizontal movement
+    .failOffsetY([-25, 25]) // Fail if vertical exceeds 25px (let scroll take over)
+    .onUpdate((event) => {
+      translateX.value = event.translationX;
+      opacity.value = Math.max(
+        0,
+        1 - Math.abs(event.translationX) / (SCREEN_WIDTH * 0.5),
+      );
+    })
+    .onEnd((event) => {
+      if (Math.abs(event.translationX) > SWIPE_THRESHOLD) {
+        // Animate off screen
+        const direction = event.translationX > 0 ? 1 : -1;
+        translateX.value = withTiming(
+          direction * SCREEN_WIDTH,
+          { duration: 200 },
+          () => {
+            runOnJS(handleDismiss)();
+          },
+        );
+        opacity.value = withTiming(0, { duration: 200 });
+      } else {
+        // Spring back
+        translateX.value = withSpring(0, { damping: 15 });
+        opacity.value = withSpring(1, { damping: 15 });
+      }
+    });
 
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: (_, gestureState) => {
-        return Math.abs(gestureState.dx) > 10;
-      },
-      onPanResponderMove: (_, gestureState) => {
-        // Only allow swiping left (negative) or right (positive)
-        translateX.setValue(gestureState.dx);
+  // Animated styles
+  const containerStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value }, { scale: scale.value }],
+    opacity: opacity.value,
+  }));
 
-        // Calculate opacity based on swipe distance
-        const newOpacity = 1 - Math.abs(gestureState.dx) / (SCREEN_WIDTH * 0.5);
-        opacity.setValue(Math.max(0, newOpacity));
-      },
-      onPanResponderRelease: (_, gestureState) => {
-        if (Math.abs(gestureState.dx) > SWIPE_THRESHOLD) {
-          // Determine direction and animate off screen
-          const direction = gestureState.dx > 0 ? 1 : -1;
-          Animated.parallel([
-            Animated.timing(translateX, {
-              toValue: direction * SCREEN_WIDTH,
-              duration: 200,
-              useNativeDriver: true,
-            }),
-            Animated.timing(opacity, {
-              toValue: 0,
-              duration: 200,
-              useNativeDriver: true,
-            }),
-          ]).start(() => {
-            handleDismissRef.current();
-          });
-        } else {
-          // Spring back
-          Animated.parallel([
-            Animated.spring(translateX, {
-              toValue: 0,
-              friction: 5,
-              useNativeDriver: true,
-            }),
-            Animated.spring(opacity, {
-              toValue: 1,
-              friction: 5,
-              useNativeDriver: true,
-            }),
-          ]).start();
-        }
-      },
-    }),
-  ).current;
+  const flameStyle = useAnimatedStyle(() => ({
+    transform: [
+      { scale: flameScale.value },
+      { rotate: `${flameRotation.value}deg` },
+    ],
+  }));
 
-  // Calculate gradient colors based on phase
-  const hue1 = 25 + Math.sin(gradientPhase) * 15; // Orange range
-  const hue2 = 5 + Math.cos(gradientPhase) * 15; // Red-orange range
-
-  // Convert HSL to hex approximation for gradient
-  const getGradientColors = (): [string, string] => {
-    // Simplified: oscillate between energy colors
-    const intensity = (Math.sin(gradientPhase) + 1) / 2;
-    return [
-      colors.energy.main, // #FFB800
-      intensity > 0.5 ? colors.energy.dark : "#F97316", // Oscillate end color
-    ];
-  };
-
-  const flameRotationInterpolate = flameRotation.interpolate({
-    inputRange: [-3, 0, 1, 3],
-    outputRange: ["-10deg", "0deg", "5deg", "10deg"],
-  });
+  // Shimmer overlay style - diagonal gradient that sweeps across
+  const shimmerStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: shimmerTranslate.value }],
+  }));
 
   if (!isVisible || isDismissedToday) {
     return null;
   }
 
   return (
-    <Animated.View
-      style={[
-        styles.container,
-        {
-          transform: [{ translateX }, { scale }],
-          opacity,
-        },
-      ]}
-      {...panResponder.panHandlers}
-    >
-      <LinearGradient
-        colors={getGradientColors()}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
-        style={[
-          styles.gradient,
-          {
-            borderRadius: radius.xl,
-            padding: spacing.lg,
-          },
-        ]}
-      >
-        <View style={styles.content}>
-          {/* Flame Icon with Animation */}
-          <Animated.View
-            style={[
-              styles.iconContainer,
-              {
-                transform: [
-                  { scale: flameScale },
-                  { rotate: flameRotationInterpolate },
-                ],
-              },
-            ]}
-          >
-            <View style={styles.glowBackground} />
-            <FireIcon size={28} color="#FFFFFF" />
+    <GestureDetector gesture={panGesture}>
+      <Animated.View style={[styles.container, containerStyle]}>
+        {/* Base gradient */}
+        <LinearGradient
+          colors={[colors.energy.main, "#F97316"]} // #FFB800 to Orange
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={[
+            styles.gradient,
+            {
+              borderRadius: radius.xl,
+              padding: spacing.lg,
+            },
+          ]}
+        >
+          {/* Shimmer overlay */}
+          <Animated.View style={[styles.shimmerContainer, shimmerStyle]}>
+            <LinearGradient
+              colors={[
+                "transparent",
+                "rgba(255, 255, 255, 0.3)",
+                "rgba(255, 255, 255, 0.4)",
+                "rgba(255, 255, 255, 0.3)",
+                "transparent",
+              ]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.shimmerGradient}
+            />
           </Animated.View>
 
-          {/* Text Content */}
-          <View style={styles.textContainer}>
-            <Text style={styles.streakText}>{streak} Day Streak</Text>
-            <Text style={styles.subtitleText}>
-              Keep it going! Log activity today.
-            </Text>
-          </View>
-        </View>
+          <View style={styles.content}>
+            {/* Flame Icon with Animation */}
+            <Animated.View style={[styles.iconContainer, flameStyle]}>
+              <View style={styles.glowBackground} />
+              <FireIcon size={28} color="#FFFFFF" />
+            </Animated.View>
 
-        {/* Swipe hint */}
-        <View style={styles.swipeHint}>
-          <Text style={styles.swipeHintText}>← Swipe to dismiss</Text>
-        </View>
-      </LinearGradient>
-    </Animated.View>
+            {/* Text Content */}
+            <View style={styles.textContainer}>
+              <Text style={styles.streakText}>{streak} Day Streak</Text>
+              <Text style={styles.subtitleText}>
+                Keep it going! Log activity today.
+              </Text>
+            </View>
+          </View>
+
+          {/* Swipe hint */}
+          <View style={styles.swipeHint}>
+            <Text style={styles.swipeHintText}>← Swipe to dismiss →</Text>
+          </View>
+        </LinearGradient>
+      </Animated.View>
+    </GestureDetector>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     marginBottom: 0,
+    overflow: "hidden",
   },
   gradient: {
     overflow: "hidden",
+  },
+  shimmerContainer: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 1,
+  },
+  shimmerGradient: {
+    width: 100,
+    height: "100%",
   },
   content: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
+    zIndex: 2,
   },
   iconContainer: {
     width: 48,
@@ -316,6 +311,7 @@ const styles = StyleSheet.create({
   },
   textContainer: {
     flex: 1,
+    zIndex: 2,
   },
   streakText: {
     fontSize: 22,
@@ -330,6 +326,7 @@ const styles = StyleSheet.create({
   swipeHint: {
     marginTop: 8,
     alignItems: "center",
+    zIndex: 2,
   },
   swipeHintText: {
     fontSize: 11,

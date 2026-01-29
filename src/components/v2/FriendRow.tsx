@@ -113,7 +113,7 @@ export function FriendRequestRow({
           style={[
             styles.actionButton,
             {
-              backgroundColor: colors.backgroundAlt,
+              backgroundColor: colors.background,
               borderRadius: radius.lg,
             },
           ]}
@@ -193,7 +193,7 @@ export function SearchResultRow({
           styles.addButton,
           {
             backgroundColor: alreadySent
-              ? colors.backgroundAlt
+              ? colors.background
               : colors.primary.main,
             borderRadius: radius.lg,
             paddingHorizontal: spacing.md,

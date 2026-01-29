@@ -97,7 +97,7 @@ export function EmptyState({
         style={[
           styles.iconContainer,
           {
-            backgroundColor: colors.backgroundAlt,
+            backgroundColor: colors.background,
             width: compact ? 48 : 64,
             height: compact ? 48 : 64,
             borderRadius: compact ? 24 : 32,

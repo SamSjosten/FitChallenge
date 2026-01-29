@@ -23,6 +23,7 @@ import {
   Text,
 } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import * as Notifications from "expo-notifications";
 import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
@@ -553,34 +554,41 @@ export default Sentry.wrap(function RootLayout() {
   if (supabaseConfigError) {
     return (
       <SafeAreaProvider>
-        <ConfigurationErrorScreen />
+        <GestureHandlerRootView style={styles.flex}>
+          <ConfigurationErrorScreen />
+        </GestureHandlerRootView>
       </SafeAreaProvider>
     );
   }
 
   return (
     <SafeAreaProvider>
-      {/* GUARDRAIL 0: Non-blocking hydration via PersistQueryClientProvider */}
-      <PersistQueryClientProvider
-        client={queryClient}
-        persistOptions={persistOptions}
-        onSuccess={() => {
-          console.log("[QueryPersister] Cache hydrated");
-        }}
-      >
-        <AuthProvider>
-          <ThemeProvider>
-            <ToastProvider>
-              <RootLayoutNav />
-            </ToastProvider>
-          </ThemeProvider>
-        </AuthProvider>
-      </PersistQueryClientProvider>
+      <GestureHandlerRootView style={styles.flex}>
+        {/* GUARDRAIL 0: Non-blocking hydration via PersistQueryClientProvider */}
+        <PersistQueryClientProvider
+          client={queryClient}
+          persistOptions={persistOptions}
+          onSuccess={() => {
+            console.log("[QueryPersister] Cache hydrated");
+          }}
+        >
+          <AuthProvider>
+            <ThemeProvider>
+              <ToastProvider>
+                <RootLayoutNav />
+              </ToastProvider>
+            </ThemeProvider>
+          </AuthProvider>
+        </PersistQueryClientProvider>
+      </GestureHandlerRootView>
     </SafeAreaProvider>
   );
 });
 
 const styles = StyleSheet.create({
+  flex: {
+    flex: 1,
+  },
   loading: {
     flex: 1,
     justifyContent: "center",
