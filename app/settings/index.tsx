@@ -10,6 +10,7 @@ import {
   ChevronLeftIcon,
   BellIcon,
   ShieldCheckIcon,
+  LockClosedIcon,
   UserIcon,
   QuestionMarkCircleIcon,
   ArrowRightOnRectangleIcon,
@@ -69,6 +70,12 @@ export default function SettingsScreen() {
       label: "Privacy",
       subtitle: "Data, visibility, permissions",
       onPress: () => Alert.alert("Coming Soon", "Privacy settings coming soon"),
+    },
+    {
+      icon: LockClosedIcon,
+      label: "Security",
+      subtitle: "Face ID, Touch ID, app lock",
+      onPress: () => router.push("/settings/security"),
     },
     {
       icon: QuestionMarkCircleIcon,

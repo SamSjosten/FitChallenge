@@ -3,7 +3,7 @@
 //
 // Flow: Welcome → Auth (signup/signin) → Onboarding → Home
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -12,7 +12,7 @@ import {
   Animated,
   Dimensions,
 } from "react-native";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAppTheme } from "@/providers/ThemeProvider";
 import {
@@ -150,6 +150,43 @@ export default function WelcomeScreenV2() {
       }),
     ]).start();
   }, []);
+
+  // Reset and replay animations when screen regains focus (e.g., back navigation)
+  useFocusEffect(
+    useCallback(() => {
+      // Reset exit state
+      setIsExiting(false);
+      exitAnim.setValue(1);
+      exitScaleAnim.setValue(1);
+
+      // Reset entrance animations to initial values
+      fadeAnim.setValue(0);
+      slideAnim.setValue(30);
+      cardFadeAnim.setValue(0);
+
+      // Replay entrance animation sequence
+      Animated.sequence([
+        Animated.delay(200),
+        Animated.parallel([
+          Animated.timing(fadeAnim, {
+            toValue: 1,
+            duration: 700,
+            useNativeDriver: true,
+          }),
+          Animated.timing(slideAnim, {
+            toValue: 0,
+            duration: 700,
+            useNativeDriver: true,
+          }),
+        ]),
+        Animated.timing(cardFadeAnim, {
+          toValue: 1,
+          duration: 400,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }, []),
+  );
 
   const handleGetStarted = () => {
     setIsExiting(true);

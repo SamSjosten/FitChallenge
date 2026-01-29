@@ -10,8 +10,13 @@
 // It provides the global crypto.getRandomValues for React Native
 import "react-native-get-random-values";
 
-import React, { useEffect, useRef } from "react";
-import { Stack, useRouter, useSegments } from "expo-router";
+import React, { useEffect, useRef, useState } from "react";
+import {
+  Stack,
+  useRouter,
+  useSegments,
+  useRootNavigationState,
+} from "expo-router";
 import { QueryClient } from "@tanstack/react-query";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { StatusBar } from "expo-status-bar";
@@ -21,6 +26,8 @@ import {
   StyleSheet,
   Platform,
   Text,
+  AppState,
+  AppStateStatus,
 } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -41,6 +48,8 @@ import { persistOptions } from "@/lib/queryPersister";
 import { queryRetryFn, mutationRetryFn } from "@/lib/queryRetry";
 import { initSentry, setUserContext } from "@/lib/sentry";
 import { useOfflineStore } from "@/stores/offlineStore";
+import { useSecurityStore } from "@/stores/securityStore";
+import BiometricLockScreen from "@/components/BiometricLockScreen";
 import { useToast } from "@/providers/ToastProvider";
 import type { Session } from "@supabase/supabase-js";
 import * as Sentry from "@sentry/react-native";
@@ -257,18 +266,31 @@ function useProtectedRoute(
 ) {
   const segments = useSegments();
   const router = useRouter();
+  const navigationState = useRootNavigationState();
 
   useEffect(() => {
+    // Wait for all required data to be ready
     if (isLoading || uiVersion === null) return;
+
+    // CRITICAL: Wait for navigation state to be ready
+    // This is the ROOT CAUSE fix - don't navigate until expo-router is fully initialized
+    if (!navigationState?.key) {
+      console.log("[useProtectedRoute] → Waiting for navigation to be ready");
+      return;
+    }
 
     const firstSegment = segments[0];
 
+    // Determine where we are
     const inV1Auth = firstSegment === "(auth)";
     const inV2Auth = firstSegment === "(auth-v2)";
     const inAnyAuth = inV1Auth || inV2Auth;
 
     const inV1Tabs = firstSegment === "(tabs)";
     const inV2Tabs = firstSegment === "(tabs-v2)";
+
+    // At root index (before any navigation has happened)
+    const atRoot = !firstSegment;
 
     // Check if already in V2 onboarding (don't redirect away from it)
     const inV2Onboarding =
@@ -279,77 +301,89 @@ function useProtectedRoute(
       uiVersion === "v2" ? "/(auth-v2)/welcome" : "/(auth)/login";
     const targetTabs = uiVersion === "v2" ? "/(tabs-v2)" : "/(tabs)";
 
-    // Detect being in wrong version
-    const wrongAuth = uiVersion === "v2" ? inV1Auth : inV2Auth;
-    const wrongTabs = uiVersion === "v2" ? inV1Tabs : inV2Tabs;
+    // Check if we're in the CORRECT place for our UI version
+    const inCorrectAuth = uiVersion === "v2" ? inV2Auth : inV1Auth;
+    const inCorrectTabs = uiVersion === "v2" ? inV2Tabs : inV1Tabs;
+
+    // Check if we're in the WRONG version
+    const inWrongAuth = uiVersion === "v2" ? inV1Auth : inV2Auth;
+    const inWrongTabs = uiVersion === "v2" ? inV1Tabs : inV2Tabs;
 
     // V2 users need onboarding if health setup not completed
     const needsV2Onboarding =
       uiVersion === "v2" && profile && !profile.health_setup_completed_at;
 
-    console.log("[useProtectedRoute] Decision:", {
+    console.log("[useProtectedRoute] State:", {
       firstSegment,
-      wrongTabs,
+      atRoot,
+      inCorrectTabs,
+      inWrongTabs,
+      hasSession: !!session,
       needsV2Onboarding,
-      targetTabs,
     });
 
+    // =========================================================================
+    // ROUTING LOGIC
+    // =========================================================================
+
     if (!session) {
-      // NOT LOGGED IN
-      if (!inAnyAuth || wrongAuth) {
-        // Not in auth OR in wrong auth version → go to correct auth
-        console.log("[useProtectedRoute] → Redirecting to auth:", targetAuth);
-        router.replace(targetAuth);
+      // NOT LOGGED IN - should be in auth screens
+      if (inCorrectAuth) {
+        // Already in correct auth - do nothing
+        return;
       }
-    } else {
-      // LOGGED IN
-      if (inV2Onboarding) {
-        // Already in V2 onboarding - stay there
-        console.log("[useProtectedRoute] → Staying in onboarding");
+      // Need to go to auth (from root, wrong auth, or tabs)
+      console.log("[useProtectedRoute] → No session, redirecting to auth");
+      router.replace(targetAuth);
+      return;
+    }
+
+    // LOGGED IN from here
+
+    // Already in correct tabs - do nothing
+    if (inCorrectTabs) {
+      console.log("[useProtectedRoute] → Already in correct tabs");
+      return;
+    }
+
+    // In V2 onboarding - stay there
+    if (inV2Onboarding) {
+      console.log("[useProtectedRoute] → Staying in onboarding");
+      return;
+    }
+
+    // At root or in wrong version - need to redirect
+    if (atRoot || inWrongTabs || inAnyAuth) {
+      // For V2: wait for profile to load before deciding destination
+      if (uiVersion === "v2" && profile === null) {
+        console.log("[useProtectedRoute] → Waiting for profile to load");
         return;
       }
 
-      if (inAnyAuth) {
-        // In auth screens with session - need to leave auth
-        // For V2: wait for profile to load before deciding where to go
-        if (uiVersion === "v2" && profile === null) {
-          console.log("[useProtectedRoute] → Waiting for profile to load");
-          return;
-        }
-
-        if (needsV2Onboarding) {
-          console.log("[useProtectedRoute] → Redirecting to onboarding");
-          router.replace("/(auth-v2)/onboarding");
-        } else {
-          console.log("[useProtectedRoute] → Redirecting to tabs:", targetTabs);
-          router.replace(targetTabs);
-        }
-      } else if (wrongTabs || !firstSegment) {
-        // In wrong tabs OR at root - redirect to correct tabs
-        // But first check if V2 user needs onboarding
-        if (needsV2Onboarding) {
-          console.log(
-            "[useProtectedRoute] → Redirecting to onboarding (from wrong tabs)",
-          );
-          router.replace("/(auth-v2)/onboarding");
-        } else {
-          console.log(
-            "[useProtectedRoute] → Redirecting to correct tabs:",
-            targetTabs,
-          );
-          router.replace(targetTabs);
-        }
+      if (needsV2Onboarding) {
+        console.log("[useProtectedRoute] → Redirecting to onboarding");
+        router.replace("/(auth-v2)/onboarding");
+      } else {
+        console.log("[useProtectedRoute] → Redirecting to tabs:", targetTabs);
+        router.replace(targetTabs);
       }
-      // If in correct tabs, do nothing
     }
-  }, [session, segments, isLoading, uiVersion, profile, router]);
+  }, [
+    session,
+    segments,
+    isLoading,
+    uiVersion,
+    profile,
+    router,
+    navigationState?.key,
+  ]);
 }
 
 function RootLayoutNav() {
   const { colors, isDark } = useAppTheme();
   const { showToast } = useToast();
   // Use centralized auth state - NO MORE DUPLICATE SUBSCRIPTION
-  const { session, loading: isLoading, profile } = useAuth();
+  const { session, loading: isLoading, profile, signOut } = useAuth();
   const { uiVersion, isLoading: flagsLoading } = useFeatureFlags();
   // Track if we've shown storage warning for this session
   const storageWarningShown = useRef(false);
@@ -360,6 +394,62 @@ function RootLayoutNav() {
   // GUARDRAIL 3: Offline queue state
   const processQueue = useOfflineStore((s) => s.processQueue);
   const queueLength = useOfflineStore((s) => s.queue.length);
+
+  // BIOMETRIC LOCK: Security state
+  const { biometricsEnabled, checkIfLocked, recordAuthentication } =
+    useSecurityStore();
+  const [showBiometricLock, setShowBiometricLock] = useState(false);
+  const appState = useRef(AppState.currentState);
+
+  // BIOMETRIC LOCK: Check on app foreground
+  useEffect(() => {
+    // Only apply biometric lock when user is logged in and biometrics enabled
+    if (!session?.user?.id || !biometricsEnabled) {
+      setShowBiometricLock(false);
+      return;
+    }
+
+    const handleAppStateChange = (nextAppState: AppStateStatus) => {
+      // App coming to foreground from background/inactive
+      if (
+        appState.current.match(/inactive|background/) &&
+        nextAppState === "active"
+      ) {
+        // Check if timeout has elapsed
+        if (checkIfLocked()) {
+          setShowBiometricLock(true);
+        }
+      }
+      appState.current = nextAppState;
+    };
+
+    const subscription = AppState.addEventListener(
+      "change",
+      handleAppStateChange,
+    );
+
+    // Initial check on mount (e.g., app was killed and restarted)
+    if (checkIfLocked()) {
+      setShowBiometricLock(true);
+    }
+
+    return () => {
+      subscription.remove();
+    };
+  }, [session?.user?.id, biometricsEnabled, checkIfLocked]);
+
+  // BIOMETRIC LOCK: Handle successful unlock
+  const handleBiometricUnlock = () => {
+    recordAuthentication();
+    setShowBiometricLock(false);
+  };
+
+  // BIOMETRIC LOCK: Handle "Use Password" (sign out and re-authenticate)
+  const handleUsePassword = async () => {
+    setShowBiometricLock(false);
+    await signOut();
+    // User will be redirected to auth screen by useProtectedRoute
+  };
 
   useProtectedRoute(session, isLoading || flagsLoading, uiVersion, profile);
 
@@ -462,8 +552,18 @@ function RootLayoutNav() {
     );
   }
 
+  // BIOMETRIC LOCK: Show lock screen when locked
+  if (showBiometricLock) {
+    return (
+      <BiometricLockScreen
+        onUnlock={handleBiometricUnlock}
+        onUsePassword={handleUsePassword}
+      />
+    );
+  }
+
   return (
-    <>
+    <GestureHandlerRootView style={{ flex: 1 }}>
       <StatusBar style={isDark ? "light" : "dark"} />
       {/* Show time sync warning when logged in and sync has failed */}
       {session && <ServerTimeBanner />}
@@ -545,7 +645,7 @@ function RootLayoutNav() {
           }}
         />
       </Stack>
-    </>
+    </GestureHandlerRootView>
   );
 }
 
@@ -554,41 +654,34 @@ export default Sentry.wrap(function RootLayout() {
   if (supabaseConfigError) {
     return (
       <SafeAreaProvider>
-        <GestureHandlerRootView style={styles.flex}>
-          <ConfigurationErrorScreen />
-        </GestureHandlerRootView>
+        <ConfigurationErrorScreen />
       </SafeAreaProvider>
     );
   }
 
   return (
     <SafeAreaProvider>
-      <GestureHandlerRootView style={styles.flex}>
-        {/* GUARDRAIL 0: Non-blocking hydration via PersistQueryClientProvider */}
-        <PersistQueryClientProvider
-          client={queryClient}
-          persistOptions={persistOptions}
-          onSuccess={() => {
-            console.log("[QueryPersister] Cache hydrated");
-          }}
-        >
-          <AuthProvider>
-            <ThemeProvider>
-              <ToastProvider>
-                <RootLayoutNav />
-              </ToastProvider>
-            </ThemeProvider>
-          </AuthProvider>
-        </PersistQueryClientProvider>
-      </GestureHandlerRootView>
+      {/* GUARDRAIL 0: Non-blocking hydration via PersistQueryClientProvider */}
+      <PersistQueryClientProvider
+        client={queryClient}
+        persistOptions={persistOptions}
+        onSuccess={() => {
+          console.log("[QueryPersister] Cache hydrated");
+        }}
+      >
+        <AuthProvider>
+          <ThemeProvider>
+            <ToastProvider>
+              <RootLayoutNav />
+            </ToastProvider>
+          </ThemeProvider>
+        </AuthProvider>
+      </PersistQueryClientProvider>
     </SafeAreaProvider>
   );
 });
 
 const styles = StyleSheet.create({
-  flex: {
-    flex: 1,
-  },
   loading: {
     flex: 1,
     justifyContent: "center",

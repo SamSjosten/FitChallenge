@@ -1,7 +1,7 @@
 // app/(auth-v2)/auth.tsx
 // V2 Auth screen - matches mock design with gradient header, mode toggle, social login
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -13,13 +13,24 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  Switch,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useAppTheme } from "@/providers/ThemeProvider";
 import { useAuth } from "@/providers/AuthProvider";
+import { BiometricSignInButton } from "@/components/BiometricSignInButton";
+import { BiometricSetupModal } from "@/components/BiometricSetupModal";
+import {
+  checkBiometricCapability,
+  isBiometricSignInEnabled,
+} from "@/lib/biometricSignIn";
 
 type AuthMode = "signup" | "signin";
 
@@ -27,6 +38,7 @@ export default function AuthScreenV2() {
   const { colors, spacing, radius } = useAppTheme();
   const { signIn, signUp } = useAuth();
   const params = useLocalSearchParams<{ mode?: string }>();
+  const insets = useSafeAreaInsets();
 
   const [mode, setMode] = useState<AuthMode>(
     (params.mode as AuthMode) || "signup",
@@ -37,6 +49,46 @@ export default function AuthScreenV2() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [rememberMe, setRememberMe] = useState(false);
+  const [showBiometricSetup, setShowBiometricSetup] = useState(false);
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [biometricEnabled, setBiometricEnabled] = useState(false);
+  const [pendingCredentials, setPendingCredentials] = useState<{
+    email: string;
+    password: string;
+  } | null>(null);
+
+  const REMEMBER_EMAIL_KEY = "fitchallenge_remembered_email";
+
+  // Load saved email on mount
+  useEffect(() => {
+    const loadSavedEmail = async () => {
+      try {
+        const savedEmail = await AsyncStorage.getItem(REMEMBER_EMAIL_KEY);
+        if (savedEmail) {
+          setEmail(savedEmail);
+          setRememberMe(true);
+        }
+      } catch (error) {
+        console.error("Failed to load saved email:", error);
+      }
+    };
+    loadSavedEmail();
+  }, []);
+
+  // Check biometric availability on mount
+  useEffect(() => {
+    const checkBiometrics = async () => {
+      const capability = await checkBiometricCapability();
+      setBiometricAvailable(capability.isAvailable);
+
+      if (capability.isAvailable) {
+        const enabled = await isBiometricSignInEnabled();
+        setBiometricEnabled(enabled);
+      }
+    };
+    checkBiometrics();
+  }, []);
 
   useEffect(() => {
     if (params.mode === "signin" || params.mode === "signup") {
@@ -76,6 +128,23 @@ export default function AuthScreenV2() {
     try {
       if (mode === "signin") {
         await signIn(email, password);
+        // Save or clear remembered email
+        if (rememberMe) {
+          await AsyncStorage.setItem(REMEMBER_EMAIL_KEY, email);
+        } else {
+          await AsyncStorage.removeItem(REMEMBER_EMAIL_KEY);
+        }
+
+        // Check if we should show biometric setup prompt
+        if (biometricAvailable && !biometricEnabled) {
+          // Store credentials temporarily for setup
+          setPendingCredentials({ email, password });
+          setShowBiometricSetup(true);
+          setIsLoading(false);
+          // Don't navigate yet - wait for modal dismissal
+          return;
+        }
+        // Navigation handled by useProtectedRoute in _layout.tsx
       } else {
         await signUp(email, password, username);
       }
@@ -84,6 +153,40 @@ export default function AuthScreenV2() {
       Alert.alert("Error", error.message || "Authentication failed");
       setIsLoading(false);
     }
+  };
+
+  // Handle biometric setup completion
+  const handleBiometricSetupComplete = (enabled: boolean) => {
+    setShowBiometricSetup(false);
+    setPendingCredentials(null);
+    setBiometricEnabled(enabled);
+    // Navigation will happen automatically via useProtectedRoute
+  };
+
+  // Handle biometric setup dismissal
+  const handleBiometricSetupDismiss = () => {
+    setShowBiometricSetup(false);
+    setPendingCredentials(null);
+    // Navigation will happen automatically via useProtectedRoute
+  };
+
+  // Handle biometric sign-in success
+  const handleBiometricSignInSuccess = () => {
+    // Navigation handled by useProtectedRoute in _layout.tsx
+  };
+
+  // Handle biometric setup required (user tapped button but not set up)
+  const handleBiometricSetupRequired = () => {
+    Alert.alert(
+      "Set Up Face ID",
+      "Sign in with your password first to enable Face ID quick sign-in.",
+      [{ text: "OK" }],
+    );
+  };
+
+  // Handle biometric error
+  const handleBiometricError = (message: string) => {
+    Alert.alert("Sign In Failed", message);
   };
 
   const handleSocialLogin = async (provider: "apple" | "google") => {
@@ -117,7 +220,7 @@ export default function AuthScreenV2() {
             colors={["#34D399", "#10B981", "#0D9488"]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
-            style={styles.header}
+            style={[styles.header, { paddingTop: insets.top + 16 }]}
           >
             {/* Background circles decoration */}
             <View style={styles.circleDecor1} />
@@ -127,7 +230,7 @@ export default function AuthScreenV2() {
 
             {/* Back Button */}
             <TouchableOpacity
-              style={styles.backButton}
+              style={[styles.backButton, { top: insets.top + 8 }]}
               onPress={() => router.back()}
             >
               <Ionicons
@@ -294,11 +397,30 @@ export default function AuthScreenV2() {
 
               {/* Forgot Password (Sign In only) */}
               {mode === "signin" && (
-                <TouchableOpacity style={styles.forgotPassword}>
-                  <Text style={styles.forgotPasswordText}>
-                    Forgot password?
-                  </Text>
-                </TouchableOpacity>
+                <View style={styles.rememberForgotRow}>
+                  {/* Remember Me Toggle */}
+                  <View style={styles.rememberMeContainer}>
+                    <Switch
+                      value={rememberMe}
+                      onValueChange={setRememberMe}
+                      trackColor={{ false: "#E5E7EB", true: "#A7F3D0" }}
+                      thumbColor={rememberMe ? "#10B981" : "#F9FAFB"}
+                      ios_backgroundColor="#E5E7EB"
+                      style={styles.rememberMeSwitch}
+                    />
+                    <Text style={styles.rememberMeText}>Remember me</Text>
+                  </View>
+
+                  {/* Face ID Button */}
+                  <View style={styles.rightControls}>
+                    <BiometricSignInButton
+                      onSignInSuccess={handleBiometricSignInSuccess}
+                      onSetupRequired={handleBiometricSetupRequired}
+                      onError={handleBiometricError}
+                      disabled={isLoading}
+                    />
+                  </View>
+                </View>
               )}
             </View>
 
@@ -359,6 +481,15 @@ export default function AuthScreenV2() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Biometric Setup Modal */}
+      <BiometricSetupModal
+        visible={showBiometricSetup}
+        email={pendingCredentials?.email || ""}
+        password={pendingCredentials?.password || ""}
+        onComplete={handleBiometricSetupComplete}
+        onDismiss={handleBiometricSetupDismiss}
+      />
     </View>
   );
 }
@@ -373,12 +504,12 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
+    justifyContent: "flex-end",
   },
 
   // Header
   header: {
-    paddingTop: 48,
-    paddingBottom: 80,
+    paddingBottom: 100,
     paddingHorizontal: 24,
     position: "relative",
     overflow: "hidden",
@@ -425,13 +556,13 @@ const styles = StyleSheet.create({
   },
   backButton: {
     position: "absolute",
-    top: 48,
     left: 16,
     padding: 8,
     zIndex: 10,
   },
   headerContent: {
     alignItems: "center",
+    marginTop: 24,
   },
   iconContainer: {
     width: 64,
@@ -467,7 +598,7 @@ const styles = StyleSheet.create({
     marginTop: -32,
     paddingHorizontal: 24,
     paddingTop: 24,
-    paddingBottom: 32,
+    paddingBottom: 16,
   },
 
   // Mode Toggle
@@ -539,13 +670,28 @@ const styles = StyleSheet.create({
     marginTop: 4,
     marginLeft: 4,
   },
-  forgotPassword: {
-    marginTop: 4,
+  rememberForgotRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 8,
+    marginBottom: 8,
   },
-  forgotPasswordText: {
-    color: "#059669",
+  rememberMeContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  rememberMeSwitch: {
+    transform: [{ scaleX: 0.85 }, { scaleY: 0.85 }],
+    marginRight: 4,
+  },
+  rememberMeText: {
     fontSize: 14,
-    fontWeight: "500",
+    color: "#6B7280",
+  },
+  rightControls: {
+    flexDirection: "row",
+    alignItems: "center",
   },
 
   // Submit Button
