@@ -40,6 +40,10 @@ type AuthMode = "signup" | "signin";
 // Logging prefix for easy filtering
 const LOG = "📱 [AuthScreen]";
 
+// Defensive timeout to release lock if navigation doesn't complete
+// This prevents deadlocks if something goes wrong with navigation
+const LOCK_TIMEOUT_MS = 10_000; // 10 seconds
+
 export default function AuthScreenV2() {
   const { colors, spacing, radius } = useAppTheme();
   const { signIn, signUp } = useAuth();
@@ -78,14 +82,66 @@ export default function AuthScreenV2() {
   const hasAutoTriggeredBiometric = useRef(false);
   // Track if screen is mounted (for async operation safety)
   const isMounted = useRef(true);
+  // Track if this is a real focus event (returning from blur) vs dependency re-run
+  // Starts as true so first focus triggers properly
+  const isReturningFromBlur = useRef(true);
+  // Defensive timeout to auto-release lock if navigation doesn't complete
+  const lockTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const REMEMBER_EMAIL_KEY = "fitchallenge_remembered_email";
+
+  // Helper to acquire lock with defensive timeout
+  const acquireLockWithTimeout = useCallback(
+    (source: string) => {
+      console.log(`${LOG} 🔐 ACQUIRING LOCK from: ${source}`);
+
+      // Clear any existing timeout
+      if (lockTimeoutRef.current) {
+        clearTimeout(lockTimeoutRef.current);
+        lockTimeoutRef.current = null;
+      }
+
+      setAuthHandlingNavigation(true);
+
+      // Set defensive timeout to release lock if navigation doesn't complete
+      lockTimeoutRef.current = setTimeout(() => {
+        console.warn(
+          `${LOG} ⏰ DEFENSIVE TIMEOUT - lock held too long from: ${source}`,
+        );
+        if (isMounted.current) {
+          console.log(`${LOG} Releasing lock and attempting navigation...`);
+          setAuthHandlingNavigation(false);
+          // Try to navigate to tabs as a recovery action
+          router.replace("/(tabs-v2)");
+        }
+      }, LOCK_TIMEOUT_MS);
+    },
+    [setAuthHandlingNavigation],
+  );
+
+  // Helper to release lock (clears timeout)
+  const releaseLock = useCallback(
+    (source: string) => {
+      console.log(`${LOG} 🔓 RELEASING LOCK from: ${source}`);
+      if (lockTimeoutRef.current) {
+        clearTimeout(lockTimeoutRef.current);
+        lockTimeoutRef.current = null;
+      }
+      setAuthHandlingNavigation(false);
+    },
+    [setAuthHandlingNavigation],
+  );
 
   // Cleanup on unmount
   useEffect(() => {
     isMounted.current = true;
     return () => {
       isMounted.current = false;
+      // Clear timeout on unmount
+      if (lockTimeoutRef.current) {
+        clearTimeout(lockTimeoutRef.current);
+        lockTimeoutRef.current = null;
+      }
     };
   }, []);
 
@@ -125,20 +181,43 @@ export default function AuthScreenV2() {
 
   // Auto-trigger biometric sign-in when screen gains focus
   // Uses useFocusEffect + InteractionManager for proper timing (no setTimeout)
+  //
+  // IMPORTANT: Only reset hasAutoTriggeredBiometric on ACTUAL focus events,
+  // not on every effect re-run caused by dependency changes.
   useFocusEffect(
     useCallback(() => {
       console.log(
-        `${LOG} Screen focused, mode=${mode}, isLoading=${isLoading}`,
+        `${LOG} useFocusEffect fired, mode=${mode}, isReturningFromBlur=${isReturningFromBlur.current}`,
       );
-      // Reset the auto-trigger flag when screen gains focus
-      // This allows re-triggering if user navigates away and back
-      hasAutoTriggeredBiometric.current = false;
-      console.log(`${LOG} Reset hasAutoTriggeredBiometric`);
+
+      // Only reset the auto-trigger flag on ACTUAL focus gain (not dependency re-runs)
+      // This prevents the bug where isLoading changes cause repeated biometric triggers
+      if (isReturningFromBlur.current) {
+        hasAutoTriggeredBiometric.current = false;
+        isReturningFromBlur.current = false;
+        console.log(
+          `${LOG} Real focus event - reset hasAutoTriggeredBiometric`,
+        );
+      } else {
+        console.log(
+          `${LOG} Dependency re-run (not blur return) - keeping hasAutoTriggeredBiometric=${hasAutoTriggeredBiometric.current}`,
+        );
+      }
 
       // Only auto-trigger on sign-in mode with biometric enabled
       if (mode !== "signin") {
         console.log(`${LOG} Not signin mode, skipping auto-trigger`);
-        return;
+        return () => {
+          isReturningFromBlur.current = true;
+        };
+      }
+
+      // Don't schedule if already triggered or currently loading
+      if (hasAutoTriggeredBiometric.current) {
+        console.log(`${LOG} Already triggered this session, skipping`);
+        return () => {
+          isReturningFromBlur.current = true;
+        };
       }
 
       // Schedule after animations complete (proper timing, no arbitrary delay)
@@ -148,15 +227,11 @@ export default function AuthScreenV2() {
       const task = InteractionManager.runAfterInteractions(async () => {
         console.log(`${LOG} InteractionManager fired. Checking guards...`);
         console.log(
-          `${LOG}   hasAutoTriggered=${hasAutoTriggeredBiometric.current}, isLoading=${isLoading}, isMounted=${isMounted.current}`,
+          `${LOG}   hasAutoTriggered=${hasAutoTriggeredBiometric.current}, isMounted=${isMounted.current}`,
         );
 
-        // Guard: already triggered, loading, or unmounted
-        if (
-          hasAutoTriggeredBiometric.current ||
-          isLoading ||
-          !isMounted.current
-        ) {
+        // Guard: already triggered or unmounted
+        if (hasAutoTriggeredBiometric.current || !isMounted.current) {
           console.log(`${LOG} Guard failed, skipping auto-trigger`);
           return;
         }
@@ -178,8 +253,10 @@ export default function AuthScreenV2() {
 
       return () => {
         task.cancel();
+        // Mark that we're blurring, so next focus is a real focus event
+        isReturningFromBlur.current = true;
       };
-    }, [mode, isLoading]),
+    }, [mode]), // Removed isLoading from dependencies - check via ref/async instead
   );
 
   // Auto biometric sign-in handler
@@ -191,9 +268,8 @@ export default function AuthScreenV2() {
       return;
     }
 
-    // Lock navigation - tabs layout will clear this when it mounts
-    console.log(`${LOG} Acquiring navigation lock...`);
-    setAuthHandlingNavigation(true);
+    // Lock navigation with defensive timeout
+    acquireLockWithTimeout("handleAutoBiometricSignIn");
     setIsLoading(true);
 
     try {
@@ -208,26 +284,26 @@ export default function AuthScreenV2() {
         console.log(
           `${LOG} Component unmounted during sign-in, releasing lock`,
         );
-        setAuthHandlingNavigation(false);
+        releaseLock("handleAutoBiometricSignIn-unmounted");
         return;
       }
 
       if (result.success) {
         // Success! Navigate to tabs
-        // Lock will be cleared by tabs layout on mount
+        // Lock will be cleared by tabs layout on mount (timeout auto-clears on navigation)
         console.log(`${LOG} ✅ Success! Navigating to tabs...`);
         router.replace("/(tabs-v2)");
       } else {
         // Failed or cancelled - release lock immediately, user can sign in manually
         console.log(`${LOG} ❌ Failed/cancelled, releasing lock`);
-        setAuthHandlingNavigation(false);
+        releaseLock("handleAutoBiometricSignIn-failed");
         setIsLoading(false);
       }
     } catch (error: any) {
       // Error - release lock immediately, user can sign in manually
       console.error(`${LOG} ❌ Exception:`, error?.message || error);
       if (isMounted.current) {
-        setAuthHandlingNavigation(false);
+        releaseLock("handleAutoBiometricSignIn-error");
         setIsLoading(false);
       }
     }
@@ -270,8 +346,8 @@ export default function AuthScreenV2() {
 
     if (!validateForm()) return;
 
-    // Lock navigation - tabs layout will clear this when it mounts
-    setAuthHandlingNavigation(true);
+    // Lock navigation with defensive timeout
+    acquireLockWithTimeout("handleSubmit");
     setIsLoading(true);
 
     try {
@@ -288,10 +364,14 @@ export default function AuthScreenV2() {
         // Check if we should show biometric setup prompt
         if (biometricAvailable && !biometricEnabled) {
           // Store credentials for setup and show modal
+          console.log(
+            `${LOG} Showing biometric setup modal (lock held, timeout active)`,
+          );
           setPendingCredentials({ email, password });
           setShowBiometricSetup(true);
           setIsLoading(false);
           // Keep navigation locked - modal handlers will navigate
+          // Defensive timeout will release lock if modal doesn't handle it
           return;
         }
 
@@ -305,6 +385,9 @@ export default function AuthScreenV2() {
 
         // After sign-up, also offer biometric setup
         if (biometricAvailable) {
+          console.log(
+            `${LOG} Showing biometric setup modal after signup (lock held, timeout active)`,
+          );
           setPendingCredentials({ email, password });
           setShowBiometricSetup(true);
           setIsLoading(false);
@@ -318,7 +401,7 @@ export default function AuthScreenV2() {
       }
     } catch (error: any) {
       // Error - release lock immediately so user can retry
-      setAuthHandlingNavigation(false);
+      releaseLock("handleSubmit-error");
       Alert.alert("Error", error.message || "Authentication failed");
       setIsLoading(false);
     }
@@ -326,15 +409,21 @@ export default function AuthScreenV2() {
 
   // Handle biometric setup completion
   const handleBiometricSetupComplete = (enabled: boolean) => {
+    console.log(
+      `${LOG} handleBiometricSetupComplete called, enabled=${enabled}`,
+    );
     setShowBiometricSetup(false);
     setPendingCredentials(null);
     setBiometricEnabled(enabled);
     // Navigate to tabs - lock will be cleared by tabs layout on mount
+    // Timeout will be cleared when tabs mounts and releases lock
+    console.log(`${LOG} 🚀 Navigating to tabs`);
     router.replace("/(tabs-v2)");
   };
 
   // Handle biometric setup dismissal (user tapped "Not Now")
   const handleBiometricSetupDismiss = () => {
+    console.log(`${LOG} handleBiometricSetupDismiss called`);
     setShowBiometricSetup(false);
     setPendingCredentials(null);
     // Navigate to tabs - lock will be cleared by tabs layout on mount
@@ -343,11 +432,15 @@ export default function AuthScreenV2() {
 
   // Handle biometric sign-in success (from BiometricSignInButton)
   const handleBiometricSignInSuccess = () => {
+    console.log(`${LOG} handleBiometricSignInSuccess called`);
     // Guard: already loading
-    if (isLoading) return;
+    if (isLoading) {
+      console.log(`${LOG} Already loading, ignoring biometric success`);
+      return;
+    }
 
-    // Lock navigation during transition
-    setAuthHandlingNavigation(true);
+    // Lock navigation with defensive timeout
+    acquireLockWithTimeout("handleBiometricSignInSuccess");
     setIsLoading(true);
     // Navigate to tabs - lock will be cleared by tabs layout on mount
     router.replace("/(tabs-v2)");

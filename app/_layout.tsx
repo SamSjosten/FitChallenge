@@ -564,6 +564,9 @@ function RootLayoutNav() {
   // GUARDRAIL 4: Enable realtime updates when logged in
   useRealtimeSubscription();
 
+  // Check if navigation is locked (auth is handling navigation)
+  const isNavigationLocked = useNavigationStore((s) => s.isNavigationLocked);
+
   // Set up notification channel on mount (Android only)
   useEffect(() => {
     setupNotificationChannel();
@@ -572,7 +575,10 @@ function RootLayoutNav() {
   // Handle notification taps for deep linking
   useNotificationResponseHandler();
 
-  if (isLoading || flagsLoading) {
+  // Show loading spinner ONLY if not navigation-locked
+  // When locked, auth screen is handling sign-in and needs to stay mounted
+  // to show the biometric setup modal
+  if ((isLoading || flagsLoading) && !isNavigationLocked()) {
     return (
       <View style={[styles.loading, { backgroundColor: colors.background }]}>
         <ActivityIndicator size="large" color={colors.primary.main} />

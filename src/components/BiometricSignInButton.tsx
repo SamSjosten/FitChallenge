@@ -47,11 +47,16 @@ export function BiometricSignInButton({
 
   // Check capabilities on mount
   useEffect(() => {
+    console.log(`🔘 [BiometricButton] useEffect - checking capabilities`);
     checkCapabilities();
   }, []);
 
   const checkCapabilities = async () => {
+    console.log(`🔘 [BiometricButton] checkCapabilities called`);
     const cap = await checkBiometricCapability();
+    console.log(
+      `🔘 [BiometricButton] capability result: isAvailable=${cap.isAvailable}, type=${cap.biometricType}`,
+    );
     setCapability(cap);
 
     if (cap.isAvailable) {
@@ -61,6 +66,9 @@ export function BiometricSignInButton({
   };
 
   const handlePress = async () => {
+    console.log(
+      `🔘 [BiometricButton] handlePress called, isLoading=${isLoading}, disabled=${disabled}, isEnabled=${isEnabled}`,
+    );
     if (isLoading || disabled) return;
 
     // Re-check if enabled (might have changed)
@@ -79,6 +87,9 @@ export function BiometricSignInButton({
       const result = await performBiometricSignIn();
 
       if (result.success) {
+        console.log(
+          `🔘 [BiometricButton] Sign-in successful, calling onSignInSuccess callback`,
+        );
         onSignInSuccess();
       } else if (!result.cancelled) {
         onError(result.error || "Authentication failed");

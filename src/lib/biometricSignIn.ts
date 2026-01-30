@@ -339,10 +339,18 @@ export async function performBiometricSignIn(): Promise<BiometricSignInResult> {
     );
 
     // Perform sign-in with stored credentials
-    const { error } = await getSupabaseClient().auth.signInWithPassword({
+    // ⚠️ NOTE: This bypasses AuthProvider.signIn() - the onAuthStateChange listener
+    // will receive a SIGNED_IN event that wasn't "handled" by authActionHandledRef
+    console.log(
+      `${LOG} ⚠️ Calling signInWithPassword DIRECTLY (bypasses AuthProvider)`,
+    );
+    const { data, error } = await getSupabaseClient().auth.signInWithPassword({
       email: credentials.email,
       password: credentials.password,
     });
+    console.log(
+      `${LOG} signInWithPassword returned: error=${error?.message || "none"}, session=${data?.session ? "YES" : "NO"}`,
+    );
 
     if (error) {
       console.log(`${LOG} ❌ Supabase auth error: ${error.message}`);

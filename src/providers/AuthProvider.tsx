@@ -102,9 +102,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const loadProfileAndSetState = useCallback(async (session: Session) => {
     // Guard against concurrent calls - check and set atomically
     if (profileLoadingRef.current) {
+      console.log(
+        `[AuthProvider] ⏭️ loadProfileAndSetState skipped - already loading`,
+      );
       return;
     }
     profileLoadingRef.current = true;
+    console.log(
+      `[AuthProvider] 📂 loadProfileAndSetState starting for user ${session.user.id.substring(0, 8)}...`,
+    );
 
     // Sync server time (non-blocking)
     syncServerTime().catch((err) =>
@@ -117,6 +123,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const profile = await authService.getMyProfileWithUserId(session.user.id);
 
       if (mountedRef.current) {
+        console.log(
+          `[AuthProvider] ✅ Setting authenticated state with session`,
+        );
         setState({
           session,
           user: session.user,
@@ -130,6 +139,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
         pushTokenService
           .registerToken()
           .catch((err) => console.warn("Push token registration failed:", err));
+      } else {
+        console.log(`[AuthProvider] ⚠️ Component unmounted before setState`);
       }
     } catch (err) {
       console.error("[AuthProvider] Error fetching profile:", err);
@@ -165,22 +176,41 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const {
       data: { subscription },
     } = getSupabaseClient().auth.onAuthStateChange(async (event, session) => {
-      if (!mountedRef.current) return;
+      // DIAGNOSTIC: Log every auth event
+      console.log(
+        `[AuthProvider] 📡 onAuthStateChange: event=${event}, session=${session ? "YES" : "NO"}, initialProcessed=${initialSessionProcessed}, actionHandled=${authActionHandledRef.current}`,
+      );
+
+      if (!mountedRef.current) {
+        console.log(`[AuthProvider] ⚠️ Ignoring event - component unmounted`);
+        return;
+      }
 
       // During initial startup, SIGNED_IN often fires before INITIAL_SESSION
       // Skip SIGNED_IN if we haven't processed INITIAL_SESSION yet - it will handle auth
       if (event === "SIGNED_IN" && !initialSessionProcessed) {
+        console.log(
+          `[AuthProvider] ⏭️ Skipping SIGNED_IN - initial session not yet processed`,
+        );
         return;
       }
 
       // Skip SIGNED_IN if signIn/signUp already handled it explicitly
       if (event === "SIGNED_IN" && authActionHandledRef.current) {
+        console.log(
+          `[AuthProvider] ⏭️ Skipping SIGNED_IN - already handled by signIn/signUp`,
+        );
         authActionHandledRef.current = false; // Reset for future auth actions
         return;
       }
 
       if (event === "SIGNED_OUT" || !session) {
+        console.log(
+          `[AuthProvider] 🚪 Processing sign out (event=${event}, session=${session ? "YES" : "NO"})`,
+        );
         initialSessionProcessed = true; // Mark as processed even for signed out
+        authActionHandledRef.current = false; // Reset for next sign-in (fixes biometric sign-in after sign-out)
+        console.log(`[AuthProvider] 🔄 Reset authActionHandledRef = false`);
         setState({
           session: null,
           user: null,
@@ -194,11 +224,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       // Mark INITIAL_SESSION as processed
       if (event === "INITIAL_SESSION") {
+        console.log(`[AuthProvider] 🎬 Processing INITIAL_SESSION`);
         initialSessionProcessed = true;
       }
 
       // INITIAL_SESSION, SIGNED_IN (after initial), TOKEN_REFRESHED - load profile
       if (session.user) {
+        console.log(`[AuthProvider] 👤 Loading profile for event=${event}`);
         await loadProfileAndSetState(session);
       }
     });
@@ -299,6 +331,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const signIn = useCallback(
     async (email: string, password: string) => {
+      console.log(`[AuthProvider] 🔑 signIn() called`);
       setState((prev) => ({ ...prev, loading: true, error: null }));
       try {
         await authService.signIn({ email, password });
@@ -320,10 +353,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
 
         // Mark as handled so listener doesn't duplicate work
+        console.log(`[AuthProvider] 🏷️ Setting authActionHandledRef = true`);
         authActionHandledRef.current = true;
 
         // Explicitly load profile and set state
         await loadProfileAndSetState(session);
+        console.log(`[AuthProvider] ✅ signIn() complete`);
       } catch (err) {
         setState((prev) => ({ ...prev, loading: false, error: err as Error }));
         throw err;
@@ -333,10 +368,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
   );
 
   const signOut = useCallback(async () => {
+    console.log(`[AuthProvider] 🚪 signOut() called`);
     try {
       // Disable push token before signing out (needs auth context)
       await pushTokenService.disableCurrentToken();
       await authService.signOut();
+      console.log(`[AuthProvider] ✅ signOut() complete`);
       // Auth state change listener will handle the rest
     } catch (err) {
       setState((prev) => ({ ...prev, error: err as Error }));
