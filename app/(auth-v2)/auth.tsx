@@ -1,7 +1,7 @@
 // app/(auth-v2)/auth.tsx
 // V2 Auth screen - matches mock design with gradient header, mode toggle, social login
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -14,31 +14,45 @@ import {
   Alert,
   ActivityIndicator,
   Switch,
+  InteractionManager,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   SafeAreaView,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams, useFocusEffect } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useAppTheme } from "@/providers/ThemeProvider";
 import { useAuth } from "@/providers/AuthProvider";
 import { BiometricSignInButton } from "@/components/BiometricSignInButton";
 import { BiometricSetupModal } from "@/components/BiometricSetupModal";
+import { useNavigationStore } from "@/stores/navigationStore";
 import {
   checkBiometricCapability,
   isBiometricSignInEnabled,
+  performBiometricSignIn,
 } from "@/lib/biometricSignIn";
 
 type AuthMode = "signup" | "signin";
+
+// Logging prefix for easy filtering
+const LOG = "📱 [AuthScreen]";
 
 export default function AuthScreenV2() {
   const { colors, spacing, radius } = useAppTheme();
   const { signIn, signUp } = useAuth();
   const params = useLocalSearchParams<{ mode?: string }>();
   const insets = useSafeAreaInsets();
+
+  // Navigation lock to prevent useProtectedRoute from navigating during sign-in
+  const setAuthHandlingNavigation = useNavigationStore(
+    (state) => state.setAuthHandlingNavigation,
+  );
+
+  // Note: Navigation lock is cleared by tabs layout when it mounts
+  // This is deterministic - no timing hacks needed
 
   const [mode, setMode] = useState<AuthMode>(
     (params.mode as AuthMode) || "signup",
@@ -50,22 +64,37 @@ export default function AuthScreenV2() {
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [rememberMe, setRememberMe] = useState(false);
-  const [showBiometricSetup, setShowBiometricSetup] = useState(false);
   const [biometricAvailable, setBiometricAvailable] = useState(false);
   const [biometricEnabled, setBiometricEnabled] = useState(false);
+
+  // Biometric setup modal state
+  const [showBiometricSetup, setShowBiometricSetup] = useState(false);
   const [pendingCredentials, setPendingCredentials] = useState<{
     email: string;
     password: string;
   } | null>(null);
 
+  // Track if we've already auto-triggered biometric sign-in this focus session
+  const hasAutoTriggeredBiometric = useRef(false);
+  // Track if screen is mounted (for async operation safety)
+  const isMounted = useRef(true);
+
   const REMEMBER_EMAIL_KEY = "fitchallenge_remembered_email";
+
+  // Cleanup on unmount
+  useEffect(() => {
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
 
   // Load saved email on mount
   useEffect(() => {
     const loadSavedEmail = async () => {
       try {
         const savedEmail = await AsyncStorage.getItem(REMEMBER_EMAIL_KEY);
-        if (savedEmail) {
+        if (savedEmail && isMounted.current) {
           setEmail(savedEmail);
           setRememberMe(true);
         }
@@ -80,15 +109,129 @@ export default function AuthScreenV2() {
   useEffect(() => {
     const checkBiometrics = async () => {
       const capability = await checkBiometricCapability();
+      if (!isMounted.current) return;
+
       setBiometricAvailable(capability.isAvailable);
 
       if (capability.isAvailable) {
         const enabled = await isBiometricSignInEnabled();
-        setBiometricEnabled(enabled);
+        if (isMounted.current) {
+          setBiometricEnabled(enabled);
+        }
       }
     };
     checkBiometrics();
   }, []);
+
+  // Auto-trigger biometric sign-in when screen gains focus
+  // Uses useFocusEffect + InteractionManager for proper timing (no setTimeout)
+  useFocusEffect(
+    useCallback(() => {
+      console.log(
+        `${LOG} Screen focused, mode=${mode}, isLoading=${isLoading}`,
+      );
+      // Reset the auto-trigger flag when screen gains focus
+      // This allows re-triggering if user navigates away and back
+      hasAutoTriggeredBiometric.current = false;
+      console.log(`${LOG} Reset hasAutoTriggeredBiometric`);
+
+      // Only auto-trigger on sign-in mode with biometric enabled
+      if (mode !== "signin") {
+        console.log(`${LOG} Not signin mode, skipping auto-trigger`);
+        return;
+      }
+
+      // Schedule after animations complete (proper timing, no arbitrary delay)
+      console.log(
+        `${LOG} Scheduling auto-trigger check via InteractionManager...`,
+      );
+      const task = InteractionManager.runAfterInteractions(async () => {
+        console.log(`${LOG} InteractionManager fired. Checking guards...`);
+        console.log(
+          `${LOG}   hasAutoTriggered=${hasAutoTriggeredBiometric.current}, isLoading=${isLoading}, isMounted=${isMounted.current}`,
+        );
+
+        // Guard: already triggered, loading, or unmounted
+        if (
+          hasAutoTriggeredBiometric.current ||
+          isLoading ||
+          !isMounted.current
+        ) {
+          console.log(`${LOG} Guard failed, skipping auto-trigger`);
+          return;
+        }
+
+        // Check if biometric is actually enabled
+        console.log(`${LOG} Checking if biometric enabled...`);
+        const enabled = await isBiometricSignInEnabled();
+        console.log(`${LOG} Biometric enabled: ${enabled}`);
+        if (!enabled || !isMounted.current) {
+          console.log(`${LOG} Biometric not enabled or unmounted, skipping`);
+          return;
+        }
+
+        // Trigger auto sign-in
+        console.log(`${LOG} 🚀 Auto-triggering biometric sign-in!`);
+        hasAutoTriggeredBiometric.current = true;
+        handleAutoBiometricSignIn();
+      });
+
+      return () => {
+        task.cancel();
+      };
+    }, [mode, isLoading]),
+  );
+
+  // Auto biometric sign-in handler
+  const handleAutoBiometricSignIn = async () => {
+    console.log(`${LOG} handleAutoBiometricSignIn called`);
+    // Guard: already loading
+    if (isLoading) {
+      console.log(`${LOG} Already loading, skipping`);
+      return;
+    }
+
+    // Lock navigation - tabs layout will clear this when it mounts
+    console.log(`${LOG} Acquiring navigation lock...`);
+    setAuthHandlingNavigation(true);
+    setIsLoading(true);
+
+    try {
+      console.log(`${LOG} Calling performBiometricSignIn...`);
+      const result = await performBiometricSignIn();
+      console.log(
+        `${LOG} Result: success=${result.success}, error=${result.error}, cancelled=${result.cancelled}`,
+      );
+
+      // Guard: component unmounted during async operation
+      if (!isMounted.current) {
+        console.log(
+          `${LOG} Component unmounted during sign-in, releasing lock`,
+        );
+        setAuthHandlingNavigation(false);
+        return;
+      }
+
+      if (result.success) {
+        // Success! Navigate to tabs
+        // Lock will be cleared by tabs layout on mount
+        console.log(`${LOG} ✅ Success! Navigating to tabs...`);
+        router.replace("/(tabs-v2)");
+      } else {
+        // Failed or cancelled - release lock immediately, user can sign in manually
+        console.log(`${LOG} ❌ Failed/cancelled, releasing lock`);
+        setAuthHandlingNavigation(false);
+        setIsLoading(false);
+      }
+    } catch (error: any) {
+      // Error - release lock immediately, user can sign in manually
+      console.error(`${LOG} ❌ Exception:`, error?.message || error);
+      if (isMounted.current) {
+        setAuthHandlingNavigation(false);
+        setIsLoading(false);
+      }
+    }
+  };
 
   useEffect(() => {
     if (params.mode === "signin" || params.mode === "signup") {
@@ -122,12 +265,19 @@ export default function AuthScreenV2() {
   };
 
   const handleSubmit = async () => {
+    // Guard: already loading (rapid-tap protection)
+    if (isLoading) return;
+
     if (!validateForm()) return;
 
+    // Lock navigation - tabs layout will clear this when it mounts
+    setAuthHandlingNavigation(true);
     setIsLoading(true);
+
     try {
       if (mode === "signin") {
         await signIn(email, password);
+
         // Save or clear remembered email
         if (rememberMe) {
           await AsyncStorage.setItem(REMEMBER_EMAIL_KEY, email);
@@ -137,19 +287,38 @@ export default function AuthScreenV2() {
 
         // Check if we should show biometric setup prompt
         if (biometricAvailable && !biometricEnabled) {
-          // Store credentials temporarily for setup
+          // Store credentials for setup and show modal
           setPendingCredentials({ email, password });
           setShowBiometricSetup(true);
           setIsLoading(false);
-          // Don't navigate yet - wait for modal dismissal
+          // Keep navigation locked - modal handlers will navigate
           return;
         }
-        // Navigation handled by useProtectedRoute in _layout.tsx
+
+        // No biometric setup needed - navigate directly
+        // Lock will be cleared by tabs layout on mount
+        setIsLoading(false);
+        router.replace("/(tabs-v2)");
       } else {
+        // Sign up
         await signUp(email, password, username);
+
+        // After sign-up, also offer biometric setup
+        if (biometricAvailable) {
+          setPendingCredentials({ email, password });
+          setShowBiometricSetup(true);
+          setIsLoading(false);
+          return;
+        }
+
+        // No biometric setup - navigate directly
+        // Lock will be cleared by tabs layout on mount
+        setIsLoading(false);
+        router.replace("/(tabs-v2)");
       }
-      // Navigation handled by useProtectedRoute in _layout.tsx
     } catch (error: any) {
+      // Error - release lock immediately so user can retry
+      setAuthHandlingNavigation(false);
       Alert.alert("Error", error.message || "Authentication failed");
       setIsLoading(false);
     }
@@ -160,19 +329,28 @@ export default function AuthScreenV2() {
     setShowBiometricSetup(false);
     setPendingCredentials(null);
     setBiometricEnabled(enabled);
-    // Navigation will happen automatically via useProtectedRoute
+    // Navigate to tabs - lock will be cleared by tabs layout on mount
+    router.replace("/(tabs-v2)");
   };
 
-  // Handle biometric setup dismissal
+  // Handle biometric setup dismissal (user tapped "Not Now")
   const handleBiometricSetupDismiss = () => {
     setShowBiometricSetup(false);
     setPendingCredentials(null);
-    // Navigation will happen automatically via useProtectedRoute
+    // Navigate to tabs - lock will be cleared by tabs layout on mount
+    router.replace("/(tabs-v2)");
   };
 
-  // Handle biometric sign-in success
+  // Handle biometric sign-in success (from BiometricSignInButton)
   const handleBiometricSignInSuccess = () => {
-    // Navigation handled by useProtectedRoute in _layout.tsx
+    // Guard: already loading
+    if (isLoading) return;
+
+    // Lock navigation during transition
+    setAuthHandlingNavigation(true);
+    setIsLoading(true);
+    // Navigate to tabs - lock will be cleared by tabs layout on mount
+    router.replace("/(tabs-v2)");
   };
 
   // Handle biometric setup required (user tapped button but not set up)
@@ -483,13 +661,15 @@ export default function AuthScreenV2() {
       </KeyboardAvoidingView>
 
       {/* Biometric Setup Modal */}
-      <BiometricSetupModal
-        visible={showBiometricSetup}
-        email={pendingCredentials?.email || ""}
-        password={pendingCredentials?.password || ""}
-        onComplete={handleBiometricSetupComplete}
-        onDismiss={handleBiometricSetupDismiss}
-      />
+      {pendingCredentials && (
+        <BiometricSetupModal
+          visible={showBiometricSetup}
+          email={pendingCredentials.email}
+          password={pendingCredentials.password}
+          onComplete={handleBiometricSetupComplete}
+          onDismiss={handleBiometricSetupDismiss}
+        />
+      )}
     </View>
   );
 }

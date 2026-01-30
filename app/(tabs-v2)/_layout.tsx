@@ -8,12 +8,13 @@
 // - Updated FAB positioning (-24px margin)
 // - "Challenges" label instead of "Compete"
 
-import React from "react";
+import React, { useEffect } from "react";
 import { Tabs, router } from "expo-router";
 import { View, Pressable, Text, Platform, StyleSheet } from "react-native";
 import { BottomTabBarButtonProps } from "@react-navigation/bottom-tabs";
 import { useUnreadNotificationCount } from "@/hooks/useNotifications";
 import { useAppTheme } from "@/providers/ThemeProvider";
+import { useNavigationStore } from "@/stores/navigationStore";
 import { TestIDs } from "@/constants/testIDs";
 import {
   HomeIcon,
@@ -166,6 +167,18 @@ function CreateButton() {
 
 export default function TabLayoutV2() {
   const { colors } = useAppTheme();
+
+  // Clear navigation lock on mount - this ensures auth screen's lock is released
+  // once we've actually navigated to tabs (deterministic, no timing hacks)
+  const setAuthHandlingNavigation = useNavigationStore(
+    (state) => state.setAuthHandlingNavigation,
+  );
+
+  useEffect(() => {
+    // Clear any navigation lock from auth flow
+    console.log("🏠 [TabsLayout] Mounted, clearing navigation lock");
+    setAuthHandlingNavigation(false);
+  }, [setAuthHandlingNavigation]);
 
   return (
     <Tabs

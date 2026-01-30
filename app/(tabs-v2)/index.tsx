@@ -11,7 +11,7 @@
 // - Recent activity section
 // - Completed challenges (collapsible section)
 
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useMemo, useEffect } from "react";
 import {
   View,
   Text,
@@ -23,6 +23,7 @@ import {
   RefreshControl,
   ScrollView,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router, useFocusEffect } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAppTheme } from "@/providers/ThemeProvider";
@@ -54,6 +55,7 @@ import {
   NoRecentActivity,
 } from "@/components/v2";
 import { Toast, useToast } from "@/components/v2/Toast";
+import { BiometricSetupModal } from "@/components/BiometricSetupModal";
 import { pushTokenService } from "@/services/pushTokens";
 import { TestIDs } from "@/constants/testIDs";
 import {
@@ -81,6 +83,48 @@ export default function HomeScreenV2() {
   const [refreshing, setRefreshing] = useState(false);
   const [completedExpanded, setCompletedExpanded] = useState(false);
   const [activeFilter, setActiveFilter] = useState<ChallengeFilterType>("all");
+
+  // Biometric setup modal state (shown after sign-in if eligible)
+  const [showBiometricSetup, setShowBiometricSetup] = useState(false);
+  const [pendingCredentials, setPendingCredentials] = useState<{
+    email: string;
+    password: string;
+  } | null>(null);
+
+  // Check for pending biometric setup on mount
+  useEffect(() => {
+    const checkPendingBiometricSetup = async () => {
+      try {
+        const stored = await AsyncStorage.getItem(
+          "fitchallenge_pending_biometric_setup",
+        );
+        if (stored) {
+          const credentials = JSON.parse(stored);
+          setPendingCredentials(credentials);
+          setShowBiometricSetup(true);
+          // Clear the flag immediately so it doesn't show again
+          await AsyncStorage.removeItem("fitchallenge_pending_biometric_setup");
+        }
+      } catch (error) {
+        console.error("Error checking pending biometric setup:", error);
+        // Clear any corrupted data
+        await AsyncStorage.removeItem("fitchallenge_pending_biometric_setup");
+      }
+    };
+    checkPendingBiometricSetup();
+  }, []);
+
+  // Handle biometric setup completion
+  const handleBiometricSetupComplete = (enabled: boolean) => {
+    setShowBiometricSetup(false);
+    setPendingCredentials(null);
+  };
+
+  // Handle biometric setup dismissal
+  const handleBiometricSetupDismiss = () => {
+    setShowBiometricSetup(false);
+    setPendingCredentials(null);
+  };
 
   const {
     data: activeChallenges,
@@ -130,11 +174,7 @@ export default function HomeScreenV2() {
         break;
       case "workouts":
       case "workout_points":
-        filtered = filtered.filter(
-          (c) =>
-            c.challenge_type === "workouts" ||
-            c.challenge_type === "workout_points",
-        );
+        filtered = filtered.filter((c) => c.challenge_type === "workouts");
         break;
       case "distance":
         filtered = filtered.filter((c) => c.challenge_type === "distance");
@@ -250,7 +290,7 @@ export default function HomeScreenV2() {
         style={[styles.container, { backgroundColor: colors.background }]}
         edges={["top"]}
       >
-        <LoadingState variant="content" message="Loading your challenges..." />
+        <LoadingState variant="full-screen" />
       </SafeAreaView>
     );
   }
@@ -553,6 +593,17 @@ export default function HomeScreenV2() {
         onAction={toast.onAction}
         onDismiss={hideToast}
       />
+
+      {/* Biometric setup modal (shown after sign-in if eligible) */}
+      {pendingCredentials && (
+        <BiometricSetupModal
+          visible={showBiometricSetup}
+          email={pendingCredentials.email}
+          password={pendingCredentials.password}
+          onComplete={handleBiometricSetupComplete}
+          onDismiss={handleBiometricSetupDismiss}
+        />
+      )}
     </SafeAreaView>
   );
 }

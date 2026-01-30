@@ -60,12 +60,6 @@ export function BiometricSignInButton({
     }
   };
 
-  // Refresh enabled state when component regains focus
-  const refreshEnabledState = async () => {
-    const enabled = await isBiometricSignInEnabled();
-    setIsEnabled(enabled);
-  };
-
   const handlePress = async () => {
     if (isLoading || disabled) return;
 
@@ -112,7 +106,6 @@ export function BiometricSignInButton({
     if (capability.biometricType === "face") {
       // Face ID - use scan icon on iOS
       if (Platform.OS === "ios") {
-        // iOS SF Symbol style
         return (
           <View style={styles.faceIdContainer}>
             <Ionicons name="scan" size={22} color="#10B981" />
@@ -158,7 +151,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 12,
-    backgroundColor: "#F0FDF4", // Light green background
+    backgroundColor: "#F0FDF4",
     borderWidth: 1,
     borderColor: "#D1FAE5",
     justifyContent: "center",

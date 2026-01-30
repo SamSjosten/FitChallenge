@@ -1,7 +1,7 @@
 // app/settings/security.tsx
-// Security settings screen - biometric authentication toggle
+// Security settings screen - biometric sign-in toggle
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -12,77 +12,120 @@ import {
   ScrollView,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Stack } from "expo-router";
+import { Stack, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useAppTheme } from "@/providers/ThemeProvider";
 import {
-  useSecurityStore,
-  BIOMETRIC_TIMEOUT_OPTIONS,
-  formatTimeout,
-} from "@/stores/securityStore";
-import {
   checkBiometricCapability,
-  authenticateWithBiometrics,
+  isBiometricSignInEnabled,
+  clearBiometricSignIn,
   BiometricCapability,
-} from "@/lib/biometricAuth";
+} from "@/lib/biometricSignIn";
 
 export default function SecuritySettingsScreen() {
   const { colors, spacing, radius } = useAppTheme();
-  const {
-    biometricsEnabled,
-    biometricTimeout,
-    enableBiometrics,
-    disableBiometrics,
-    setBiometricTimeout,
-    recordAuthentication,
-  } = useSecurityStore();
 
   const [capability, setCapability] = useState<BiometricCapability | null>(
     null,
   );
+  const [biometricSignInEnabled, setBiometricSignInEnabled] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [showTimeoutPicker, setShowTimeoutPicker] = useState(false);
 
-  // Check biometric capability on mount
-  useEffect(() => {
-    const checkCapability = async () => {
-      const cap = await checkBiometricCapability();
-      setCapability(cap);
-      setIsLoading(false);
-    };
-    checkCapability();
+  // Check biometric capability and sign-in status
+  const checkStatus = useCallback(async () => {
+    const cap = await checkBiometricCapability();
+    setCapability(cap);
+
+    if (cap.isAvailable) {
+      const enabled = await isBiometricSignInEnabled();
+      setBiometricSignInEnabled(enabled);
+    }
+
+    setIsLoading(false);
   }, []);
 
+  // Check on mount
+  useEffect(() => {
+    checkStatus();
+  }, [checkStatus]);
+
+  // Re-check when screen gains focus (in case user set up Face ID elsewhere)
+  useFocusEffect(
+    useCallback(() => {
+      checkStatus();
+    }, [checkStatus]),
+  );
+
   const handleToggleBiometrics = async (value: boolean) => {
+    console.log(`[Security] Toggle biometrics: ${value}`);
     if (value) {
-      // Enabling - verify biometric first
-      const result = await authenticateWithBiometrics(
-        `Enable ${capability?.displayName || "Biometrics"}`,
+      // Can't enable from here - need to sign in with password first
+      console.log(`[Security] Showing enable instructions alert`);
+      Alert.alert(
+        "Set Up Face ID",
+        "To enable Face ID sign-in, sign out and sign back in with your password. You'll be prompted to set up Face ID after signing in.",
+        [{ text: "OK" }],
       );
-
-      if (result.success) {
-        enableBiometrics();
-        recordAuthentication();
-      } else if (result.error && result.error !== "cancelled") {
-        Alert.alert("Authentication Failed", result.error);
-      }
     } else {
-      // Disabling - no verification needed
-      disableBiometrics();
+      // Disabling - confirm first
+      console.log(`[Security] Showing disable confirmation alert`);
+      Alert.alert(
+        "Disable Face ID",
+        "Are you sure you want to disable Face ID sign-in? You'll need to use your password to sign in.",
+        [
+          {
+            text: "Cancel",
+            style: "cancel",
+            onPress: () => console.log(`[Security] User cancelled disable`),
+          },
+          {
+            text: "Disable",
+            style: "destructive",
+            onPress: async () => {
+              console.log(
+                `[Security] User confirmed disable, calling clearBiometricSignIn...`,
+              );
+              try {
+                await clearBiometricSignIn();
+                console.log(
+                  `[Security] clearBiometricSignIn completed, updating UI state`,
+                );
+                setBiometricSignInEnabled(false);
+
+                // Verify it was actually disabled
+                console.log(`[Security] Verifying disable...`);
+                const stillEnabled = await isBiometricSignInEnabled();
+                console.log(
+                  `[Security] Still enabled after clear: ${stillEnabled}`,
+                );
+
+                if (stillEnabled) {
+                  console.error(
+                    `[Security] FAILED: Face ID still enabled after clear!`,
+                  );
+                  Alert.alert(
+                    "Error",
+                    "Failed to disable Face ID. Please try again.",
+                    [{ text: "OK" }],
+                  );
+                  // Re-check status to sync UI
+                  checkStatus();
+                } else {
+                  console.log("[Security] Successfully disabled");
+                }
+              } catch (error: any) {
+                console.error(`[Security] Exception:`, error?.message || error);
+                Alert.alert(
+                  "Error",
+                  "Failed to disable Face ID. Please try again.",
+                  [{ text: "OK" }],
+                );
+              }
+            },
+          },
+        ],
+      );
     }
-  };
-
-  const timeoutOptions = [
-    { label: "Immediately", value: BIOMETRIC_TIMEOUT_OPTIONS.IMMEDIATELY },
-    { label: "1 minute", value: BIOMETRIC_TIMEOUT_OPTIONS.ONE_MINUTE },
-    { label: "5 minutes", value: BIOMETRIC_TIMEOUT_OPTIONS.FIVE_MINUTES },
-    { label: "15 minutes", value: BIOMETRIC_TIMEOUT_OPTIONS.FIFTEEN_MINUTES },
-    { label: "30 minutes", value: BIOMETRIC_TIMEOUT_OPTIONS.THIRTY_MINUTES },
-  ];
-
-  const handleSelectTimeout = (value: number) => {
-    setBiometricTimeout(value);
-    setShowTimeoutPicker(false);
   };
 
   if (isLoading) {
@@ -111,7 +154,7 @@ export default function SecuritySettingsScreen() {
         {/* Biometric Section */}
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-            BIOMETRIC AUTHENTICATION
+            QUICK SIGN-IN
           </Text>
 
           <View
@@ -126,7 +169,7 @@ export default function SecuritySettingsScreen() {
                 <View style={styles.settingIconContainer}>
                   <Ionicons
                     name={
-                      capability?.biometricType === "facial"
+                      capability?.biometricType === "face"
                         ? "scan-outline"
                         : "finger-print-outline"
                     }
@@ -138,7 +181,7 @@ export default function SecuritySettingsScreen() {
                   <Text
                     style={[styles.settingTitle, { color: colors.textPrimary }]}
                   >
-                    {capability?.displayName || "Biometrics"}
+                    {capability?.displayName || "Biometrics"} Sign-In
                   </Text>
                   <Text
                     style={[
@@ -147,121 +190,29 @@ export default function SecuritySettingsScreen() {
                     ]}
                   >
                     {capability?.isAvailable
-                      ? "Unlock the app with biometrics"
+                      ? biometricSignInEnabled
+                        ? "Sign in quickly with Face ID"
+                        : "Sign in with password required"
                       : "Not available on this device"}
                   </Text>
                 </View>
               </View>
               <Switch
-                value={biometricsEnabled}
+                value={biometricSignInEnabled}
                 onValueChange={handleToggleBiometrics}
                 disabled={!capability?.isAvailable}
                 trackColor={{ false: "#E5E7EB", true: "#A7F3D0" }}
-                thumbColor={biometricsEnabled ? "#10B981" : "#F9FAFB"}
+                thumbColor={biometricSignInEnabled ? "#10B981" : "#F9FAFB"}
                 ios_backgroundColor="#E5E7EB"
               />
             </View>
-
-            {/* Timeout Setting (only visible when biometrics enabled) */}
-            {biometricsEnabled && (
-              <>
-                <View
-                  style={[styles.divider, { backgroundColor: colors.border }]}
-                />
-                <TouchableOpacity
-                  style={styles.settingRow}
-                  onPress={() => setShowTimeoutPicker(!showTimeoutPicker)}
-                >
-                  <View style={styles.settingInfo}>
-                    <View style={styles.settingIconContainer}>
-                      <Ionicons
-                        name="time-outline"
-                        size={24}
-                        color={colors.primary.main}
-                      />
-                    </View>
-                    <View style={styles.settingTextContainer}>
-                      <Text
-                        style={[
-                          styles.settingTitle,
-                          { color: colors.textPrimary },
-                        ]}
-                      >
-                        Require Authentication
-                      </Text>
-                      <Text
-                        style={[
-                          styles.settingDescription,
-                          { color: colors.textSecondary },
-                        ]}
-                      >
-                        After app is in background
-                      </Text>
-                    </View>
-                  </View>
-                  <View style={styles.settingValue}>
-                    <Text
-                      style={[
-                        styles.valueText,
-                        { color: colors.textSecondary },
-                      ]}
-                    >
-                      {formatTimeout(biometricTimeout)}
-                    </Text>
-                    <Ionicons
-                      name={showTimeoutPicker ? "chevron-up" : "chevron-down"}
-                      size={20}
-                      color={colors.textSecondary}
-                    />
-                  </View>
-                </TouchableOpacity>
-
-                {/* Timeout Picker */}
-                {showTimeoutPicker && (
-                  <View style={styles.pickerContainer}>
-                    {timeoutOptions.map((option) => (
-                      <TouchableOpacity
-                        key={option.value}
-                        style={[
-                          styles.pickerOption,
-                          biometricTimeout === option.value && {
-                            backgroundColor: colors.primary.light,
-                          },
-                        ]}
-                        onPress={() => handleSelectTimeout(option.value)}
-                      >
-                        <Text
-                          style={[
-                            styles.pickerOptionText,
-                            { color: colors.textPrimary },
-                            biometricTimeout === option.value && {
-                              color: colors.primary.main,
-                              fontWeight: "600",
-                            },
-                          ]}
-                        >
-                          {option.label}
-                        </Text>
-                        {biometricTimeout === option.value && (
-                          <Ionicons
-                            name="checkmark"
-                            size={20}
-                            color={colors.primary.main}
-                          />
-                        )}
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                )}
-              </>
-            )}
           </View>
 
           {/* Info Text */}
           <Text style={[styles.infoText, { color: colors.textMuted }]}>
-            {biometricsEnabled
-              ? `FitChallenge will require ${capability?.displayName || "biometric"} authentication when returning to the app after ${formatTimeout(biometricTimeout).toLowerCase()}.`
-              : `Enable ${capability?.displayName || "biometric authentication"} for an extra layer of security.`}
+            {biometricSignInEnabled
+              ? `${capability?.displayName || "Biometric"} sign-in is enabled. You can sign in without entering your password.`
+              : `Enable ${capability?.displayName || "biometric"} sign-in for faster access. Sign out and sign back in to set it up.`}
           </Text>
         </View>
 
