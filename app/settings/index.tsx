@@ -35,7 +35,8 @@ export default function SettingsScreen() {
         onPress: async () => {
           try {
             await signOut();
-            router.replace("/(auth)/login");
+            // Don't navigate explicitly - let the protected route handle it
+            // This ensures correct auth screen based on uiVersion
           } catch (err) {
             Alert.alert("Error", "Failed to sign out");
           }

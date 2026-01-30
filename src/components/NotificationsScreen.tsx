@@ -20,6 +20,7 @@ import { LoadingScreen } from "@/components/ui";
 import { TestIDs } from "@/constants/testIDs";
 import { BellIcon } from "react-native-heroicons/outline";
 import { formatTimeAgo } from "@/lib/formatters";
+import type { Notification } from "@/services/notifications";
 
 export function V1NotificationsScreen() {
   const { colors, spacing, radius, typography, shadows } = useAppTheme();
@@ -35,16 +36,22 @@ export function V1NotificationsScreen() {
     setRefreshing(false);
   };
 
-  const handleNotificationPress = async (notification: any) => {
+  const handleNotificationPress = async (notification: Notification) => {
     if (!notification.read_at) {
       await markAsRead.mutateAsync(notification.id);
     }
 
+    // V1 component navigates to V1 routes directly
+    // Router fix in _layout.tsx handles edge cases (push notifications, deep links)
     if (
       notification.type === "challenge_invite_received" &&
       notification.data?.challenge_id
     ) {
-      router.push(`/challenge/${notification.data.challenge_id}`);
+      // Use object form for type-safe dynamic route navigation
+      router.push({
+        pathname: "/challenge/[id]",
+        params: { id: notification.data.challenge_id as string },
+      });
     } else if (notification.type === "friend_request_received") {
       router.push("/(tabs)/friends");
     }

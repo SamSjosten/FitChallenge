@@ -72,7 +72,8 @@ export default function ProfileScreen() {
         style: "destructive",
         onPress: async () => {
           await signOut();
-          router.replace("/(auth)/login");
+          // Don't navigate explicitly - let the protected route handle it
+          // This ensures correct auth screen based on uiVersion
         },
       },
     ]);

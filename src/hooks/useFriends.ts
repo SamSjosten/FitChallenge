@@ -3,6 +3,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { friendsService } from "@/services/friends";
+import { notificationsKeys } from "@/hooks/useNotifications";
 
 // =============================================================================
 // QUERY KEYS
@@ -65,6 +66,8 @@ export function useAcceptFriendRequest() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: friendsKeys.list() });
       queryClient.invalidateQueries({ queryKey: friendsKeys.pending() });
+      // Trigger refetch notifications since the DB trigger marked friend_request_received as read
+      queryClient.invalidateQueries({ queryKey: notificationsKeys.all });
     },
   });
 }
@@ -80,6 +83,8 @@ export function useDeclineFriendRequest() {
       friendsService.declineRequest({ friendship_id: friendshipId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: friendsKeys.pending() });
+      // Trigger refetch notifications since the DB trigger marked friend_request_received as read
+      queryClient.invalidateQueries({ queryKey: notificationsKeys.all });
     },
   });
 }
@@ -95,6 +100,8 @@ export function useRemoveFriend() {
       friendsService.removeFriend({ friendship_id: friendshipId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: friendsKeys.list() });
+      // Trigger refetch notifications (in case the friendship was pending)
+      queryClient.invalidateQueries({ queryKey: notificationsKeys.all });
     },
   });
 }

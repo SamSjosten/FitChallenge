@@ -16,6 +16,7 @@ import {
   LogActivityResult,
 } from "@/services/activities";
 import { useAuth } from "@/hooks/useAuth";
+import { notificationsKeys } from "@/hooks/useNotifications";
 import type { Challenge, ChallengeType } from "@/types/database";
 
 // =============================================================================
@@ -249,6 +250,8 @@ export function useRespondToInvite() {
 
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: challengeKeys.pending() });
+      // Trigger refetch notifications since the DB trigger marked the invite notification as read
+      queryClient.invalidateQueries({ queryKey: notificationsKeys.all });
     },
   });
 }
@@ -372,6 +375,8 @@ export function useLeaveChallenge() {
       challengeService.leaveChallenge(challengeId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: challengeKeys.active() });
+      // Trigger refetch notifications since the DB trigger marked challenge notifications as read
+      queryClient.invalidateQueries({ queryKey: notificationsKeys.all });
     },
   });
 }
@@ -387,6 +392,8 @@ export function useCancelChallenge() {
       challengeService.cancelChallenge(challengeId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: challengeKeys.active() });
+      // Trigger refetch notifications since the DB trigger marked challenge notifications as read
+      queryClient.invalidateQueries({ queryKey: notificationsKeys.all });
     },
   });
 }

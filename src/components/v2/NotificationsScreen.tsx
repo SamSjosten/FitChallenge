@@ -122,18 +122,27 @@ export function V2NotificationsScreen() {
 
     const data = notification.data;
 
+    // V2 component navigates to V2 routes directly
+    // Router fix in _layout.tsx handles edge cases (push notifications, deep links)
     switch (notification.type) {
       case "challenge_invite_received":
       case "challenge_starting_soon":
       case "challenge_ending_soon":
       case "challenge_completed":
         if (data?.challenge_id) {
-          router.push(`/challenge/${data.challenge_id}`);
+          // Use object form for type-safe dynamic route navigation
+          router.push({
+            pathname: "/challenge/[id]",
+            params: { id: data.challenge_id as string },
+          });
         }
         break;
       case "friend_request_received":
       case "friend_request_accepted":
-        router.push("/(tabs)/friends");
+        router.push("/(tabs-v2)/friends");
+        break;
+      default:
+        // Unknown notification type - no navigation
         break;
     }
   };
@@ -177,7 +186,14 @@ export function V2NotificationsScreen() {
         }}
       >
         <TouchableOpacity
-          onPress={() => router.back()}
+          onPress={() => {
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              // Fallback to home if no back history
+              router.replace("/(tabs-v2)");
+            }
+          }}
           style={{ marginRight: 8, padding: 4 }}
         >
           <ChevronLeftIcon size={24} color={colors.textPrimary} />

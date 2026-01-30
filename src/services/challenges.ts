@@ -431,35 +431,50 @@ export const challengeService = {
   /**
    * Respond to a challenge invite
    * CONTRACT: Only invitee can respond (RLS enforced)
+   * CONTRACT: Atomic RPC updates participant AND marks notification as read
+   * CONTRACT: Prevents stale notifications pointing to inaccessible resources
    */
   async respondToInvite(input: unknown): Promise<void> {
     const { challenge_id, response } = validate(respondToInviteSchema, input);
 
-    return withAuth(async (userId) => {
-      const { error } = await getSupabaseClient()
-        .from("challenge_participants")
-        .update({ invite_status: response })
-        .eq("challenge_id", challenge_id)
-        .eq("user_id", userId);
+    return withAuth(async () => {
+      const { error } = await getSupabaseClient().rpc(
+        "respond_to_challenge_invite",
+        {
+          p_challenge_id: challenge_id,
+          p_response: response,
+        },
+      );
 
-      if (error) throw error;
+      if (error) {
+        if (error.message?.includes("invite_not_found")) {
+          throw new Error("No pending invite found for this challenge");
+        }
+        if (error.message?.includes("invalid_response")) {
+          throw new Error("Response must be 'accepted' or 'declined'");
+        }
+        throw error;
+      }
     });
   },
 
   /**
    * Leave a challenge (for non-creator participants)
-   * CONTRACT: Only participant can leave their own participation (RLS enforced)
-   * Sets invite_status to 'declined' which removes from active view
+   * CONTRACT: Atomic RPC updates status AND marks notifications as read
+   * CONTRACT: Prevents stale notifications pointing to inaccessible resources
    */
   async leaveChallenge(challengeId: string): Promise<void> {
-    return withAuth(async (userId) => {
-      const { error } = await getSupabaseClient()
-        .from("challenge_participants")
-        .update({ invite_status: "declined" })
-        .eq("challenge_id", challengeId)
-        .eq("user_id", userId);
+    return withAuth(async () => {
+      const { error } = await getSupabaseClient().rpc("leave_challenge", {
+        p_challenge_id: challengeId,
+      });
 
-      if (error) throw error;
+      if (error) {
+        if (error.message?.includes("not_participant")) {
+          throw new Error("You are not a participant in this challenge");
+        }
+        throw error;
+      }
     });
   },
 

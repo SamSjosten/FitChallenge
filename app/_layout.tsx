@@ -88,6 +88,22 @@ Sentry.init({
 initSentry();
 
 // =============================================================================
+// TAB NAVIGATION CONSTANTS
+// =============================================================================
+
+/**
+ * Valid tab names that exist in both (tabs) and (tabs-v2) groups.
+ * Used to preserve tab intent when redirecting between UI versions.
+ */
+const VALID_TAB_NAMES = new Set([
+  "index",
+  "challenges",
+  "friends",
+  "profile",
+  "create",
+]);
+
+// =============================================================================
 // NOTIFICATION SETUP
 // =============================================================================
 
@@ -125,6 +141,7 @@ async function setupNotificationChannel() {
  */
 function useNotificationResponseHandler() {
   const router = useRouter();
+  const { uiVersion } = useFeatureFlags();
   const responseListener = useRef<Notifications.Subscription | null>(null);
 
   useEffect(() => {
@@ -135,9 +152,18 @@ function useNotificationResponseHandler() {
 
         // Navigate based on notification type
         if (data?.challenge_id) {
-          router.push(`/challenge/${data.challenge_id}`);
+          // Use object form for type-safe dynamic route navigation
+          router.push({
+            pathname: "/challenge/[id]",
+            params: { id: data.challenge_id as string },
+          });
         } else if (data?.notification_type === "friend_request_received") {
-          router.push("/(tabs)/friends");
+          // Navigate to version-appropriate friends tab
+          if (uiVersion === "v2") {
+            router.push("/(tabs-v2)/friends");
+          } else {
+            router.push("/(tabs)/friends");
+          }
         }
       });
 
@@ -146,9 +172,18 @@ function useNotificationResponseHandler() {
       if (response) {
         const data = response.notification.request.content.data;
         if (data?.challenge_id) {
-          router.push(`/challenge/${data.challenge_id}`);
+          // Use object form for type-safe dynamic route navigation
+          router.push({
+            pathname: "/challenge/[id]",
+            params: { id: data.challenge_id as string },
+          });
         } else if (data?.notification_type === "friend_request_received") {
-          router.push("/(tabs)/friends");
+          // Navigate to version-appropriate friends tab
+          if (uiVersion === "v2") {
+            router.push("/(tabs-v2)/friends");
+          } else {
+            router.push("/(tabs)/friends");
+          }
         }
       }
     });
@@ -158,7 +193,7 @@ function useNotificationResponseHandler() {
         responseListener.current.remove();
       }
     };
-  }, [router]);
+  }, [router, uiVersion]);
 }
 
 // =============================================================================
@@ -430,8 +465,20 @@ function useProtectedRoute(
         console.log(`${LOG}   → To onboarding`);
         navigateTo("/(auth-v2)/onboarding");
       } else {
-        console.log(`${LOG}   → To tabs`);
-        navigateTo(targetTabs);
+        // Preserve the specific tab when redirecting between versions
+        // e.g., /(tabs)/friends → /(tabs-v2)/friends
+        let targetPath = targetTabs;
+        if (
+          inWrongTabs &&
+          secondSegment &&
+          VALID_TAB_NAMES.has(secondSegment)
+        ) {
+          targetPath = `${targetTabs}/${secondSegment}`;
+          console.log(`${LOG}   → To tabs (preserving tab: ${secondSegment})`);
+        } else {
+          console.log(`${LOG}   → To tabs (home)`);
+        }
+        navigateTo(targetPath);
       }
       return;
     }

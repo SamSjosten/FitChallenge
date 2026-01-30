@@ -16,6 +16,7 @@ import {
 import { useLocalSearchParams, router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAuth } from "@/hooks/useAuth";
+import { useFeatureFlags } from "@/lib/featureFlags";
 import {
   useChallenge,
   useLeaderboard,
@@ -53,9 +54,13 @@ export default function ChallengeDetailScreen() {
   const { colors, spacing, radius, typography, shadows } = useAppTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { profile } = useAuth();
+  const { uiVersion } = useFeatureFlags();
 
   const { data: challenge, isLoading, error, refetch } = useChallenge(id);
   const { data: leaderboard, refetch: refetchLeaderboard } = useLeaderboard(id);
+
+  // Fallback route for back button when no history
+  const homeFallback = uiVersion === "v2" ? "/(tabs-v2)" : "/(tabs)";
 
   // Subscribe to realtime leaderboard updates for this challenge
   useLeaderboardSubscription(id);
@@ -191,10 +196,42 @@ export default function ChallengeDetailScreen() {
     return <LoadingScreen />;
   }
 
+  if (!id) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <ErrorMessage
+          message="No challenge ID provided"
+          onRetry={() => {
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.replace(homeFallback);
+            }
+          }}
+        />
+      </View>
+    );
+  }
+
   if (error || !challenge) {
     return (
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <ErrorMessage message="Failed to load challenge" onRetry={refetch} />
+        <ErrorMessage
+          message="Failed to load challenge"
+          onRetry={() => refetch()}
+        />
+        <TouchableOpacity
+          onPress={() => {
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.replace(homeFallback);
+            }
+          }}
+          style={{ marginTop: 16, padding: 12 }}
+        >
+          <Text style={{ color: colors.primary.main }}>Go Back</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -251,7 +288,14 @@ export default function ChallengeDetailScreen() {
               alignItems: "center",
               marginBottom: spacing.sm,
             }}
-            onPress={() => router.back()}
+            onPress={() => {
+              if (router.canGoBack()) {
+                router.back();
+              } else {
+                // Fallback to home if no back history
+                router.replace(homeFallback);
+              }
+            }}
           >
             <ChevronLeftIcon size={20} color="rgba(255,255,255,0.8)" />
           </TouchableOpacity>
