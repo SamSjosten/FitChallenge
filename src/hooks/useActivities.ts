@@ -91,6 +91,7 @@ export interface DisplayActivity extends ActivityLog {
   displayDate: string;
   displayTime: string;
   points: number;
+  name: string;
 }
 
 /**
@@ -140,6 +141,7 @@ export function toDisplayActivity(activity: ActivityLog): DisplayActivity {
     displayDate,
     displayTime,
     points,
+    name: getActivityTypeName(activity.activity_type),
   };
 }
 

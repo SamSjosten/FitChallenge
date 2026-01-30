@@ -11,7 +11,7 @@
 // - Recent activity section
 // - Completed challenges (collapsible section)
 
-import React, { useState, useCallback, useMemo, useEffect } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import {
   View,
   Text,
@@ -24,21 +24,10 @@ import {
   ScrollView,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { router, useFocusEffect } from "expo-router";
+import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAppTheme } from "@/providers/ThemeProvider";
-import { useAuth } from "@/providers/AuthProvider";
-import {
-  useActiveChallenges,
-  useCompletedChallenges,
-  usePendingInvites,
-  useRespondToInvite,
-} from "@/hooks/useChallenges";
-import {
-  useRecentActivities,
-  toDisplayActivity,
-  getActivityTypeName,
-} from "@/hooks/useActivities";
+import { useHomeScreenData, useChallengeFilters } from "@/hooks/v2";
 import {
   LoadingState,
   EmptyState,
@@ -47,8 +36,6 @@ import {
   InviteCard,
   ChallengeFilter,
   ActiveFilterBadge,
-  CHALLENGE_FILTERS,
-  type ChallengeFilterType,
   StreakBanner,
   ActivityRow,
   RecentActivityHeader,
@@ -56,14 +43,12 @@ import {
 } from "@/components/v2";
 import { Toast, useToast } from "@/components/v2/Toast";
 import { BiometricSetupModal } from "@/components/BiometricSetupModal";
-import { pushTokenService } from "@/services/pushTokens";
 import { TestIDs } from "@/constants/testIDs";
 import {
   ChevronDownIcon,
   ChevronUpIcon,
   BellIcon,
 } from "react-native-heroicons/outline";
-import { useUnreadNotificationCount } from "@/hooks/useNotifications";
 import type { ActivityType } from "@/components/icons/ActivityIcons";
 
 // Enable LayoutAnimation on Android
@@ -76,13 +61,36 @@ if (
 
 export default function HomeScreenV2() {
   const { colors, spacing, radius } = useAppTheme();
-  const { profile } = useAuth();
-  const { data: unreadCount } = useUnreadNotificationCount();
   const { toast, showToast, hideToast } = useToast();
 
-  const [refreshing, setRefreshing] = useState(false);
+  // Consolidated data fetching
+  const {
+    activeChallenges,
+    pendingInvites,
+    completedChallenges,
+    displayActivities,
+    displayName,
+    currentStreak,
+    unreadCount,
+    isLoading,
+    isRefreshing,
+    handleRefresh,
+    handleAcceptInvite,
+    handleDeclineInvite,
+    isRespondingToInvite,
+  } = useHomeScreenData();
+
+  // Challenge filtering
+  const {
+    activeFilter,
+    currentFilterLabel,
+    filteredChallenges,
+    handleFilterChange,
+    handleClearFilter,
+  } = useChallengeFilters(activeChallenges);
+
+  // UI-specific state
   const [completedExpanded, setCompletedExpanded] = useState(false);
-  const [activeFilter, setActiveFilter] = useState<ChallengeFilterType>("all");
 
   // Biometric setup modal state (shown after sign-in if eligible)
   const [showBiometricSetup, setShowBiometricSetup] = useState(false);
@@ -126,124 +134,6 @@ export default function HomeScreenV2() {
     setPendingCredentials(null);
   };
 
-  const {
-    data: activeChallenges,
-    isLoading: loadingActive,
-    refetch: refetchActive,
-  } = useActiveChallenges();
-
-  const {
-    data: pendingInvites,
-    isLoading: loadingPending,
-    refetch: refetchPending,
-  } = usePendingInvites();
-
-  const { data: completedChallenges, refetch: refetchCompleted } =
-    useCompletedChallenges();
-
-  const { data: recentActivities, refetch: refetchActivities } =
-    useRecentActivities(5);
-
-  const respondToInvite = useRespondToInvite();
-
-  // Filter challenges based on selected filter
-  const filteredChallenges = useMemo(() => {
-    if (!activeChallenges) return [];
-
-    let filtered = [...activeChallenges];
-
-    switch (activeFilter) {
-      case "ending":
-        // Sort by days left, filter to those ending within 5 days
-        filtered = filtered
-          .filter((c) => {
-            const endDate = new Date(c.end_date);
-            const now = new Date();
-            const daysLeft = Math.ceil(
-              (endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
-            );
-            return daysLeft <= 5 && daysLeft >= 0;
-          })
-          .sort(
-            (a, b) =>
-              new Date(a.end_date).getTime() - new Date(b.end_date).getTime(),
-          );
-        break;
-      case "steps":
-        filtered = filtered.filter((c) => c.challenge_type === "steps");
-        break;
-      case "workouts":
-      case "workout_points":
-        filtered = filtered.filter((c) => c.challenge_type === "workouts");
-        break;
-      case "distance":
-        filtered = filtered.filter((c) => c.challenge_type === "distance");
-        break;
-      case "active_minutes":
-        filtered = filtered.filter(
-          (c) => c.challenge_type === "active_minutes",
-        );
-        break;
-      default:
-        // "all" - no filter
-        break;
-    }
-
-    return filtered;
-  }, [activeChallenges, activeFilter]);
-
-  // Transform activities for display
-  const displayActivities = useMemo(() => {
-    if (!recentActivities) return [];
-    return recentActivities.slice(0, 2).map(toDisplayActivity);
-  }, [recentActivities]);
-
-  // Auto-refresh on focus
-  useFocusEffect(
-    useCallback(() => {
-      refetchActive();
-      refetchPending();
-      refetchCompleted();
-      refetchActivities();
-    }, [refetchActive, refetchPending, refetchCompleted, refetchActivities]),
-  );
-
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await Promise.all([
-      refetchActive(),
-      refetchPending(),
-      refetchCompleted(),
-      refetchActivities(),
-    ]);
-    setRefreshing(false);
-  };
-
-  const handleAcceptInvite = async (challengeId: string) => {
-    try {
-      await respondToInvite.mutateAsync({
-        challenge_id: challengeId,
-        response: "accepted",
-      });
-      pushTokenService
-        .requestAndRegister()
-        .catch((err) => console.warn("Push notification setup failed:", err));
-    } catch (err) {
-      console.error("Failed to accept invite:", err);
-    }
-  };
-
-  const handleDeclineInvite = async (challengeId: string) => {
-    try {
-      await respondToInvite.mutateAsync({
-        challenge_id: challengeId,
-        response: "declined",
-      });
-    } catch (err) {
-      console.error("Failed to decline invite:", err);
-    }
-  };
-
   const toggleCompleted = () => {
     LayoutAnimation.configureNext({
       duration: 200,
@@ -271,20 +161,8 @@ export default function HomeScreenV2() {
     });
   };
 
-  const handleFilterChange = (filter: ChallengeFilterType) => {
-    LayoutAnimation.configureNext({
-      duration: 200,
-      update: { type: LayoutAnimation.Types.easeInEaseOut },
-    });
-    setActiveFilter(filter);
-  };
-
-  const handleClearFilter = () => {
-    handleFilterChange("all");
-  };
-
   // Loading state
-  if (loadingActive && loadingPending) {
+  if (isLoading) {
     return (
       <SafeAreaView
         style={[styles.container, { backgroundColor: colors.background }]}
@@ -294,11 +172,6 @@ export default function HomeScreenV2() {
       </SafeAreaView>
     );
   }
-
-  const currentStreak = profile?.current_streak || 0;
-  const displayName = profile?.display_name || profile?.username || "Athlete";
-  const currentFilterLabel =
-    CHALLENGE_FILTERS.find((f) => f.id === activeFilter)?.label || "All";
 
   return (
     <SafeAreaView
@@ -311,7 +184,7 @@ export default function HomeScreenV2() {
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
-            refreshing={refreshing}
+            refreshing={isRefreshing}
             onRefresh={handleRefresh}
             tintColor={colors.primary.main}
           />
@@ -386,7 +259,7 @@ export default function HomeScreenV2() {
                   onPress={(challengeId) =>
                     router.push(`/invite/${challengeId}`)
                   }
-                  loading={respondToInvite.isPending}
+                  loading={isRespondingToInvite}
                 />
               ))}
             </View>
@@ -495,7 +368,7 @@ export default function HomeScreenV2() {
                   key={activity.id}
                   id={activity.id}
                   type={activity.activity_type as ActivityType}
-                  name={getActivityTypeName(activity.activity_type)}
+                  name={activity.name}
                   duration={Math.round(activity.value / 60) || activity.value}
                   date={activity.displayDate}
                   time={activity.displayTime}

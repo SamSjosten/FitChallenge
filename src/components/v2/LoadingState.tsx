@@ -12,6 +12,7 @@
 import React, { useEffect, useRef } from "react";
 import {
   View,
+  Text,
   StyleSheet,
   Animated,
   ActivityIndicator,
@@ -29,13 +30,15 @@ export type LoadingVariant =
   | "card"
   | "list"
   | "challenge-card"
-  | "leaderboard";
+  | "leaderboard"
+  | "content";
 
 export interface LoadingStateProps {
   variant?: LoadingVariant;
   count?: number;
   style?: ViewStyle;
   testID?: string;
+  message?: string;
 }
 
 // =============================================================================
@@ -128,6 +131,33 @@ function InlineLoading({ testID }: { testID?: string }) {
   return (
     <View style={styles.inline} testID={testID}>
       <ActivityIndicator size="small" color={colors.primary.main} />
+    </View>
+  );
+}
+
+function ContentLoading({
+  testID,
+  message,
+}: {
+  testID?: string;
+  message?: string;
+}) {
+  const { colors, spacing } = useAppTheme();
+
+  return (
+    <View style={styles.content} testID={testID}>
+      <ActivityIndicator size="large" color={colors.primary.main} />
+      {message && (
+        <Text
+          style={{
+            marginTop: spacing.md,
+            color: colors.textSecondary,
+            fontSize: 14,
+          }}
+        >
+          {message}
+        </Text>
+      )}
     </View>
   );
 }
@@ -282,6 +312,7 @@ export function LoadingState({
   count = 3,
   style,
   testID = "loading-state",
+  message,
 }: LoadingStateProps) {
   const content = (() => {
     switch (variant) {
@@ -289,6 +320,8 @@ export function LoadingState({
         return <FullScreenLoading testID={testID} />;
       case "inline":
         return <InlineLoading testID={testID} />;
+      case "content":
+        return <ContentLoading testID={testID} message={message} />;
       case "card":
         return <CardSkeleton testID={testID} />;
       case "list":
@@ -302,7 +335,7 @@ export function LoadingState({
     }
   })();
 
-  if (variant === "full-screen") {
+  if (variant === "full-screen" || variant === "content") {
     return content;
   }
 
@@ -318,6 +351,12 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+  },
+  content: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 40,
   },
   inline: {
     padding: 8,

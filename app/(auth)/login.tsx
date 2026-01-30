@@ -275,6 +275,7 @@ export default function LoginScreen() {
 
             {/* Face ID Button */}
             <BiometricSignInButton
+              signIn={signIn}
               onSignInSuccess={handleBiometricSignInSuccess}
               onSetupRequired={handleBiometricSetupRequired}
               onError={handleBiometricError}

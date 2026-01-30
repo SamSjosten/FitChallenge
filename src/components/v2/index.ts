@@ -58,9 +58,9 @@ export { NotificationRow, NotificationRowCompact } from "./NotificationRow";
 export type {
   NotificationRowProps,
   NotificationRowCompactProps,
-  NotificationData,
-  NotificationType,
 } from "./NotificationRow";
+// Re-export Notification type from service for consumers
+export type { Notification } from "@/services/notifications";
 
 export {
   NotificationFilters,
@@ -80,3 +80,6 @@ export type {
 // Activity components (Phase 3C)
 export { ActivityCard, ActivityListItem } from "./ActivityCard";
 export type { ActivityCardProps, ActivityListItemProps } from "./ActivityCard";
+
+// Notifications screen
+export { V2NotificationsScreen } from "./NotificationsScreen";

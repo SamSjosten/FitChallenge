@@ -14,11 +14,7 @@ import {
 import { router, useFocusEffect, Stack } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAppTheme } from "@/providers/ThemeProvider";
-import {
-  useRecentActivities,
-  toDisplayActivity,
-  getActivityTypeName,
-} from "@/hooks/useActivities";
+import { useRecentActivities, toDisplayActivity } from "@/hooks/useActivities";
 import { LoadingState, EmptyState } from "@/components/v2";
 import { ActivityListItem } from "@/components/v2/ActivityCard";
 import { ChevronLeftIcon } from "react-native-heroicons/outline";
@@ -84,8 +80,8 @@ export default function ActivityHistoryScreen() {
   }, [activities]);
 
   const groupedActivities = useMemo(() => {
-    return groupActivitiesByDate(activities || []);
-  }, [activities]);
+    return groupActivitiesByDate(displayActivities);
+  }, [displayActivities]);
 
   // Get ordered group keys (most recent first)
   const groupOrder = useMemo(() => {
@@ -129,12 +125,6 @@ export default function ActivityHistoryScreen() {
       </SafeAreaView>
     );
   }
-
-  // Calculate points per activity
-  const getPoints = (activity: (typeof activities)[0]) => {
-    const display = displayActivities.find((d) => d.id === activity.id);
-    return display?.points || 0;
-  };
 
   return (
     <SafeAreaView
@@ -188,7 +178,7 @@ export default function ActivityHistoryScreen() {
             <EmptyState
               variant="generic"
               title="No Activity Yet"
-              description="Your workout history will appear here after you log some activity"
+              message="Your workout history will appear here after you log some activity"
             />
           </View>
         ) : (
@@ -229,10 +219,10 @@ export default function ActivityHistoryScreen() {
                       <ActivityListItem
                         key={activity.id}
                         type={activity.activity_type as ActivityType}
-                        name={getActivityTypeName(activity.activity_type)}
+                        name={activity.name}
                         value={activity.value}
                         unit={activity.unit}
-                        points={getPoints(activity)}
+                        points={activity.points}
                         recordedAt={new Date(activity.recorded_at)}
                         onPress={() => handleActivityPress(activity.id)}
                         showBorder={index < groupActivities.length - 1}

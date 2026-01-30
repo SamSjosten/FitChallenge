@@ -1,14 +1,30 @@
 import { getSupabaseClient, withAuth } from "@/lib/supabase";
 import type { Notification as DbNotification } from "@/types/database";
 
-export interface Notification extends Omit<DbNotification, "data"> {
+// Service-level Notification type with guaranteed non-null fields.
+// Migration 026 adds NOT NULL to created_at. After regenerating types,
+// the Omit and assertion below become redundant but remain as defensive code.
+export interface Notification extends Omit<
+  DbNotification,
+  "data" | "created_at"
+> {
   data: Record<string, unknown>;
+  created_at: string; // NOT NULL enforced by migration 026
 }
 
 function mapNotification(db: DbNotification): Notification {
+  // Defensive assertion - migration 026 enforces NOT NULL, but this catches
+  // any edge cases until types are regenerated
+  if (!db.created_at) {
+    throw new Error(
+      `Notification ${db.id} has null created_at - data integrity issue`,
+    );
+  }
+
   const { data, ...rest } = db;
   return {
     ...rest,
+    created_at: db.created_at,
     data:
       data !== null && typeof data === "object" && !Array.isArray(data)
         ? (data as Record<string, unknown>)

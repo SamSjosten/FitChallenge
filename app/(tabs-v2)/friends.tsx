@@ -192,7 +192,7 @@ export default function FriendsScreenV2() {
           style={[
             styles.searchInputContainer,
             {
-              backgroundColor: colors.backgroundAlt,
+              backgroundColor: colors.background,
               borderRadius: radius.lg,
             },
           ]}

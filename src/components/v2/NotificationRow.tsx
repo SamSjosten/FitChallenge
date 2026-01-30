@@ -24,11 +24,13 @@ import {
   TrophyIcon as TrophySolid,
   UserPlusIcon as UserPlusSolid,
 } from "react-native-heroicons/solid";
+import type { Notification } from "@/services/notifications";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const SWIPE_THRESHOLD = 80;
 
-export type NotificationType =
+// Internal type for icon/color helpers - matches valid notification types from DB
+type NotificationType =
   | "challenge_invite_received"
   | "challenge_starting_soon"
   | "challenge_ending_soon"
@@ -38,18 +40,8 @@ export type NotificationType =
   | "achievement_unlocked"
   | "general";
 
-export interface NotificationData {
-  id: string;
-  type: NotificationType;
-  title: string;
-  body: string;
-  data?: Record<string, unknown>;
-  read_at: string | null;
-  created_at: string;
-}
-
 export interface NotificationRowProps {
-  notification: NotificationData;
+  notification: Notification;
   onPress?: () => void;
   onDismiss?: () => void;
   showBorder?: boolean;
@@ -195,12 +187,14 @@ export function NotificationRow({
             style={[
               styles.iconContainer,
               {
-                backgroundColor: getNotificationIconBg(notification.type),
+                backgroundColor: getNotificationIconBg(
+                  notification.type as NotificationType,
+                ),
                 borderRadius: radius.md,
               },
             ]}
           >
-            {getNotificationIcon(notification.type, isRead)}
+            {getNotificationIcon(notification.type as NotificationType, isRead)}
           </View>
 
           {/* Text content */}
@@ -247,7 +241,7 @@ export function NotificationRow({
 
 // Compact version without swipe
 export interface NotificationRowCompactProps {
-  notification: NotificationData;
+  notification: Notification;
   onPress?: () => void;
 }
 
@@ -275,12 +269,14 @@ export function NotificationRowCompact({
         style={[
           styles.compactIcon,
           {
-            backgroundColor: getNotificationIconBg(notification.type),
+            backgroundColor: getNotificationIconBg(
+              notification.type as NotificationType,
+            ),
             borderRadius: radius.sm,
           },
         ]}
       >
-        {getNotificationIcon(notification.type, isRead)}
+        {getNotificationIcon(notification.type as NotificationType, isRead)}
       </View>
       <View style={styles.compactTextContainer}>
         <Text
