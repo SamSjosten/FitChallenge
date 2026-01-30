@@ -15,14 +15,18 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { FaceIDIcon } from "@/components/FaceIDIcon";
 import {
   checkBiometricCapability,
   isBiometricSignInEnabled,
   performBiometricSignIn,
   BiometricCapability,
+  SignInFunction,
 } from "@/lib/biometricSignIn";
 
 interface BiometricSignInButtonProps {
+  /** The signIn function from useAuth - routes through AuthProvider */
+  signIn: SignInFunction;
   /** Called when sign-in is successful */
   onSignInSuccess: () => void;
   /** Called when user needs to set up biometric (tapped button but not configured) */
@@ -34,6 +38,7 @@ interface BiometricSignInButtonProps {
 }
 
 export function BiometricSignInButton({
+  signIn,
   onSignInSuccess,
   onSetupRequired,
   onError,
@@ -81,10 +86,10 @@ export function BiometricSignInButton({
       return;
     }
 
-    // Perform biometric sign-in
+    // Perform biometric sign-in (routes through AuthProvider)
     setIsLoading(true);
     try {
-      const result = await performBiometricSignIn();
+      const result = await performBiometricSignIn(signIn);
 
       if (result.success) {
         console.log(
@@ -107,25 +112,17 @@ export function BiometricSignInButton({
     return null;
   }
 
+  const isFaceId = capability.biometricType === "face";
+
   // Determine icon based on biometric type
   const getIcon = () => {
     if (isLoading) {
       return <ActivityIndicator size="small" color="#10B981" />;
     }
 
-    // Use Ionicons for biometric icons
-    if (capability.biometricType === "face") {
-      // Face ID - use scan icon on iOS
-      if (Platform.OS === "ios") {
-        return (
-          <View style={styles.faceIdContainer}>
-            <Ionicons name="scan" size={22} color="#10B981" />
-          </View>
-        );
-      }
-      return (
-        <Ionicons name="person-circle-outline" size={24} color="#10B981" />
-      );
+    // Face ID - use custom icon with smiley face
+    if (isFaceId) {
+      return <FaceIDIcon size={24} color="#10B981" />;
     }
 
     // Fingerprint / Touch ID
@@ -142,9 +139,7 @@ export function BiometricSignInButton({
       onPress={handlePress}
       disabled={disabled || isLoading}
       accessibilityLabel={
-        capability.biometricType === "face"
-          ? "Sign in with Face ID"
-          : "Sign in with Touch ID"
+        isFaceId ? "Sign in with Face ID" : "Sign in with Touch ID"
       }
       accessibilityHint={
         isEnabled
@@ -175,9 +170,6 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: {
     opacity: 0.5,
-  },
-  faceIdContainer: {
-    // Slight adjustment for scan icon to look like Face ID
   },
 });
 

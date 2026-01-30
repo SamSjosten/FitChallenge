@@ -20,7 +20,8 @@
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSHealthShareUsageDescription": "FitChallenge syncs your activity data to track challenge progress",
-        "NSHealthUpdateUsageDescription": "FitChallenge records your challenge activities"
+        "NSHealthUpdateUsageDescription": "FitChallenge records your challenge activities",
+        "NSFaceIDUsageDescription": "FitChallenge uses Face ID to sign you in securely without entering your password"
       },
       "entitlements": {
         "com.apple.developer.healthkit": true,

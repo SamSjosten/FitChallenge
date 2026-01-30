@@ -17,6 +17,7 @@ import {
   TouchableWithoutFeedback,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { FaceIDIcon } from "@/components/FaceIDIcon";
 import {
   checkBiometricCapability,
   setupBiometricSignIn,
@@ -39,36 +40,39 @@ export function BiometricSetupModal({
   onDismiss,
 }: BiometricSetupModalProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [capability, setCapability] = useState<BiometricCapability | null>(
     null,
   );
 
-  // Check biometric type on mount
+  // Check biometric type on mount and clear error
   useEffect(() => {
     if (visible) {
       checkBiometricCapability().then(setCapability);
+      setError(null); // Clear any previous error when modal opens
     }
   }, [visible]);
 
   const handleEnable = async () => {
     setIsLoading(true);
+    setError(null);
     try {
       const result = await setupBiometricSignIn(email, password);
 
       if (result.success) {
         onComplete(true);
       } else if (result.cancelled) {
-        // User cancelled - keep modal open
+        // User cancelled - keep modal open, can retry
         setIsLoading(false);
       } else {
-        // Failed - dismiss and continue
+        // Failed - show error, let user retry or dismiss
         console.log("[BiometricSetupModal] Setup failed:", result.error);
-        onComplete(false);
+        setError(result.error || "Setup failed. Please try again.");
+        setIsLoading(false);
       }
-    } catch (error) {
-      console.error("[BiometricSetupModal] Error:", error);
-      onComplete(false);
-    } finally {
+    } catch (err: any) {
+      console.error("[BiometricSetupModal] Error:", err);
+      setError(err?.message || "An unexpected error occurred.");
       setIsLoading(false);
     }
   };
@@ -93,11 +97,11 @@ export function BiometricSetupModal({
             <View style={styles.container}>
               {/* Icon */}
               <View style={styles.iconContainer}>
-                <Ionicons
-                  name={isFaceId ? "scan" : "finger-print"}
-                  size={48}
-                  color="#10B981"
-                />
+                {isFaceId ? (
+                  <FaceIDIcon size={48} color="#10B981" />
+                ) : (
+                  <Ionicons name="finger-print" size={48} color="#10B981" />
+                )}
               </View>
 
               {/* Title */}
@@ -115,6 +119,14 @@ export function BiometricSetupModal({
                     : "your fingerprint"}{" "}
                 instead of your password.
               </Text>
+
+              {/* Error Message */}
+              {error && (
+                <View style={styles.errorContainer}>
+                  <Ionicons name="alert-circle" size={16} color="#DC2626" />
+                  <Text style={styles.errorText}>{error}</Text>
+                </View>
+              )}
 
               {/* Buttons */}
               <View style={styles.buttonContainer}>
@@ -193,6 +205,21 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginBottom: 28,
     paddingHorizontal: 8,
+  },
+  errorContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FEF2F2",
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 20,
+    gap: 8,
+  },
+  errorText: {
+    flex: 1,
+    color: "#DC2626",
+    fontSize: 13,
+    lineHeight: 18,
   },
   buttonContainer: {
     flexDirection: "row",

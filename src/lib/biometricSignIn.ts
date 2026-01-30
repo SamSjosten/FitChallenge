@@ -13,7 +13,6 @@
 import * as SecureStore from "expo-secure-store";
 import * as LocalAuthentication from "expo-local-authentication";
 import { Platform } from "react-native";
-import { getSupabaseClient } from "./supabase";
 
 // =============================================================================
 // CONSTANTS
@@ -189,11 +188,37 @@ export async function setupBiometricSignIn(
 
     if (!authResult.success) {
       console.log(`${LOG} ❌ Setup cancelled/failed: ${authError}`);
+
+      // Check for specific error types (expo-local-authentication error codes)
+      if (authError === "user_cancel" || authError === "system_cancel") {
+        return {
+          success: false,
+          cancelled: true,
+          error: "Cancelled",
+        };
+      }
+
+      if (authError === "lockout") {
+        return {
+          success: false,
+          error: "Too many failed attempts. Please try again later.",
+        };
+      }
+
+      if (authError === "user_fallback") {
+        // User chose to use passcode instead - this is still a valid auth
+        // But since we're setting up biometric specifically, treat as cancel
+        return {
+          success: false,
+          cancelled: true,
+          error: "Please use biometric authentication to set up quick sign-in.",
+        };
+      }
+
       return {
         success: false,
-        cancelled: authError === "user_cancel",
-        error:
-          authError === "user_cancel" ? "Cancelled" : "Authentication failed",
+        cancelled: false,
+        error: "Authentication failed. Please try again.",
       };
     }
 
@@ -292,10 +317,25 @@ export const clearBiometricSignIn = disableBiometricSignIn;
 // =============================================================================
 
 /**
- * Perform biometric authentication and auto sign-in
- * Returns the result of the sign-in attempt
+ * Type for the signIn function from AuthProvider.
+ * This ensures biometric sign-in uses the same code path as manual sign-in,
+ * preventing auth state desync issues.
  */
-export async function performBiometricSignIn(): Promise<BiometricSignInResult> {
+export type SignInFunction = (email: string, password: string) => Promise<void>;
+
+/**
+ * Perform biometric authentication and auto sign-in
+ *
+ * @param signIn - The signIn function from AuthProvider. This ensures all sign-ins
+ *                 go through the central auth state management, preventing state desync.
+ *                 The bug we fixed: when biometric called Supabase directly,
+ *                 AuthProvider's authActionHandledRef wasn't set, causing the
+ *                 onAuthStateChange listener to skip processing the SIGNED_IN event.
+ * @returns The result of the sign-in attempt
+ */
+export async function performBiometricSignIn(
+  signIn: SignInFunction,
+): Promise<BiometricSignInResult> {
   console.log(`${LOG} 🚀 SIGN-IN starting...`);
   try {
     // Check if enabled
@@ -333,29 +373,40 @@ export async function performBiometricSignIn(): Promise<BiometricSignInResult> {
       };
     }
 
-    const credentials: StoredCredentials = JSON.parse(credentialsJson);
+    // Parse credentials with error handling
+    let credentials: StoredCredentials;
+    try {
+      credentials = JSON.parse(credentialsJson);
+      if (!credentials.email || !credentials.password) {
+        throw new Error("Invalid credential format");
+      }
+    } catch (parseError) {
+      console.log(`${LOG} ❌ Credentials corrupted, disabling...`);
+      await disableBiometricSignIn();
+      return {
+        success: false,
+        error:
+          "Saved credentials are corrupted. Please sign in with your password.",
+      };
+    }
+
     console.log(
       `${LOG} Step 3: Signing in as ${credentials.email.substring(0, 3)}***...`,
     );
 
-    // Perform sign-in with stored credentials
-    // ⚠️ NOTE: This bypasses AuthProvider.signIn() - the onAuthStateChange listener
-    // will receive a SIGNED_IN event that wasn't "handled" by authActionHandledRef
-    console.log(
-      `${LOG} ⚠️ Calling signInWithPassword DIRECTLY (bypasses AuthProvider)`,
-    );
-    const { data, error } = await getSupabaseClient().auth.signInWithPassword({
-      email: credentials.email,
-      password: credentials.password,
-    });
-    console.log(
-      `${LOG} signInWithPassword returned: error=${error?.message || "none"}, session=${data?.session ? "YES" : "NO"}`,
-    );
+    // Perform sign-in through AuthProvider for consistent state management
+    // This ensures authActionHandledRef is set correctly, preventing the bug where
+    // onAuthStateChange would skip processing because actionHandled was stale
+    console.log(`${LOG} ✅ Calling signIn through AuthProvider`);
+    try {
+      await signIn(credentials.email, credentials.password);
+      console.log(`${LOG} ✅ SIGN-IN successful!`);
+      return { success: true };
+    } catch (signInError: any) {
+      console.log(`${LOG} ❌ Auth error: ${signInError.message}`);
 
-    if (error) {
-      console.log(`${LOG} ❌ Supabase auth error: ${error.message}`);
       // If password changed, disable biometric sign-in
-      if (error.message.includes("Invalid login credentials")) {
+      if (signInError.message?.includes("Invalid login credentials")) {
         console.log(`${LOG} Password changed, disabling biometric...`);
         await disableBiometricSignIn();
         return {
@@ -366,20 +417,20 @@ export async function performBiometricSignIn(): Promise<BiometricSignInResult> {
       }
       return {
         success: false,
-        error: error.message,
+        error: signInError.message || "Sign-in failed",
       };
     }
-
-    console.log(`${LOG} ✅ SIGN-IN successful!`);
-    return { success: true };
   } catch (error: any) {
-    console.error(`${LOG} ❌ Sign-in exception:`, error?.message || error);
+    const errorMessage = error?.message || String(error);
+    console.error(`${LOG} ❌ Sign-in exception:`, errorMessage);
 
-    // Handle user cancellation
+    // Handle user cancellation (various forms iOS can report this)
     if (
-      error.message?.includes("User canceled") ||
-      error.message?.includes("user_cancel") ||
-      error.message?.includes("cancelled")
+      errorMessage.includes("User canceled") ||
+      errorMessage.includes("user_cancel") ||
+      errorMessage.includes("cancelled") ||
+      errorMessage.includes("Canceled") ||
+      errorMessage.includes("LAErrorUserCancel")
     ) {
       console.log(`${LOG} User cancelled Face ID prompt`);
       return {
@@ -389,9 +440,49 @@ export async function performBiometricSignIn(): Promise<BiometricSignInResult> {
       };
     }
 
+    // Handle biometric lockout (too many failed attempts)
+    if (
+      errorMessage.includes("locked out") ||
+      errorMessage.includes("LAErrorBiometryLockout") ||
+      errorMessage.includes("Too many attempts")
+    ) {
+      console.log(`${LOG} Biometric locked out`);
+      return {
+        success: false,
+        error: "Too many failed attempts. Please use your password.",
+      };
+    }
+
+    // Handle biometric not available (user disabled Face ID)
+    if (
+      errorMessage.includes("not available") ||
+      errorMessage.includes("LAErrorBiometryNotAvailable") ||
+      errorMessage.includes("not enrolled")
+    ) {
+      console.log(`${LOG} Biometric no longer available, disabling...`);
+      await disableBiometricSignIn();
+      return {
+        success: false,
+        error:
+          "Biometric authentication is no longer available. Please sign in with your password.",
+      };
+    }
+
+    // Handle authentication failed (not cancelled, just failed)
+    if (
+      errorMessage.includes("Authentication failed") ||
+      errorMessage.includes("LAErrorAuthenticationFailed")
+    ) {
+      console.log(`${LOG} Biometric authentication failed`);
+      return {
+        success: false,
+        error: "Authentication failed. Please try again.",
+      };
+    }
+
     return {
       success: false,
-      error: error.message || "Biometric sign-in failed",
+      error: errorMessage || "Biometric sign-in failed",
     };
   }
 }

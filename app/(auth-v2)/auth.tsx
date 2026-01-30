@@ -273,8 +273,10 @@ export default function AuthScreenV2() {
     setIsLoading(true);
 
     try {
-      console.log(`${LOG} Calling performBiometricSignIn...`);
-      const result = await performBiometricSignIn();
+      console.log(
+        `${LOG} Calling performBiometricSignIn (through AuthProvider)...`,
+      );
+      const result = await performBiometricSignIn(signIn);
       console.log(
         `${LOG} Result: success=${result.success}, error=${result.error}, cancelled=${result.cancelled}`,
       );
@@ -298,6 +300,12 @@ export default function AuthScreenV2() {
         console.log(`${LOG} ❌ Failed/cancelled, releasing lock`);
         releaseLock("handleAutoBiometricSignIn-failed");
         setIsLoading(false);
+
+        // Show meaningful errors (but not for cancellation - that's intentional)
+        if (!result.cancelled && result.error) {
+          // Show error to user so they know what happened
+          setErrors({ general: result.error });
+        }
       }
     } catch (error: any) {
       // Error - release lock immediately, user can sign in manually
@@ -567,6 +575,23 @@ export default function AuthScreenV2() {
 
             {/* Form Fields */}
             <View style={styles.formFields}>
+              {/* General Error Banner (for biometric failures, etc.) */}
+              {errors.general && (
+                <View style={styles.errorBanner}>
+                  <Ionicons name="alert-circle" size={18} color="#DC2626" />
+                  <Text style={styles.errorBannerText}>{errors.general}</Text>
+                  <TouchableOpacity
+                    onPress={() => {
+                      const { general: _general, ...rest } = errors;
+                      setErrors(rest);
+                    }}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  >
+                    <Ionicons name="close" size={18} color="#DC2626" />
+                  </TouchableOpacity>
+                </View>
+              )}
+
               {/* Username (Sign Up only) */}
               {mode === "signup" && (
                 <View style={styles.inputWrapper}>
@@ -685,6 +710,7 @@ export default function AuthScreenV2() {
                   {/* Face ID Button */}
                   <View style={styles.rightControls}>
                     <BiometricSignInButton
+                      signIn={signIn}
                       onSignInSuccess={handleBiometricSignInSuccess}
                       onSetupRequired={handleBiometricSetupRequired}
                       onError={handleBiometricError}
@@ -942,6 +968,23 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 4,
     marginLeft: 4,
+  },
+  errorBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FEF2F2",
+    borderWidth: 1,
+    borderColor: "#FECACA",
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+    gap: 8,
+  },
+  errorBannerText: {
+    flex: 1,
+    color: "#DC2626",
+    fontSize: 14,
+    lineHeight: 20,
   },
   rememberForgotRow: {
     flexDirection: "row",

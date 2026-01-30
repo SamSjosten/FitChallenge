@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Stack, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { FaceIDIcon } from "@/components/FaceIDIcon";
 import { useAppTheme } from "@/providers/ThemeProvider";
 import {
   checkBiometricCapability,
@@ -167,15 +168,15 @@ export default function SecuritySettingsScreen() {
             <View style={styles.settingRow}>
               <View style={styles.settingInfo}>
                 <View style={styles.settingIconContainer}>
-                  <Ionicons
-                    name={
-                      capability?.biometricType === "face"
-                        ? "scan-outline"
-                        : "finger-print-outline"
-                    }
-                    size={24}
-                    color={colors.primary.main}
-                  />
+                  {capability?.biometricType === "face" ? (
+                    <FaceIDIcon size={24} color={colors.primary.main} />
+                  ) : (
+                    <Ionicons
+                      name="finger-print-outline"
+                      size={24}
+                      color={colors.primary.main}
+                    />
+                  )}
                 </View>
                 <View style={styles.settingTextContainer}>
                   <Text
