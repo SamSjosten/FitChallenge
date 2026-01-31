@@ -14,7 +14,7 @@ import type {
   Challenge,
   ChallengeParticipant,
   ProfilePublic,
-} from "@/types/database";
+} from "@/types/database-helpers";
 
 // =============================================================================
 // RPC RESPONSE VALIDATION
@@ -194,6 +194,10 @@ export const challengeService = {
 
     // Call atomic RPC - no withAuth needed as RPC uses auth.uid() internally
     // Parameter order: required params first, optional params last
+    //
+    // NOTE: Optional RPC parameters use TypeScript's `?:` syntax (string | undefined).
+    // Do NOT pass `null` explicitly - omit the key or pass `undefined`.
+    // PostgreSQL will use column defaults (NULL) for omitted parameters.
     const { data: challenge, error } = await getSupabaseClient().rpc(
       "create_challenge_with_participant",
       {
@@ -204,14 +208,14 @@ export const challengeService = {
         p_goal_unit: validated.goal_unit,
         p_start_date: validated.start_date,
         p_end_date: validated.end_date,
-        // Optional parameters
-        p_description: validated.description ?? null,
+        // Optional parameters (undefined = use database default)
+        p_description: validated.description,
         p_custom_activity_name:
           validated.challenge_type === "custom"
             ? validated.custom_activity_name
-            : null,
+            : undefined,
         p_win_condition: validated.win_condition,
-        p_daily_target: validated.daily_target ?? null,
+        p_daily_target: validated.daily_target,
       },
     );
 
