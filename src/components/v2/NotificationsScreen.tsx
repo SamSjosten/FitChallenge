@@ -1,5 +1,9 @@
 // src/components/v2/NotificationsScreen.tsx
 // V2 Notifications Screen - Enhanced implementation with filters and swipe actions
+//
+// Architecture:
+// - Hooks handle data consistency (optimistic updates, rollback)
+// - This component handles user feedback (toast, loading states)
 
 import React from "react";
 import {
@@ -12,6 +16,7 @@ import {
 import { router, Stack, useFocusEffect } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAppTheme } from "@/providers/ThemeProvider";
+import { useToast } from "@/providers/ToastProvider";
 import {
   useNotifications,
   useMarkNotificationAsRead,
@@ -33,6 +38,7 @@ import {
 
 export function V2NotificationsScreen() {
   const { colors, spacing, radius } = useAppTheme();
+  const { showToast } = useToast();
   const [refreshing, setRefreshing] = React.useState(false);
   const [activeFilter, setActiveFilter] =
     React.useState<NotificationFilterType>("all");
@@ -40,11 +46,26 @@ export function V2NotificationsScreen() {
     new Set(),
   );
 
-  const { data: notifications, isLoading, refetch } = useNotifications();
+  const {
+    data: notifications,
+    isLoading,
+    isError: isQueryError,
+    refetch,
+  } = useNotifications();
 
-  const { data: unreadCount } = useUnreadNotificationCount();
+  // Note: useUnreadNotificationCount is used for tab bar badge and background polling.
+  // Within this screen, we derive counts from the notifications list for consistency
+  // during optimistic updates.
+  useUnreadNotificationCount(); // Keep subscription active for background polling
   const markRead = useMarkNotificationAsRead();
   const markAllRead = useMarkAllNotificationsAsRead();
+
+  // Show toast on initial query error
+  React.useEffect(() => {
+    if (isQueryError) {
+      showToast("Failed to load notifications", "error");
+    }
+  }, [isQueryError, showToast]);
 
   // Refresh on focus
   useFocusEffect(
@@ -111,13 +132,23 @@ export function V2NotificationsScreen() {
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await refetch();
-    setRefreshing(false);
+    try {
+      await refetch();
+    } catch {
+      showToast("Failed to refresh notifications", "error");
+    } finally {
+      setRefreshing(false);
+    }
   };
 
-  const handleNotificationPress = async (notification: Notification) => {
+  const handleNotificationPress = (notification: Notification) => {
+    // Mark as read with optimistic update - pass error callback for user feedback
     if (!notification.read_at) {
-      markRead.mutate(notification.id);
+      markRead.mutate(notification.id, {
+        onError: () => {
+          showToast("Failed to mark as read", "error");
+        },
+      });
     }
 
     const data = notification.data;
@@ -148,12 +179,29 @@ export function V2NotificationsScreen() {
   };
 
   const handleDismiss = (notificationId: string) => {
+    // Optimistically dismiss from local state for instant feedback
     setDismissedIds((prev) => new Set(prev).add(notificationId));
-    markRead.mutate(notificationId);
+
+    // Mark as read with error handling
+    markRead.mutate(notificationId, {
+      onError: () => {
+        // Revert local dismiss state on error
+        setDismissedIds((prev) => {
+          const next = new Set(prev);
+          next.delete(notificationId);
+          return next;
+        });
+        showToast("Failed to dismiss notification", "error");
+      },
+    });
   };
 
   const handleMarkAllRead = () => {
-    markAllRead.mutate();
+    markAllRead.mutate(undefined, {
+      onError: () => {
+        showToast("Failed to mark all as read", "error");
+      },
+    });
   };
 
   if (isLoading && !notifications) {
@@ -199,8 +247,9 @@ export function V2NotificationsScreen() {
           <ChevronLeftIcon size={24} color={colors.textPrimary} />
         </TouchableOpacity>
         <NotificationHeader
-          unreadCount={unreadCount || 0}
+          unreadCount={filterCounts.unread ?? 0}
           onMarkAllRead={handleMarkAllRead}
+          isMarkingAll={markAllRead.isPending}
         />
       </View>
 
@@ -223,7 +272,40 @@ export function V2NotificationsScreen() {
           />
         }
       >
-        {filteredNotifications.length === 0 ? (
+        {/* Error state */}
+        {isQueryError && !notifications && (
+          <View
+            style={{
+              alignItems: "center",
+              justifyContent: "center",
+              paddingTop: 80,
+              padding: spacing.xl,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 18,
+                fontWeight: "600",
+                color: colors.textPrimary,
+                marginBottom: 8,
+              }}
+            >
+              Something went wrong
+            </Text>
+            <Text
+              style={{
+                fontSize: 14,
+                color: colors.textMuted,
+                textAlign: "center",
+              }}
+            >
+              Pull down to try again
+            </Text>
+          </View>
+        )}
+
+        {/* Empty state */}
+        {!isQueryError && filteredNotifications.length === 0 ? (
           <View
             style={{
               alignItems: "center",

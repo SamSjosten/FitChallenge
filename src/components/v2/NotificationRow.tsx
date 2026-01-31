@@ -2,7 +2,7 @@
 // Swipeable notification row component
 // Design System v2.0 - Based on prototype
 
-import React, { useRef } from "react";
+import React, { useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   Animated,
   PanResponder,
   Dimensions,
+  PixelRatio,
 } from "react-native";
 import { useAppTheme } from "@/providers/ThemeProvider";
 import {
@@ -27,7 +28,11 @@ import {
 import type { Notification } from "@/services/notifications";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
-const SWIPE_THRESHOLD = 80;
+// Density-aware swipe threshold: base 80dp, clamped to reasonable range
+const SWIPE_THRESHOLD = Math.min(
+  120,
+  Math.max(60, (80 * PixelRatio.get()) / 2),
+);
 
 // Internal type for icon/color helpers - matches valid notification types from DB
 type NotificationType =
@@ -115,7 +120,32 @@ export function NotificationRow({
 }: NotificationRowProps) {
   const { colors, spacing, radius } = useAppTheme();
   const translateX = useRef(new Animated.Value(0)).current;
+  // FadeIn animation on mount - provides smooth appearance for error recovery
+  // and improves general UX when notifications appear
+  const opacity = useRef(new Animated.Value(0)).current;
   const isRead = !!notification.read_at;
+
+  // Use ref to avoid stale closure in PanResponder
+  const onDismissRef = useRef(onDismiss);
+  useEffect(() => {
+    onDismissRef.current = onDismiss;
+  }, [onDismiss]);
+
+  // Reset translateX when notification changes (for virtualized list reuse)
+  useEffect(() => {
+    translateX.setValue(0);
+  }, [notification.id, translateX]);
+
+  // FadeIn animation on mount with cleanup
+  useEffect(() => {
+    const animation = Animated.timing(opacity, {
+      toValue: 1,
+      duration: 200,
+      useNativeDriver: true,
+    });
+    animation.start();
+    return () => animation.stop(); // Cleanup on unmount
+  }, [opacity]);
 
   const panResponder = useRef(
     PanResponder.create({
@@ -137,7 +167,8 @@ export function NotificationRow({
             duration: 200,
             useNativeDriver: true,
           }).start(() => {
-            onDismiss?.();
+            // Use ref to get latest callback
+            onDismissRef.current?.();
           });
         } else {
           // Spring back
@@ -152,7 +183,7 @@ export function NotificationRow({
   ).current;
 
   return (
-    <View style={styles.container}>
+    <Animated.View style={[styles.container, { opacity }]}>
       {/* Delete background */}
       <View
         style={[styles.deleteBackground, { backgroundColor: colors.error }]}
@@ -235,7 +266,7 @@ export function NotificationRow({
           </View>
         </TouchableOpacity>
       </Animated.View>
-    </View>
+    </Animated.View>
   );
 }
 

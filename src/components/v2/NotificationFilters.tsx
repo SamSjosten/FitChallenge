@@ -132,11 +132,13 @@ export function NotificationFilters({
 export interface NotificationHeaderProps {
   unreadCount: number;
   onMarkAllRead?: () => void;
+  isMarkingAll?: boolean;
 }
 
 export function NotificationHeader({
   unreadCount,
   onMarkAllRead,
+  isMarkingAll = false,
 }: NotificationHeaderProps) {
   const { colors, spacing } = useAppTheme();
 
@@ -155,9 +157,13 @@ export function NotificationHeader({
         )}
       </View>
       {unreadCount > 0 && onMarkAllRead && (
-        <TouchableOpacity onPress={onMarkAllRead}>
+        <TouchableOpacity
+          onPress={onMarkAllRead}
+          disabled={isMarkingAll}
+          style={{ opacity: isMarkingAll ? 0.5 : 1 }}
+        >
           <Text style={[styles.markAllRead, { color: colors.primary.main }]}>
-            Mark all read
+            {isMarkingAll ? "Marking..." : "Mark all read"}
           </Text>
         </TouchableOpacity>
       )}
