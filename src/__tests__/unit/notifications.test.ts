@@ -12,6 +12,16 @@
 // ============================================
 
 import { QueryClient } from "@tanstack/react-query";
+import {
+  shouldDismiss,
+  clampTranslation,
+  calculateFinalPosition,
+  calculateSwipeThreshold,
+  HORIZONTAL_ACTIVE_OFFSET,
+  VERTICAL_FAIL_OFFSET,
+  MIN_SWIPE_THRESHOLD,
+  MAX_SWIPE_THRESHOLD,
+} from "@/utils/gestureUtils";
 
 // =============================================================================
 // QUERY KEYS (duplicated from hooks to avoid importing React Native modules)
@@ -830,6 +840,224 @@ describe("Notifications Optimistic Update Logic", () => {
       expect(
         queryClient.getQueryData<number>(notificationsKeys.unreadCount()),
       ).toBe(0);
+    });
+  });
+});
+
+// =============================================================================
+// GESTURE BEHAVIOR TESTS
+// =============================================================================
+
+describe("NotificationRow Gesture Behavior", () => {
+  // These tests verify the ACTUAL exported functions used by the component
+
+  const SCREEN_WIDTH = 400; // Mock value for tests
+
+  // Calculate threshold as the component does (pixel ratio ~2-3 on typical devices)
+  const MOCK_PIXEL_RATIO = 2;
+  const SWIPE_THRESHOLD = calculateSwipeThreshold(MOCK_PIXEL_RATIO);
+
+  describe("calculateSwipeThreshold", () => {
+    it("returns value within valid range", () => {
+      expect(calculateSwipeThreshold(1)).toBeGreaterThanOrEqual(
+        MIN_SWIPE_THRESHOLD,
+      );
+      expect(calculateSwipeThreshold(1)).toBeLessThanOrEqual(
+        MAX_SWIPE_THRESHOLD,
+      );
+      expect(calculateSwipeThreshold(3)).toBeGreaterThanOrEqual(
+        MIN_SWIPE_THRESHOLD,
+      );
+      expect(calculateSwipeThreshold(3)).toBeLessThanOrEqual(
+        MAX_SWIPE_THRESHOLD,
+      );
+    });
+
+    it("clamps low values to MIN_SWIPE_THRESHOLD", () => {
+      expect(calculateSwipeThreshold(0.5)).toBe(MIN_SWIPE_THRESHOLD);
+    });
+
+    it("clamps high values to MAX_SWIPE_THRESHOLD", () => {
+      expect(calculateSwipeThreshold(10)).toBe(MAX_SWIPE_THRESHOLD);
+    });
+  });
+
+  describe("shouldDismiss", () => {
+    it("returns true when swipe exceeds threshold", () => {
+      expect(shouldDismiss(-100, SWIPE_THRESHOLD)).toBe(true);
+      expect(shouldDismiss(-SWIPE_THRESHOLD - 1, SWIPE_THRESHOLD)).toBe(true);
+    });
+
+    it("returns false when swipe under threshold", () => {
+      expect(shouldDismiss(-SWIPE_THRESHOLD + 1, SWIPE_THRESHOLD)).toBe(false);
+      expect(shouldDismiss(-50, SWIPE_THRESHOLD)).toBe(false);
+      expect(shouldDismiss(-10, SWIPE_THRESHOLD)).toBe(false);
+    });
+
+    it("returns false for right swipe (positive values)", () => {
+      expect(shouldDismiss(100, SWIPE_THRESHOLD)).toBe(false);
+      expect(shouldDismiss(50, SWIPE_THRESHOLD)).toBe(false);
+    });
+
+    it("returns false at exactly threshold", () => {
+      // Edge case: exactly at threshold should NOT dismiss (need to exceed)
+      expect(shouldDismiss(-SWIPE_THRESHOLD, SWIPE_THRESHOLD)).toBe(false);
+    });
+  });
+
+  describe("calculateFinalPosition", () => {
+    it("returns off-screen position when dismiss triggered", () => {
+      const result = calculateFinalPosition(
+        -100,
+        SWIPE_THRESHOLD,
+        SCREEN_WIDTH,
+      );
+      expect(result.position).toBe(-SCREEN_WIDTH);
+      expect(result.shouldDismiss).toBe(true);
+    });
+
+    it("returns zero (spring back) when dismiss not triggered", () => {
+      const result = calculateFinalPosition(-50, SWIPE_THRESHOLD, SCREEN_WIDTH);
+      expect(result.position).toBe(0);
+      expect(result.shouldDismiss).toBe(false);
+    });
+
+    it("uses the provided threshold correctly", () => {
+      const justUnder = -SWIPE_THRESHOLD + 1;
+      const justOver = -SWIPE_THRESHOLD - 1;
+
+      expect(
+        calculateFinalPosition(justUnder, SWIPE_THRESHOLD, SCREEN_WIDTH)
+          .shouldDismiss,
+      ).toBe(false);
+      expect(
+        calculateFinalPosition(justOver, SWIPE_THRESHOLD, SCREEN_WIDTH)
+          .shouldDismiss,
+      ).toBe(true);
+    });
+  });
+
+  describe("clampTranslation", () => {
+    it("allows left swipe (negative values)", () => {
+      expect(clampTranslation(-50)).toBe(-50);
+      expect(clampTranslation(-100)).toBe(-100);
+    });
+
+    it("blocks right swipe (positive values)", () => {
+      expect(clampTranslation(50)).toBe(0);
+      expect(clampTranslation(100)).toBe(0);
+    });
+
+    it("allows zero", () => {
+      expect(clampTranslation(0)).toBe(0);
+    });
+  });
+
+  describe("gesture capture constants", () => {
+    // NOTE: Gesture capture is configured via react-native-gesture-handler, not a pure function.
+    // These tests verify the CONSTANTS that configure the gesture handler.
+    // The actual capture behavior requires device testing.
+
+    it("HORIZONTAL_ACTIVE_OFFSET is 15dp", () => {
+      // Used in: Gesture.Pan().activeOffsetX([-15, 15])
+      // Meaning: Gesture activates after 15dp horizontal movement
+      expect(HORIZONTAL_ACTIVE_OFFSET).toBe(15);
+    });
+
+    it("VERTICAL_FAIL_OFFSET is 25dp", () => {
+      // Used in: Gesture.Pan().failOffsetY([-25, 25])
+      // Meaning: Gesture fails (ScrollView wins) after 25dp vertical movement
+      expect(VERTICAL_FAIL_OFFSET).toBe(25);
+    });
+
+    it("horizontal threshold is less than vertical fail threshold", () => {
+      // This ensures horizontal swipes are captured before vertical scroll takes over
+      expect(HORIZONTAL_ACTIVE_OFFSET).toBeLessThan(VERTICAL_FAIL_OFFSET);
+    });
+  });
+
+  describe("threshold bounds", () => {
+    it("MIN_SWIPE_THRESHOLD is 60dp", () => {
+      expect(MIN_SWIPE_THRESHOLD).toBe(60);
+    });
+
+    it("MAX_SWIPE_THRESHOLD is 120dp", () => {
+      expect(MAX_SWIPE_THRESHOLD).toBe(120);
+    });
+  });
+
+  describe("dismiss callback timing", () => {
+    it("documents that onDismiss is called AFTER animation completes", () => {
+      // This test documents the expected behavior:
+      // 1. User swipes past threshold
+      // 2. Dismiss animation starts (200ms)
+      // 3. Animation completes
+      // 4. THEN onDismiss callback is invoked via runOnJS
+      //
+      // In the component, this is achieved with:
+      // withTiming(position, { duration: 200 }, () => { runOnJS(handleDismiss)() })
+
+      let callbackInvoked = false;
+      const onDismiss = () => {
+        callbackInvoked = true;
+      };
+
+      // Simulate: threshold exceeded
+      const translationX = -100;
+      const result = calculateFinalPosition(
+        translationX,
+        SWIPE_THRESHOLD,
+        SCREEN_WIDTH,
+      );
+      expect(result.shouldDismiss).toBe(true);
+
+      // At this point, animation would START but callback NOT YET invoked
+      expect(callbackInvoked).toBe(false);
+
+      // Simulate: animation complete (in real code, this is the withTiming callback)
+      if (result.shouldDismiss) {
+        onDismiss();
+      }
+
+      expect(callbackInvoked).toBe(true);
+    });
+  });
+
+  describe("haptic feedback timing", () => {
+    it("documents that haptic fires when threshold is FIRST crossed", () => {
+      // This test documents the expected haptic behavior:
+      // Haptic feedback fires at the MOMENT the swipe crosses the threshold,
+      // providing tactile confirmation. It only fires ONCE per gesture.
+      //
+      // In the component, this is tracked via hapticTriggered.value
+
+      let hapticFiredAt: number | null = null;
+      let hapticCount = 0;
+      const triggerHaptic = (translation: number) => {
+        hapticFiredAt = translation;
+        hapticCount++;
+      };
+
+      // Simulate progressive swipe
+      const swipeProgression = [0, -20, -40, -60, -80, -85, -100, -120];
+      let previouslyPastThreshold = false;
+
+      for (const translation of swipeProgression) {
+        const nowPastThreshold = shouldDismiss(translation, SWIPE_THRESHOLD);
+
+        // Trigger haptic when crossing threshold (not before, not repeatedly)
+        if (nowPastThreshold && !previouslyPastThreshold) {
+          triggerHaptic(translation);
+        }
+
+        previouslyPastThreshold = nowPastThreshold;
+      }
+
+      // Haptic should have fired exactly once, at first threshold crossing
+      expect(hapticCount).toBe(1);
+      expect(hapticFiredAt).not.toBeNull();
+      // The exact value depends on SWIPE_THRESHOLD, but it should be past it
+      expect(shouldDismiss(hapticFiredAt!, SWIPE_THRESHOLD)).toBe(true);
     });
   });
 });

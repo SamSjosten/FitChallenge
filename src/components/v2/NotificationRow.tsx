@@ -1,18 +1,33 @@
 // src/components/v2/NotificationRow.tsx
 // Swipeable notification row component
-// Design System v2.0 - Based on prototype
+// Design System v2.0 - Uses react-native-gesture-handler for ScrollView compatibility
+//
+// Phase 2 Implementation:
+// - react-native-gesture-handler for proper ScrollView composition
+// - react-native-reanimated for performant worklet-based animations
+// - expo-haptics for tactile feedback on dismiss threshold
+// - Pure gesture logic extracted to utils/gestureUtils.ts for testability
 
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useCallback } from "react";
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  Animated,
-  PanResponder,
   Dimensions,
   PixelRatio,
 } from "react-native";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  runOnJS,
+  interpolate,
+  Extrapolation,
+} from "react-native-reanimated";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import * as Haptics from "expo-haptics";
 import { useAppTheme } from "@/providers/ThemeProvider";
 import {
   TrophyIcon,
@@ -27,12 +42,54 @@ import {
 } from "react-native-heroicons/solid";
 import type { Notification } from "@/services/notifications";
 
+// Import pure gesture logic from utilities
+import {
+  shouldDismiss,
+  clampTranslation,
+  calculateFinalPosition,
+  calculateSwipeThreshold,
+  HORIZONTAL_ACTIVE_OFFSET,
+  VERTICAL_FAIL_OFFSET,
+  DISMISS_ANIMATION_DURATION,
+  SPRING_DAMPING,
+} from "@/utils/gestureUtils";
+
+// =============================================================================
+// CONSTANTS (device-specific, computed at module load)
+// =============================================================================
+
 const SCREEN_WIDTH = Dimensions.get("window").width;
-// Density-aware swipe threshold: base 80dp, clamped to reasonable range
-const SWIPE_THRESHOLD = Math.min(
-  120,
-  Math.max(60, (80 * PixelRatio.get()) / 2),
-);
+const SWIPE_THRESHOLD = calculateSwipeThreshold(PixelRatio.get());
+
+// Re-export for backward compatibility (tests may import from here)
+export {
+  shouldDismiss,
+  clampTranslation,
+  calculateFinalPosition,
+  HORIZONTAL_ACTIVE_OFFSET,
+  VERTICAL_FAIL_OFFSET,
+};
+export { SWIPE_THRESHOLD };
+
+/**
+ * Triggers haptic feedback for dismiss confirmation
+ */
+export function triggerDismissHaptic(): void {
+  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+}
+
+// =============================================================================
+// NOTE: shouldCaptureGesture is intentionally NOT exported
+// =============================================================================
+// Gesture capture is handled by react-native-gesture-handler configuration:
+//   .activeOffsetX([-HORIZONTAL_ACTIVE_OFFSET, HORIZONTAL_ACTIVE_OFFSET])
+//   .failOffsetY([-VERTICAL_FAIL_OFFSET, VERTICAL_FAIL_OFFSET])
+// A pure function export would be testable but misleading - not actually used.
+// =============================================================================
+
+// =============================================================================
+// NOTIFICATION TYPE HELPERS
+// =============================================================================
 
 // Internal type for icon/color helpers - matches valid notification types from DB
 type NotificationType =
@@ -44,13 +101,6 @@ type NotificationType =
   | "friend_request_accepted"
   | "achievement_unlocked"
   | "general";
-
-export interface NotificationRowProps {
-  notification: Notification;
-  onPress?: () => void;
-  onDismiss?: () => void;
-  showBorder?: boolean;
-}
 
 const getNotificationIcon = (type: NotificationType, isRead: boolean) => {
   const iconSize = 20;
@@ -112,165 +162,222 @@ const formatTimeAgo = (dateString: string): string => {
   return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 };
 
+// =============================================================================
+// COMPONENT PROPS
+// =============================================================================
+
+export interface NotificationRowProps {
+  notification: Notification;
+  onPress?: () => void;
+  onDismiss?: () => void;
+  showBorder?: boolean;
+}
+
+// =============================================================================
+// MAIN COMPONENT
+// =============================================================================
+
 export function NotificationRow({
   notification,
   onPress,
   onDismiss,
   showBorder = true,
 }: NotificationRowProps) {
-  const { colors, spacing, radius } = useAppTheme();
-  const translateX = useRef(new Animated.Value(0)).current;
-  // FadeIn animation on mount - provides smooth appearance for error recovery
-  // and improves general UX when notifications appear
-  const opacity = useRef(new Animated.Value(0)).current;
+  const { colors, radius } = useAppTheme();
   const isRead = !!notification.read_at;
 
-  // Use ref to avoid stale closure in PanResponder
+  // Animation values using Reanimated
+  const translateX = useSharedValue(0);
+  const opacity = useSharedValue(0); // Start at 0 for fade-in
+  const hapticTriggered = useSharedValue(false);
+
+  // Use ref to avoid stale closure in gesture callback
   const onDismissRef = useRef(onDismiss);
   useEffect(() => {
     onDismissRef.current = onDismiss;
   }, [onDismiss]);
 
-  // Reset translateX when notification changes (for virtualized list reuse)
+  // Reset position when notification changes (for virtualized list reuse)
   useEffect(() => {
-    translateX.setValue(0);
-  }, [notification.id, translateX]);
+    translateX.value = 0;
+    hapticTriggered.value = false;
+  }, [notification.id, translateX, hapticTriggered]);
 
-  // FadeIn animation on mount with cleanup
+  // FadeIn animation on mount
   useEffect(() => {
-    const animation = Animated.timing(opacity, {
-      toValue: 1,
-      duration: 200,
-      useNativeDriver: true,
-    });
-    animation.start();
-    return () => animation.stop(); // Cleanup on unmount
+    opacity.value = withTiming(1, { duration: 200 });
   }, [opacity]);
 
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => false,
-      onMoveShouldSetPanResponder: (_, gestureState) => {
-        return Math.abs(gestureState.dx) > 10 && Math.abs(gestureState.dy) < 10;
-      },
-      onPanResponderMove: (_, gestureState) => {
-        // Only allow swipe left
-        if (gestureState.dx < 0) {
-          translateX.setValue(gestureState.dx);
-        }
-      },
-      onPanResponderRelease: (_, gestureState) => {
-        if (gestureState.dx < -SWIPE_THRESHOLD) {
-          // Swipe to dismiss
-          Animated.timing(translateX, {
-            toValue: -SCREEN_WIDTH,
-            duration: 200,
-            useNativeDriver: true,
-          }).start(() => {
-            // Use ref to get latest callback
-            onDismissRef.current?.();
-          });
-        } else {
-          // Spring back
-          Animated.spring(translateX, {
-            toValue: 0,
-            friction: 8,
-            useNativeDriver: true,
-          }).start();
-        }
-      },
-    }),
-  ).current;
+  // Callback to invoke onDismiss (must be called via runOnJS from worklet)
+  const handleDismiss = useCallback(() => {
+    onDismissRef.current?.();
+  }, []);
+
+  // Callback for haptic feedback (must be called via runOnJS from worklet)
+  const fireHaptic = useCallback(() => {
+    triggerDismissHaptic();
+  }, []);
+
+  // Pan gesture using react-native-gesture-handler
+  // This properly composes with ScrollView unlike PanResponder
+  const panGesture = Gesture.Pan()
+    .activeOffsetX([-HORIZONTAL_ACTIVE_OFFSET, HORIZONTAL_ACTIVE_OFFSET])
+    .failOffsetY([-VERTICAL_FAIL_OFFSET, VERTICAL_FAIL_OFFSET])
+    .onUpdate((event) => {
+      // Use exported pure function for clamping
+      translateX.value = clampTranslation(event.translationX);
+
+      // Trigger haptic when crossing threshold (once per gesture)
+      // Uses exported pure function for threshold check
+      if (
+        shouldDismiss(event.translationX, SWIPE_THRESHOLD) &&
+        !hapticTriggered.value
+      ) {
+        hapticTriggered.value = true;
+        runOnJS(fireHaptic)();
+      }
+    })
+    .onEnd((event) => {
+      // Use exported pure function for dismiss decision
+      const result = calculateFinalPosition(
+        event.translationX,
+        SWIPE_THRESHOLD,
+        SCREEN_WIDTH,
+      );
+
+      if (result.shouldDismiss) {
+        // Animate off screen then call dismiss
+        translateX.value = withTiming(
+          result.position,
+          { duration: DISMISS_ANIMATION_DURATION },
+          () => {
+            runOnJS(handleDismiss)();
+          },
+        );
+      } else {
+        // Spring back to original position
+        translateX.value = withSpring(0, { damping: SPRING_DAMPING });
+        hapticTriggered.value = false;
+      }
+    });
+
+  // Animated styles
+  const containerStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+  }));
+
+  const contentStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value }],
+  }));
+
+  // Delete background opacity based on swipe distance
+  const deleteBackgroundStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(
+      Math.abs(translateX.value),
+      [0, SWIPE_THRESHOLD],
+      [0, 1],
+      Extrapolation.CLAMP,
+    ),
+  }));
 
   return (
-    <Animated.View style={[styles.container, { opacity }]}>
-      {/* Delete background */}
-      <View
-        style={[styles.deleteBackground, { backgroundColor: colors.error }]}
-      >
-        <XMarkIcon size={24} color="#FFFFFF" />
-      </View>
-
-      {/* Notification content */}
+    <Animated.View style={[styles.container, containerStyle]}>
+      {/* Delete background - reveals as user swipes */}
       <Animated.View
         style={[
-          styles.contentContainer,
-          {
-            backgroundColor: colors.surface,
-            transform: [{ translateX }],
-          },
+          styles.deleteBackground,
+          { backgroundColor: colors.error },
+          deleteBackgroundStyle,
         ]}
-        {...panResponder.panHandlers}
       >
-        <TouchableOpacity
-          onPress={onPress}
-          activeOpacity={0.7}
+        <XMarkIcon size={24} color="#FFFFFF" />
+      </Animated.View>
+
+      {/* Notification content - swipeable */}
+      <GestureDetector gesture={panGesture}>
+        <Animated.View
           style={[
-            styles.content,
-            showBorder && {
-              borderBottomWidth: 1,
-              borderBottomColor: colors.border,
-            },
+            styles.contentContainer,
+            { backgroundColor: colors.surface },
+            contentStyle,
           ]}
         >
-          {/* Icon */}
-          <View
+          <TouchableOpacity
+            onPress={onPress}
+            activeOpacity={0.7}
             style={[
-              styles.iconContainer,
-              {
-                backgroundColor: getNotificationIconBg(
-                  notification.type as NotificationType,
-                ),
-                borderRadius: radius.md,
+              styles.content,
+              showBorder && {
+                borderBottomWidth: 1,
+                borderBottomColor: colors.border,
               },
             ]}
           >
-            {getNotificationIcon(notification.type as NotificationType, isRead)}
-          </View>
-
-          {/* Text content */}
-          <View style={styles.textContainer}>
-            <Text
+            {/* Icon */}
+            <View
               style={[
-                styles.title,
+                styles.iconContainer,
                 {
-                  color: colors.textPrimary,
-                  fontWeight: isRead ? "500" : "600",
+                  backgroundColor: getNotificationIconBg(
+                    notification.type as NotificationType,
+                  ),
+                  borderRadius: radius.md,
                 },
               ]}
-              numberOfLines={1}
             >
-              {notification.title}
-            </Text>
-            <Text
-              style={[styles.body, { color: colors.textSecondary }]}
-              numberOfLines={2}
-            >
-              {notification.body}
-            </Text>
-          </View>
+              {getNotificationIcon(
+                notification.type as NotificationType,
+                isRead,
+              )}
+            </View>
 
-          {/* Time & unread indicator */}
-          <View style={styles.metaContainer}>
-            <Text style={[styles.time, { color: colors.textMuted }]}>
-              {formatTimeAgo(notification.created_at)}
-            </Text>
-            {!isRead && (
-              <View
+            {/* Text content */}
+            <View style={styles.textContainer}>
+              <Text
                 style={[
-                  styles.unreadDot,
-                  { backgroundColor: colors.primary.main },
+                  styles.title,
+                  {
+                    color: colors.textPrimary,
+                    fontWeight: isRead ? "500" : "600",
+                  },
                 ]}
-              />
-            )}
-          </View>
-        </TouchableOpacity>
-      </Animated.View>
+                numberOfLines={1}
+              >
+                {notification.title}
+              </Text>
+              <Text
+                style={[styles.body, { color: colors.textSecondary }]}
+                numberOfLines={2}
+              >
+                {notification.body}
+              </Text>
+            </View>
+
+            {/* Time & unread indicator */}
+            <View style={styles.metaContainer}>
+              <Text style={[styles.time, { color: colors.textMuted }]}>
+                {formatTimeAgo(notification.created_at)}
+              </Text>
+              {!isRead && (
+                <View
+                  style={[
+                    styles.unreadDot,
+                    { backgroundColor: colors.primary.main },
+                  ]}
+                />
+              )}
+            </View>
+          </TouchableOpacity>
+        </Animated.View>
+      </GestureDetector>
     </Animated.View>
   );
 }
 
-// Compact version without swipe
+// =============================================================================
+// COMPACT VERSION (without swipe)
+// =============================================================================
+
 export interface NotificationRowCompactProps {
   notification: Notification;
   onPress?: () => void;
@@ -335,6 +442,10 @@ export function NotificationRowCompact({
     </TouchableOpacity>
   );
 }
+
+// =============================================================================
+// STYLES
+// =============================================================================
 
 const styles = StyleSheet.create({
   container: {
