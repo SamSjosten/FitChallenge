@@ -1,5 +1,5 @@
 import { getSupabaseClient, withAuth } from "@/lib/supabase";
-import type { Notification as DbNotification } from "@/types/database";
+import type { Notification as DbNotification } from "@/types/database-helpers";
 
 // Service-level Notification type with guaranteed non-null fields.
 // Migration 026 adds NOT NULL to created_at. After regenerating types,
@@ -10,6 +10,7 @@ export interface Notification extends Omit<
 > {
   data: Record<string, unknown>;
   created_at: string; // NOT NULL enforced by migration 026
+  dismissed_at: string | null; // Added by migration 028
 }
 
 function mapNotification(db: DbNotification): Notification {
@@ -25,6 +26,9 @@ function mapNotification(db: DbNotification): Notification {
   return {
     ...rest,
     created_at: db.created_at,
+    dismissed_at:
+      (db as DbNotification & { dismissed_at?: string | null }).dismissed_at ??
+      null,
     data:
       data !== null && typeof data === "object" && !Array.isArray(data)
         ? (data as Record<string, unknown>)
@@ -39,7 +43,7 @@ export const notificationsService = {
         .from("notifications")
         .select("*")
         .order("created_at", { ascending: false })
-        .limit(50);
+        .limit(100); // Increased to accommodate archived items
 
       if (error) throw error;
       return (data || []).map(mapNotification);
@@ -48,10 +52,12 @@ export const notificationsService = {
 
   async getUnreadCount(): Promise<number> {
     return withAuth(async () => {
+      // Only count active (non-archived) unread notifications
       const { count, error } = await getSupabaseClient()
         .from("notifications")
         .select("*", { count: "exact", head: true })
-        .is("read_at", null);
+        .is("read_at", null)
+        .is("dismissed_at", null);
 
       if (error) throw error;
       return count || 0;
@@ -76,6 +82,34 @@ export const notificationsService = {
       const { error } = await getSupabaseClient().rpc(
         "mark_all_notifications_read",
       );
+
+      if (error) throw error;
+    });
+  },
+
+  /**
+   * Archive a notification (mark as read + dismissed)
+   * Used for swipe-to-archive in Unread/All tabs
+   */
+  async archiveNotification(notificationId: string): Promise<void> {
+    return withAuth(async () => {
+      const { error } = await getSupabaseClient().rpc("archive_notification", {
+        p_notification_id: notificationId,
+      });
+
+      if (error) throw error;
+    });
+  },
+
+  /**
+   * Restore an archived notification back to active
+   * Used for swipe-to-restore in Archived tab
+   */
+  async restoreNotification(notificationId: string): Promise<void> {
+    return withAuth(async () => {
+      const { error } = await getSupabaseClient().rpc("restore_notification", {
+        p_notification_id: notificationId,
+      });
 
       if (error) throw error;
     });

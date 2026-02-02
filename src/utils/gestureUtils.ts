@@ -50,6 +50,7 @@ export function shouldDismiss(
   translationX: number,
   threshold: number,
 ): boolean {
+  "worklet";
   return translationX < -threshold;
 }
 
@@ -60,6 +61,7 @@ export function shouldDismiss(
  * @param translationX - Raw horizontal translation
  */
 export function clampTranslation(translationX: number): number {
+  "worklet";
   return Math.min(0, translationX);
 }
 
@@ -76,6 +78,7 @@ export function calculateFinalPosition(
   threshold: number,
   screenWidth: number,
 ): { position: number; shouldDismiss: boolean } {
+  "worklet";
   const dismiss = shouldDismiss(translationX, threshold);
   return {
     position: dismiss ? -screenWidth : 0,

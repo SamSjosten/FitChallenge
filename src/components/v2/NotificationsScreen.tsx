@@ -1,9 +1,11 @@
 // src/components/v2/NotificationsScreen.tsx
-// V2 Notifications Screen - Enhanced implementation with filters and swipe actions
+// V2 Notifications Screen - Archive/Restore with Undo support
 //
 // Architecture:
-// - Hooks handle data consistency (optimistic updates, rollback)
-// - This component handles user feedback (toast, loading states)
+// - Three tabs: Unread (default), All, Archived
+// - Swipe left: Archive (Unread/All) or Restore (Archived)
+// - Actions commit immediately; Undo calls the reverse mutation
+// - Hooks handle data consistency with optimistic updates + rollback
 
 import React from "react";
 import {
@@ -22,10 +24,13 @@ import {
   useMarkNotificationAsRead,
   useMarkAllNotificationsAsRead,
   useUnreadNotificationCount,
+  useArchiveNotification,
+  useRestoreNotification,
 } from "@/hooks/useNotifications";
 import { BellIcon, ChevronLeftIcon } from "react-native-heroicons/outline";
 import { LoadingState } from "./LoadingState";
 import { NotificationRow } from "./NotificationRow";
+import { UndoToast } from "./UndoToast";
 import type { Notification } from "@/services/notifications";
 import {
   NotificationFilters,
@@ -41,10 +46,15 @@ export function V2NotificationsScreen() {
   const { showToast } = useToast();
   const [refreshing, setRefreshing] = React.useState(false);
   const [activeFilter, setActiveFilter] =
-    React.useState<NotificationFilterType>("all");
-  const [dismissedIds, setDismissedIds] = React.useState<Set<string>>(
-    new Set(),
-  );
+    React.useState<NotificationFilterType>("unread"); // Default to unread
+
+  // Undo toast state - stores what action was taken so we can reverse it
+  const [undoState, setUndoState] = React.useState<{
+    visible: boolean;
+    message: string;
+    notificationId: string | null;
+    action: "archive" | "restore" | null;
+  }>({ visible: false, message: "", notificationId: null, action: null });
 
   const {
     data: notifications,
@@ -53,12 +63,11 @@ export function V2NotificationsScreen() {
     refetch,
   } = useNotifications();
 
-  // Note: useUnreadNotificationCount is used for tab bar badge and background polling.
-  // Within this screen, we derive counts from the notifications list for consistency
-  // during optimistic updates.
   useUnreadNotificationCount(); // Keep subscription active for background polling
   const markRead = useMarkNotificationAsRead();
   const markAllRead = useMarkAllNotificationsAsRead();
+  const archiveMutation = useArchiveNotification();
+  const restoreMutation = useRestoreNotification();
 
   // Show toast on initial query error
   React.useEffect(() => {
@@ -67,70 +76,66 @@ export function V2NotificationsScreen() {
     }
   }, [isQueryError, showToast]);
 
-  // Refresh on focus
+  // Dismiss undo toast when navigating away
   useFocusEffect(
     React.useCallback(() => {
+      // On focus: refresh
       refetch();
+
+      // On blur: dismiss undo toast (action already committed)
+      return () => {
+        setUndoState({
+          visible: false,
+          message: "",
+          notificationId: null,
+          action: null,
+        });
+      };
     }, [refetch]),
   );
 
-  // Filter notifications
+  // Filter notifications based on active tab
   const filteredNotifications = React.useMemo(() => {
     if (!notifications) return [];
 
-    let filtered = notifications.filter((n) => !dismissedIds.has(n.id));
-
     switch (activeFilter) {
       case "unread":
-        filtered = filtered.filter((n) => !n.read_at);
-        break;
-      case "social":
-        filtered = filtered.filter((n) =>
-          ["friend_request_received", "friend_request_accepted"].includes(
-            n.type,
-          ),
-        );
-        break;
-      case "challenges":
-        filtered = filtered.filter((n) =>
-          [
-            "challenge_invite_received",
-            "challenge_starting_soon",
-            "challenge_ending_soon",
-            "challenge_completed",
-          ].includes(n.type),
-        );
-        break;
+        // Unread AND not archived
+        return notifications.filter((n) => !n.read_at && !n.dismissed_at);
+      case "all":
+        // All active (not archived)
+        return notifications.filter((n) => !n.dismissed_at);
+      case "archived":
+        // Only archived
+        return notifications.filter((n) => n.dismissed_at);
+      default:
+        return notifications.filter((n) => !n.dismissed_at);
     }
-
-    return filtered;
-  }, [notifications, activeFilter, dismissedIds]);
+  }, [notifications, activeFilter]);
 
   const groupedNotifications = React.useMemo(() => {
     return groupNotificationsByTime(filteredNotifications);
   }, [filteredNotifications]);
 
+  // Calculate counts for filter badges
   const filterCounts = React.useMemo(() => {
     if (!notifications) return {};
-    const nonDismissed = notifications.filter((n) => !dismissedIds.has(n.id));
     return {
-      all: nonDismissed.length,
-      unread: nonDismissed.filter((n) => !n.read_at).length,
-      social: nonDismissed.filter((n) =>
-        ["friend_request_received", "friend_request_accepted"].includes(n.type),
-      ).length,
-      challenges: nonDismissed.filter((n) =>
-        [
-          "challenge_invite_received",
-          "challenge_starting_soon",
-          "challenge_ending_soon",
-          "challenge_completed",
-        ].includes(n.type),
-      ).length,
+      unread: notifications.filter((n) => !n.read_at && !n.dismissed_at).length,
+      all: notifications.filter((n) => !n.dismissed_at).length,
+      archived: notifications.filter((n) => n.dismissed_at).length,
     };
-  }, [notifications, dismissedIds]);
+  }, [notifications]);
 
   const handleRefresh = async () => {
+    // Dismiss undo toast (action already committed)
+    setUndoState({
+      visible: false,
+      message: "",
+      notificationId: null,
+      action: null,
+    });
+
     setRefreshing(true);
     try {
       await refetch();
@@ -142,7 +147,7 @@ export function V2NotificationsScreen() {
   };
 
   const handleNotificationPress = (notification: Notification) => {
-    // Mark as read with optimistic update - pass error callback for user feedback
+    // Mark as read (not archive) on tap
     if (!notification.read_at) {
       markRead.mutate(notification.id, {
         onError: () => {
@@ -153,15 +158,12 @@ export function V2NotificationsScreen() {
 
     const data = notification.data;
 
-    // V2 component navigates to V2 routes directly
-    // Router fix in _layout.tsx handles edge cases (push notifications, deep links)
     switch (notification.type) {
       case "challenge_invite_received":
       case "challenge_starting_soon":
       case "challenge_ending_soon":
       case "challenge_completed":
         if (data?.challenge_id) {
-          // Use object form for type-safe dynamic route navigation
           router.push({
             pathname: "/challenge/[id]",
             params: { id: data.challenge_id as string },
@@ -173,28 +175,80 @@ export function V2NotificationsScreen() {
         router.push("/(tabs-v2)/friends");
         break;
       default:
-        // Unknown notification type - no navigation
         break;
     }
   };
 
-  const handleDismiss = (notificationId: string) => {
-    // Optimistically dismiss from local state for instant feedback
-    setDismissedIds((prev) => new Set(prev).add(notificationId));
+  const handleSwipe = (notificationId: string) => {
+    // Dismiss any existing undo toast
+    setUndoState({
+      visible: false,
+      message: "",
+      notificationId: null,
+      action: null,
+    });
 
-    // Mark as read with error handling
-    markRead.mutate(notificationId, {
-      onError: () => {
-        // Revert local dismiss state on error
-        setDismissedIds((prev) => {
-          const next = new Set(prev);
-          next.delete(notificationId);
-          return next;
-        });
-        showToast("Failed to dismiss notification", "error");
-      },
+    if (activeFilter === "archived") {
+      // In Archived tab: restore immediately
+      restoreMutation.mutate(notificationId, {
+        onSuccess: () => {
+          setUndoState({
+            visible: true,
+            message: "Restored",
+            notificationId,
+            action: "restore",
+          });
+        },
+        onError: () => showToast("Failed to restore notification", "error"),
+      });
+    } else {
+      // In Unread/All tabs: archive immediately
+      archiveMutation.mutate(notificationId, {
+        onSuccess: () => {
+          setUndoState({
+            visible: true,
+            message: "Archived",
+            notificationId,
+            action: "archive",
+          });
+        },
+        onError: () => showToast("Failed to archive notification", "error"),
+      });
+    }
+  };
+
+  const handleUndo = () => {
+    if (!undoState.notificationId || !undoState.action) return;
+
+    // Call the reverse mutation
+    if (undoState.action === "archive") {
+      // We archived → undo by restoring
+      restoreMutation.mutate(undoState.notificationId, {
+        onError: () => showToast("Failed to undo", "error"),
+      });
+    } else {
+      // We restored → undo by archiving
+      archiveMutation.mutate(undoState.notificationId, {
+        onError: () => showToast("Failed to undo", "error"),
+      });
+    }
+
+    setUndoState({
+      visible: false,
+      message: "",
+      notificationId: null,
+      action: null,
     });
   };
+
+  const handleUndoDismiss = React.useCallback(() => {
+    setUndoState({
+      visible: false,
+      message: "",
+      notificationId: null,
+      action: null,
+    });
+  }, []);
 
   const handleMarkAllRead = () => {
     markAllRead.mutate(undefined, {
@@ -202,6 +256,32 @@ export function V2NotificationsScreen() {
         showToast("Failed to mark all as read", "error");
       },
     });
+  };
+
+  // Get empty state message based on active filter
+  const getEmptyStateMessage = () => {
+    switch (activeFilter) {
+      case "unread":
+        return {
+          title: "All caught up!",
+          subtitle: "No unread notifications",
+        };
+      case "all":
+        return {
+          title: "No notifications yet",
+          subtitle: "When you receive notifications, they'll appear here",
+        };
+      case "archived":
+        return {
+          title: "No archived notifications",
+          subtitle: "Swiped notifications will appear here",
+        };
+      default:
+        return {
+          title: "No notifications",
+          subtitle: "",
+        };
+    }
   };
 
   if (isLoading && !notifications) {
@@ -217,6 +297,7 @@ export function V2NotificationsScreen() {
   }
 
   const groupOrder = ["Today", "Yesterday", "This Week", "Earlier"];
+  const emptyState = getEmptyStateMessage();
 
   return (
     <SafeAreaView
@@ -238,7 +319,6 @@ export function V2NotificationsScreen() {
             if (router.canGoBack()) {
               router.back();
             } else {
-              // Fallback to home if no back history
               router.replace("/(tabs-v2)");
             }
           }}
@@ -259,7 +339,9 @@ export function V2NotificationsScreen() {
         counts={filterCounts}
       />
 
-      {filteredNotifications.length > 0 && <SwipeHint />}
+      {filteredNotifications.length > 0 && (
+        <SwipeHint isArchiveTab={activeFilter === "archived"} />
+      )}
 
       <ScrollView
         contentContainerStyle={{ flexGrow: 1 }}
@@ -335,9 +417,7 @@ export function V2NotificationsScreen() {
                 marginBottom: 8,
               }}
             >
-              {activeFilter === "all"
-                ? "No notifications yet"
-                : `No ${activeFilter} notifications`}
+              {emptyState.title}
             </Text>
             <Text
               style={{
@@ -346,9 +426,7 @@ export function V2NotificationsScreen() {
                 textAlign: "center",
               }}
             >
-              {activeFilter === "all"
-                ? "When you receive notifications, they'll appear here"
-                : "Try checking another filter"}
+              {emptyState.subtitle}
             </Text>
           </View>
         ) : (
@@ -372,7 +450,7 @@ export function V2NotificationsScreen() {
                         key={notification.id}
                         notification={notification}
                         onPress={() => handleNotificationPress(notification)}
-                        onDismiss={() => handleDismiss(notification.id)}
+                        onDismiss={() => handleSwipe(notification.id)}
                         showBorder={index < groupNotifs.length - 1}
                       />
                     ))}
@@ -383,8 +461,18 @@ export function V2NotificationsScreen() {
           </>
         )}
 
-        <View style={{ height: 40 }} />
+        {/* Bottom padding to account for undo toast */}
+        <View style={{ height: 80 }} />
       </ScrollView>
+
+      {/* Undo Toast */}
+      <UndoToast
+        visible={undoState.visible}
+        message={undoState.message}
+        onUndo={handleUndo}
+        onDismiss={handleUndoDismiss}
+        duration={5000}
+      />
     </SafeAreaView>
   );
 }

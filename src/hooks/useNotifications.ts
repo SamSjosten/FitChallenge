@@ -67,8 +67,9 @@ export function useMarkNotificationAsRead() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (notificationId: string) =>
-      notificationsService.markAsRead(notificationId),
+    mutationFn: async (notificationId: string) => {
+      return await notificationsService.markAsRead(notificationId);
+    },
 
     // Optimistic update - instant UI feedback
     onMutate: async (notificationId: string) => {
@@ -244,6 +245,141 @@ export function useMarkAllNotificationsAsRead() {
       queryClient.invalidateQueries({
         queryKey: notificationsKeys.unreadCount(),
       });
+    },
+  });
+}
+
+// =============================================================================
+// ARCHIVE/RESTORE MUTATIONS
+// =============================================================================
+// These are standard mutations with optimistic updates.
+// Undo is handled by calling the reverse mutation (archive ↔ restore).
+// No delayed commits, no pending state, no timeouts.
+
+/**
+ * Archive a notification
+ * - Commits immediately to server
+ * - Optimistic update for instant UI
+ * - Automatic rollback on error
+ */
+export function useArchiveNotification() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (notificationId: string) =>
+      notificationsService.archiveNotification(notificationId),
+
+    onMutate: async (notificationId: string) => {
+      // Cancel in-flight queries
+      await queryClient.cancelQueries({ queryKey: notificationsKeys.list() });
+      await queryClient.cancelQueries({
+        queryKey: notificationsKeys.unreadCount(),
+      });
+
+      // Snapshot current state for rollback
+      const previousNotifications = queryClient.getQueryData<Notification[]>(
+        notificationsKeys.list(),
+      );
+      const previousUnreadCount = queryClient.getQueryData<number>(
+        notificationsKeys.unreadCount(),
+      );
+
+      const notification = previousNotifications?.find(
+        (n) => n.id === notificationId,
+      );
+      const wasUnread = notification && !notification.read_at;
+
+      // Optimistic update: set read_at + dismissed_at
+      const now = new Date().toISOString();
+      queryClient.setQueryData<Notification[]>(
+        notificationsKeys.list(),
+        (old) =>
+          old?.map((n) =>
+            n.id === notificationId
+              ? { ...n, read_at: n.read_at ?? now, dismissed_at: now }
+              : n,
+          ),
+      );
+
+      // Decrement unread count if needed
+      if (wasUnread) {
+        queryClient.setQueryData<number>(
+          notificationsKeys.unreadCount(),
+          (old) => Math.max(0, (old ?? 0) - 1),
+        );
+      }
+
+      return { previousNotifications, previousUnreadCount };
+    },
+
+    onError: (_error, _notificationId, context) => {
+      // Rollback on error
+      if (context?.previousNotifications) {
+        queryClient.setQueryData(
+          notificationsKeys.list(),
+          context.previousNotifications,
+        );
+      }
+      if (context?.previousUnreadCount !== undefined) {
+        queryClient.setQueryData(
+          notificationsKeys.unreadCount(),
+          context.previousUnreadCount,
+        );
+      }
+    },
+
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: notificationsKeys.list() });
+      queryClient.invalidateQueries({
+        queryKey: notificationsKeys.unreadCount(),
+      });
+    },
+  });
+}
+
+/**
+ * Restore an archived notification
+ * - Commits immediately to server
+ * - Optimistic update for instant UI
+ * - Automatic rollback on error
+ */
+export function useRestoreNotification() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (notificationId: string) =>
+      notificationsService.restoreNotification(notificationId),
+
+    onMutate: async (notificationId: string) => {
+      await queryClient.cancelQueries({ queryKey: notificationsKeys.list() });
+
+      const previousNotifications = queryClient.getQueryData<Notification[]>(
+        notificationsKeys.list(),
+      );
+
+      // Optimistic update: clear dismissed_at (keep read_at)
+      queryClient.setQueryData<Notification[]>(
+        notificationsKeys.list(),
+        (old) =>
+          old?.map((n) =>
+            n.id === notificationId ? { ...n, dismissed_at: null } : n,
+          ),
+      );
+
+      return { previousNotifications };
+    },
+
+    onError: (_error, _notificationId, context) => {
+      if (context?.previousNotifications) {
+        queryClient.setQueryData(
+          notificationsKeys.list(),
+          context.previousNotifications,
+        );
+      }
+    },
+
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: notificationsKeys.list() });
     },
   });
 }

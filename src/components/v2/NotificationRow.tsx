@@ -34,7 +34,7 @@ import {
   UserPlusIcon,
   BellIcon,
   CheckCircleIcon,
-  XMarkIcon,
+  ArchiveBoxIcon,
 } from "react-native-heroicons/outline";
 import {
   TrophyIcon as TrophySolid,
@@ -77,15 +77,6 @@ export { SWIPE_THRESHOLD };
 export function triggerDismissHaptic(): void {
   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 }
-
-// =============================================================================
-// NOTE: shouldCaptureGesture is intentionally NOT exported
-// =============================================================================
-// Gesture capture is handled by react-native-gesture-handler configuration:
-//   .activeOffsetX([-HORIZONTAL_ACTIVE_OFFSET, HORIZONTAL_ACTIVE_OFFSET])
-//   .failOffsetY([-VERTICAL_FAIL_OFFSET, VERTICAL_FAIL_OFFSET])
-// A pure function export would be testable but misleading - not actually used.
-// =============================================================================
 
 // =============================================================================
 // NOTIFICATION TYPE HELPERS
@@ -185,6 +176,7 @@ export function NotificationRow({
 }: NotificationRowProps) {
   const { colors, radius } = useAppTheme();
   const isRead = !!notification.read_at;
+  const isArchived = !!notification.dismissed_at;
 
   // Animation values using Reanimated
   const translateX = useSharedValue(0);
@@ -224,11 +216,11 @@ export function NotificationRow({
     .activeOffsetX([-HORIZONTAL_ACTIVE_OFFSET, HORIZONTAL_ACTIVE_OFFSET])
     .failOffsetY([-VERTICAL_FAIL_OFFSET, VERTICAL_FAIL_OFFSET])
     .onUpdate((event) => {
+      "worklet";
       // Use exported pure function for clamping
       translateX.value = clampTranslation(event.translationX);
 
       // Trigger haptic when crossing threshold (once per gesture)
-      // Uses exported pure function for threshold check
       if (
         shouldDismiss(event.translationX, SWIPE_THRESHOLD) &&
         !hapticTriggered.value
@@ -238,6 +230,7 @@ export function NotificationRow({
       }
     })
     .onEnd((event) => {
+      "worklet";
       // Use exported pure function for dismiss decision
       const result = calculateFinalPosition(
         event.translationX,
@@ -250,8 +243,11 @@ export function NotificationRow({
         translateX.value = withTiming(
           result.position,
           { duration: DISMISS_ANIMATION_DURATION },
-          () => {
-            runOnJS(handleDismiss)();
+          (finished) => {
+            "worklet";
+            if (finished) {
+              runOnJS(handleDismiss)();
+            }
           },
         );
       } else {
@@ -270,8 +266,8 @@ export function NotificationRow({
     transform: [{ translateX: translateX.value }],
   }));
 
-  // Delete background opacity based on swipe distance
-  const deleteBackgroundStyle = useAnimatedStyle(() => ({
+  // Background opacity based on swipe distance
+  const backgroundStyle = useAnimatedStyle(() => ({
     opacity: interpolate(
       Math.abs(translateX.value),
       [0, SWIPE_THRESHOLD],
@@ -280,17 +276,16 @@ export function NotificationRow({
     ),
   }));
 
+  // Background color depends on whether this is archive or restore action
+  const backgroundColor = isArchived ? colors.primary.main : colors.error;
+
   return (
     <Animated.View style={[styles.container, containerStyle]}>
-      {/* Delete background - reveals as user swipes */}
+      {/* Action background - reveals as user swipes */}
       <Animated.View
-        style={[
-          styles.deleteBackground,
-          { backgroundColor: colors.error },
-          deleteBackgroundStyle,
-        ]}
+        style={[styles.actionBackground, { backgroundColor }, backgroundStyle]}
       >
-        <XMarkIcon size={24} color="#FFFFFF" />
+        <ArchiveBoxIcon size={24} color="#FFFFFF" />
       </Animated.View>
 
       {/* Notification content - swipeable */}
@@ -452,7 +447,7 @@ const styles = StyleSheet.create({
     position: "relative",
     overflow: "hidden",
   },
-  deleteBackground: {
+  actionBackground: {
     position: "absolute",
     right: 0,
     top: 0,

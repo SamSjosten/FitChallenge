@@ -14,11 +14,10 @@ import { useAppTheme } from "@/providers/ThemeProvider";
 import {
   InboxIcon,
   EnvelopeOpenIcon,
-  UserGroupIcon,
-  TrophyIcon,
+  ArchiveBoxIcon,
 } from "react-native-heroicons/outline";
 
-export type NotificationFilterType = "all" | "unread" | "social" | "challenges";
+export type NotificationFilterType = "unread" | "all" | "archived";
 
 export interface FilterOption {
   id: NotificationFilterType;
@@ -28,20 +27,18 @@ export interface FilterOption {
 }
 
 export const DEFAULT_NOTIFICATION_FILTERS: Omit<FilterOption, "count">[] = [
-  { id: "all", label: "All", icon: InboxIcon },
   { id: "unread", label: "Unread", icon: EnvelopeOpenIcon },
-  { id: "social", label: "Social", icon: UserGroupIcon },
-  { id: "challenges", label: "Challenges", icon: TrophyIcon },
+  { id: "all", label: "All", icon: InboxIcon },
+  { id: "archived", label: "Archived", icon: ArchiveBoxIcon },
 ];
 
 export interface NotificationFiltersProps {
   activeFilter: NotificationFilterType;
   onFilterChange: (filter: NotificationFilterType) => void;
   counts?: {
-    all?: number;
     unread?: number;
-    social?: number;
-    challenges?: number;
+    all?: number;
+    archived?: number;
   };
 }
 
@@ -172,13 +169,17 @@ export function NotificationHeader({
 }
 
 // Swipe hint component
-export function SwipeHint() {
+export interface SwipeHintProps {
+  isArchiveTab?: boolean;
+}
+
+export function SwipeHint({ isArchiveTab = false }: SwipeHintProps) {
   const { colors, spacing } = useAppTheme();
 
   return (
     <View style={[styles.swipeHint, { paddingHorizontal: spacing.lg }]}>
       <Text style={[styles.swipeHintText, { color: colors.textMuted }]}>
-        ← Swipe left to dismiss
+        {isArchiveTab ? "← Swipe left to restore" : "← Swipe left to archive"}
       </Text>
     </View>
   );
