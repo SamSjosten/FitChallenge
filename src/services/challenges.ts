@@ -48,6 +48,8 @@ const challengeRpcRowSchema = z.object({
   daily_target: z.number().nullable(),
   start_date: z.string(),
   end_date: z.string(),
+  starting_soon_notified_at: z.string().nullable().optional(),
+  ending_soon_notified_at: z.string().nullable().optional(),
   status: z.enum([
     "draft",
     "pending",
@@ -145,11 +147,15 @@ function mapRpcToChallengeWithParticipation(
     my_current_progress,
     participant_count,
     my_rank,
+    starting_soon_notified_at,
+    ending_soon_notified_at,
     ...challengeFields
   } = row;
 
   return {
     ...challengeFields,
+    starting_soon_notified_at: starting_soon_notified_at ?? null,
+    ending_soon_notified_at: ending_soon_notified_at ?? null,
     my_participation: {
       invite_status: my_invite_status,
       current_progress: my_current_progress,
