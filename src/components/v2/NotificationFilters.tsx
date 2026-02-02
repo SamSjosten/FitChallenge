@@ -15,9 +15,16 @@ import {
   InboxIcon,
   EnvelopeOpenIcon,
   ArchiveBoxIcon,
+  UserGroupIcon,
+  TrophyIcon,
 } from "react-native-heroicons/outline";
 
-export type NotificationFilterType = "unread" | "all" | "archived";
+export type NotificationFilterType =
+  | "unread"
+  | "all"
+  | "social"
+  | "challenges"
+  | "archived";
 
 export interface FilterOption {
   id: NotificationFilterType;
@@ -29,6 +36,8 @@ export interface FilterOption {
 export const DEFAULT_NOTIFICATION_FILTERS: Omit<FilterOption, "count">[] = [
   { id: "unread", label: "Unread", icon: EnvelopeOpenIcon },
   { id: "all", label: "All", icon: InboxIcon },
+  { id: "social", label: "Social", icon: UserGroupIcon },
+  { id: "challenges", label: "Challenges", icon: TrophyIcon },
   { id: "archived", label: "Archived", icon: ArchiveBoxIcon },
 ];
 
@@ -38,6 +47,8 @@ export interface NotificationFiltersProps {
   counts?: {
     unread?: number;
     all?: number;
+    social?: number;
+    challenges?: number;
     archived?: number;
   };
 }
@@ -47,81 +58,79 @@ export function NotificationFilters({
   onFilterChange,
   counts = {},
 }: NotificationFiltersProps) {
-  const { colors, spacing, radius } = useAppTheme();
+  const { colors, spacing } = useAppTheme();
 
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={[
-        styles.container,
-        { paddingHorizontal: spacing.lg },
-      ]}
-    >
-      {DEFAULT_NOTIFICATION_FILTERS.map((filter) => {
-        const isActive = activeFilter === filter.id;
-        const Icon = filter.icon;
-        const count = counts[filter.id];
+    <View style={styles.wrapper}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={[
+          styles.container,
+          { paddingHorizontal: spacing.lg },
+        ]}
+      >
+        {DEFAULT_NOTIFICATION_FILTERS.map((filter) => {
+          const isActive = activeFilter === filter.id;
+          const Icon = filter.icon;
+          const count = counts[filter.id];
 
-        return (
-          <TouchableOpacity
-            key={filter.id}
-            onPress={() => onFilterChange(filter.id)}
-            style={[
-              styles.filterButton,
-              {
-                backgroundColor: isActive
-                  ? colors.primary.main
-                  : colors.surfaceElevated,
-                borderRadius: radius.full,
-                paddingHorizontal: spacing.md,
-                paddingVertical: spacing.sm,
-                marginRight: spacing.sm,
-              },
-            ]}
-            activeOpacity={0.7}
-          >
-            <Icon
-              size={14}
-              color={isActive ? "#FFFFFF" : colors.textSecondary}
-            />
-            <Text
+          return (
+            <TouchableOpacity
+              key={filter.id}
+              onPress={() => onFilterChange(filter.id)}
               style={[
-                styles.filterLabel,
+                styles.filterButton,
                 {
-                  color: isActive ? "#FFFFFF" : colors.textSecondary,
+                  backgroundColor: isActive
+                    ? colors.primary.main
+                    : colors.surfaceElevated,
                 },
               ]}
+              activeOpacity={0.7}
             >
-              {filter.label}
-            </Text>
-            {count !== undefined && count > 0 && (
-              <View
+              <Icon
+                size={14}
+                color={isActive ? "#FFFFFF" : colors.textSecondary}
+              />
+              <Text
                 style={[
-                  styles.countBadge,
+                  styles.filterLabel,
                   {
-                    backgroundColor: isActive
-                      ? "rgba(255,255,255,0.2)"
-                      : colors.border,
+                    color: isActive ? "#FFFFFF" : colors.textSecondary,
                   },
                 ]}
               >
-                <Text
+                {filter.label}
+              </Text>
+              {count !== undefined && count > 0 && (
+                <View
                   style={[
-                    styles.countText,
+                    styles.countBadge,
                     {
-                      color: isActive ? "#FFFFFF" : colors.textSecondary,
+                      backgroundColor: isActive
+                        ? "rgba(255,255,255,0.2)"
+                        : colors.border,
                     },
                   ]}
                 >
-                  {count > 99 ? "99+" : count}
-                </Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        );
-      })}
-    </ScrollView>
+                  <Text
+                    style={[
+                      styles.countText,
+                      {
+                        color: isActive ? "#FFFFFF" : colors.textSecondary,
+                      },
+                    ]}
+                  >
+                    {count > 99 ? "99+" : count}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+    </View>
   );
 }
 
@@ -246,18 +255,26 @@ export function groupNotificationsByTime<T extends { created_at: string }>(
 }
 
 const styles = StyleSheet.create({
+  wrapper: {
+    height: 46,
+  },
   container: {
     flexDirection: "row",
-    paddingVertical: 12,
+    alignItems: "center",
+    paddingVertical: 8,
   },
   filterButton: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginRight: 8,
   },
   filterLabel: {
     fontSize: 13,
-    fontWeight: "600",
+    fontWeight: "500",
   },
   countBadge: {
     minWidth: 18,
@@ -268,7 +285,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   countText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "600",
   },
   header: {

@@ -94,6 +94,15 @@ export function V2NotificationsScreen() {
     }, [refetch]),
   );
 
+  // Notification type categories
+  const SOCIAL_TYPES = ["friend_request_received", "friend_request_accepted"];
+  const CHALLENGE_TYPES = [
+    "challenge_invite_received",
+    "challenge_starting_soon",
+    "challenge_ending_soon",
+    "challenge_completed",
+  ];
+
   // Filter notifications based on active tab
   const filteredNotifications = React.useMemo(() => {
     if (!notifications) return [];
@@ -105,6 +114,16 @@ export function V2NotificationsScreen() {
       case "all":
         // All active (not archived)
         return notifications.filter((n) => !n.dismissed_at);
+      case "social":
+        // Social notifications (not archived)
+        return notifications.filter(
+          (n) => !n.dismissed_at && SOCIAL_TYPES.includes(n.type),
+        );
+      case "challenges":
+        // Challenge notifications (not archived)
+        return notifications.filter(
+          (n) => !n.dismissed_at && CHALLENGE_TYPES.includes(n.type),
+        );
       case "archived":
         // Only archived
         return notifications.filter((n) => n.dismissed_at);
@@ -123,6 +142,12 @@ export function V2NotificationsScreen() {
     return {
       unread: notifications.filter((n) => !n.read_at && !n.dismissed_at).length,
       all: notifications.filter((n) => !n.dismissed_at).length,
+      social: notifications.filter(
+        (n) => !n.dismissed_at && SOCIAL_TYPES.includes(n.type),
+      ).length,
+      challenges: notifications.filter(
+        (n) => !n.dismissed_at && CHALLENGE_TYPES.includes(n.type),
+      ).length,
       archived: notifications.filter((n) => n.dismissed_at).length,
     };
   }, [notifications]);
@@ -270,6 +295,16 @@ export function V2NotificationsScreen() {
         return {
           title: "No notifications yet",
           subtitle: "When you receive notifications, they'll appear here",
+        };
+      case "social":
+        return {
+          title: "No social notifications",
+          subtitle: "Friend requests and updates will appear here",
+        };
+      case "challenges":
+        return {
+          title: "No challenge notifications",
+          subtitle: "Challenge invites and updates will appear here",
         };
       case "archived":
         return {
