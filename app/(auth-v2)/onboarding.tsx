@@ -11,6 +11,7 @@ import {
   Animated,
   Platform,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
@@ -18,6 +19,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "@/providers/AuthProvider";
 import { getSupabaseClient } from "@/lib/supabase";
+import { useNavigationStore } from "@/stores/navigationStore";
 
 // =============================================================================
 // TYPES
@@ -305,6 +307,11 @@ export default function OnboardingScreen() {
     useState<HealthPlatform>(null);
   const [isUpdating, setIsUpdating] = useState(false);
 
+  // Navigation lock - prevents ProtectedRoute from interfering during transition
+  const setAuthHandlingNavigation = useNavigationStore(
+    (state) => state.setAuthHandlingNavigation,
+  );
+
   // Breathing animation for icons
   const breatheAnim = useRef(new Animated.Value(0)).current;
 
@@ -356,6 +363,27 @@ export default function OnboardingScreen() {
     }
   };
 
+  /**
+   * Mark onboarding as completed in user_metadata.
+   * This is checked by ProtectedRoute to determine if user needs onboarding.
+   * @returns true if successful, false if failed
+   */
+  const markOnboardingComplete = async (): Promise<boolean> => {
+    try {
+      const { error } = await getSupabaseClient().auth.updateUser({
+        data: { onboarding_completed: true },
+      });
+      if (error) {
+        console.error("[Onboarding] Failed to update user metadata:", error);
+        return false;
+      }
+      return true;
+    } catch (err) {
+      console.error("[Onboarding] Error updating metadata:", err);
+      return false;
+    }
+  };
+
   const handleConnect = () => {
     if (!selectedPlatform) return;
 
@@ -368,13 +396,67 @@ export default function OnboardingScreen() {
   };
 
   const handleComplete = async () => {
-    await markHealthSetupComplete();
-    router.replace("/(tabs-v2)");
+    // Lock navigation to prevent ProtectedRoute from redirecting during transition
+    setAuthHandlingNavigation(true);
+
+    try {
+      await markHealthSetupComplete();
+
+      const success = await markOnboardingComplete();
+      if (!success) {
+        // Release lock and show error - don't navigate
+        setAuthHandlingNavigation(false);
+        Alert.alert(
+          "Something went wrong",
+          "We couldn't save your progress. Please try again.",
+          [{ text: "OK" }],
+        );
+        return;
+      }
+
+      // Success - navigate to tabs (lock will be cleared by tabs-v2 layout)
+      router.replace("/(tabs-v2)");
+    } catch (err) {
+      // Release lock on unexpected error
+      setAuthHandlingNavigation(false);
+      console.error("[Onboarding] handleComplete error:", err);
+      Alert.alert(
+        "Something went wrong",
+        "We couldn't save your progress. Please try again.",
+        [{ text: "OK" }],
+      );
+    }
   };
 
-  const handleSkip = () => {
-    // Don't mark as complete - they can set it up later
-    router.replace("/(tabs-v2)");
+  const handleSkip = async () => {
+    // Lock navigation to prevent ProtectedRoute from redirecting during transition
+    setAuthHandlingNavigation(true);
+
+    try {
+      const success = await markOnboardingComplete();
+      if (!success) {
+        // Release lock and show error - don't navigate
+        setAuthHandlingNavigation(false);
+        Alert.alert(
+          "Something went wrong",
+          "We couldn't save your progress. Please try again.",
+          [{ text: "OK" }],
+        );
+        return;
+      }
+
+      // Success - navigate to tabs (lock will be cleared by tabs-v2 layout)
+      router.replace("/(tabs-v2)");
+    } catch (err) {
+      // Release lock on unexpected error
+      setAuthHandlingNavigation(false);
+      console.error("[Onboarding] handleSkip error:", err);
+      Alert.alert(
+        "Something went wrong",
+        "We couldn't save your progress. Please try again.",
+        [{ text: "OK" }],
+      );
+    }
   };
 
   // =========================================================================

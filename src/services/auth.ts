@@ -111,11 +111,15 @@ export const authService = {
 
     // Create auth user - profile created by trigger
     // Username uniqueness is enforced by DB constraint on profiles.username
+    // onboarding_completed: false triggers the onboarding flow for new users
     const { data, error } = await getSupabaseClient().auth.signUp({
       email,
       password,
       options: {
-        data: { username },
+        data: {
+          username,
+          onboarding_completed: false, // New users need to complete onboarding
+        },
       },
     });
 
@@ -167,34 +171,29 @@ export const authService = {
   /**
    * Get the current user's full profile by userId (private data)
    * Use this variant when you already have the userId to avoid redundant getUser() calls.
+   *
    * CONTRACT: Only returns self data via RLS
+   * CALLER RESPONSIBILITY: Only call this after INITIAL_SESSION event has fired.
+   * Calling before auth is fully initialized may result in RLS evaluation failures.
+   *
+   * TIMEOUT: 3 seconds. A primary key lookup should complete in <1s.
+   * If this times out, something is wrong (network, Supabase, or auth context).
    */
   async getMyProfileWithUserId(userId: string): Promise<Profile> {
-    // Create a timeout promise to catch hanging queries
-    const timeoutMs = 15000;
+    const TIMEOUT_MS = 3000;
+
+    const queryPromise = getSupabaseClient()
+      .from("profiles")
+      .select("*")
+      .eq("id", userId)
+      .single();
+
     const timeoutPromise = new Promise<never>((_, reject) => {
       setTimeout(() => {
-        reject(
-          new Error(
-            `Profile query timed out after ${timeoutMs}ms - check network connectivity`,
-          ),
-        );
-      }, timeoutMs);
+        reject(new Error(`Profile query timed out after ${TIMEOUT_MS}ms`));
+      }, TIMEOUT_MS);
     });
 
-    const queryPromise = (async () => {
-      // Small delay to ensure Supabase client is fully initialized
-      // This helps avoid race conditions during app startup
-      await new Promise((resolve) => setTimeout(resolve, 100));
-
-      return getSupabaseClient()
-        .from("profiles")
-        .select("*")
-        .eq("id", userId)
-        .single();
-    })();
-
-    // Race between query and timeout
     const { data, error } = await Promise.race([queryPromise, timeoutPromise]);
 
     if (error) throw error;

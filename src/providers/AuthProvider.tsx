@@ -44,8 +44,10 @@ interface AuthState {
   session: Session | null;
   user: User | null;
   profile: Profile | null;
-  loading: boolean;
-  error: AuthError | Error | null;
+  loading: boolean; // Auth/session loading
+  profileError: Error | null; // Separate error state for profile failures
+  isRefreshingProfile: boolean; // For retry UI
+  error: AuthError | Error | null; // Auth-level errors (sign in failures, etc.)
   pendingEmailConfirmation: boolean;
 }
 
@@ -77,6 +79,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     user: null,
     profile: null,
     loading: true,
+    profileError: null,
+    isRefreshingProfile: false,
     error: null,
     pendingEmailConfirmation: false,
   });
@@ -98,6 +102,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
   /**
    * Load user profile and set authenticated state.
    * Used by initialization, signIn, signUp, and auth listener.
+   *
+   * IMPORTANT: Sets session immediately, then loads profile.
+   * This ensures ProtectedRoute sees the session even if profile loading is slow.
+   * Profile errors are stored separately so they don't block auth state.
    */
   const loadProfileAndSetState = useCallback(async (session: Session) => {
     // Guard against concurrent calls - check and set atomically
@@ -112,6 +120,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
       `[AuthProvider] 📂 loadProfileAndSetState starting for user ${session.user.id.substring(0, 8)}...`,
     );
 
+    // Set session IMMEDIATELY so ProtectedRoute knows user is authenticated
+    // This prevents timeout-induced redirects while profile is loading
+    setState((prev) => ({
+      ...prev,
+      session,
+      user: session.user,
+      loading: false, // Auth is complete - we have a session
+      profileError: null, // Clear any previous profile errors
+      // profile stays null until it loads
+    }));
+
     // Sync server time (non-blocking)
     syncServerTime().catch((err) =>
       console.warn("Server time sync failed:", err),
@@ -124,16 +143,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       if (mountedRef.current) {
         console.log(
-          `[AuthProvider] ✅ Setting authenticated state with session`,
+          `[AuthProvider] ✅ Profile loaded, setting complete auth state`,
         );
-        setState({
-          session,
-          user: session.user,
+        setState((prev) => ({
+          ...prev,
           profile,
-          loading: false,
-          error: null,
+          profileError: null,
           pendingEmailConfirmation: false,
-        });
+        }));
 
         // Register push token if permission already granted (non-blocking)
         pushTokenService
@@ -145,14 +162,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
     } catch (err) {
       console.error("[AuthProvider] Error fetching profile:", err);
       if (mountedRef.current) {
-        setState({
-          session,
-          user: session.user,
+        setState((prev) => ({
+          ...prev,
           profile: null,
-          loading: false,
-          error: err as Error,
-          pendingEmailConfirmation: false,
-        });
+          profileError: err as Error,
+          // Keep session and user - user is still authenticated, just profile failed
+        }));
       }
     } finally {
       profileLoadingRef.current = false;
@@ -170,9 +185,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
     // Track if we've processed the initial session
     let initialSessionProcessed = false;
 
-    // Listen for auth changes - handles INITIAL_SESSION, token refresh, sign out, etc.
-    // Note: We rely on INITIAL_SESSION event instead of calling getSession() directly
-    // to avoid race conditions between getSession and onAuthStateChange
+    // ==========================================================================
+    // AUTH EVENT CONTRACT
+    // ==========================================================================
+    // INITIAL_SESSION: Auth is fully initialized - safe to make database queries
+    // TOKEN_REFRESHED: Token refreshed - only process AFTER INITIAL_SESSION
+    // SIGNED_IN: User signed in - only process AFTER INITIAL_SESSION
+    // SIGNED_OUT: User signed out - always process
+    //
+    // RULE: Only make authenticated database queries after INITIAL_SESSION.
+    // Before that, the Supabase client's auth context may not be ready for RLS.
+    // ==========================================================================
     const {
       data: { subscription },
     } = getSupabaseClient().auth.onAuthStateChange(async (event, session) => {
@@ -204,6 +227,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
         return;
       }
 
+      // TOKEN_REFRESHED before INITIAL_SESSION: Skip entirely
+      // During startup, Supabase fires TOKEN_REFRESHED for cached tokens.
+      // Don't start profile queries here - INITIAL_SESSION will handle it.
+      // This avoids a race where the first query hangs (Supabase client not fully ready)
+      // while INITIAL_SESSION's query succeeds.
+      if (event === "TOKEN_REFRESHED" && !initialSessionProcessed) {
+        console.log(
+          `[AuthProvider] ⏭️ Skipping TOKEN_REFRESHED - waiting for INITIAL_SESSION`,
+        );
+        return;
+      }
+
       if (event === "SIGNED_OUT" || !session) {
         console.log(
           `[AuthProvider] 🚪 Processing sign out (event=${event}, session=${session ? "YES" : "NO"})`,
@@ -216,6 +251,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
           user: null,
           profile: null,
           loading: false,
+          profileError: null,
+          isRefreshingProfile: false,
           error: null,
           pendingEmailConfirmation: false,
         });
@@ -228,19 +265,22 @@ export function AuthProvider({ children }: AuthProviderProps) {
         initialSessionProcessed = true;
       }
 
-      // INITIAL_SESSION, SIGNED_IN (after initial), TOKEN_REFRESHED - load profile
+      // INITIAL_SESSION, SIGNED_IN (after initial), TOKEN_REFRESHED (after initial) - load profile
       if (session.user) {
         console.log(`[AuthProvider] 👤 Loading profile for event=${event}`);
         await loadProfileAndSetState(session);
       }
     });
 
-    // Safety timeout: set explicit error if auth hangs
+    // Safety timeout: if INITIAL_SESSION never fires (corrupted storage, etc)
+    // This catches the case where Supabase auth is completely stuck
     const safetyTimeout = setTimeout(() => {
       if (mountedRef.current) {
         setState((prev) => {
           if (prev.loading) {
-            console.warn("Auth initialization timed out");
+            console.warn(
+              "[AuthProvider] Auth initialization timed out - INITIAL_SESSION never fired",
+            );
             return {
               ...prev,
               loading: false,
@@ -383,11 +423,28 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const refreshProfile = useCallback(async () => {
     if (!state.user) return;
+
+    // Set refreshing state for UI feedback
+    setState((prev) => ({
+      ...prev,
+      isRefreshingProfile: true,
+      profileError: null,
+    }));
+
     try {
       const profile = await authService.getMyProfile();
-      setState((prev) => ({ ...prev, profile }));
+      setState((prev) => ({
+        ...prev,
+        profile,
+        profileError: null,
+        isRefreshingProfile: false,
+      }));
     } catch (err) {
-      setState((prev) => ({ ...prev, error: err as Error }));
+      setState((prev) => ({
+        ...prev,
+        profileError: err as Error,
+        isRefreshingProfile: false,
+      }));
     }
   }, [state.user]);
 

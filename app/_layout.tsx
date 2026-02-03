@@ -36,6 +36,7 @@ import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { ThemeProvider, useAppTheme } from "@/providers/ThemeProvider";
 import { AuthProvider, useAuth } from "@/providers/AuthProvider";
+import { ProfileErrorBoundary } from "@/components/ProfileErrorBoundary";
 import { ToastProvider } from "@/providers/ToastProvider";
 import { ServerTimeBanner, OfflineIndicator } from "@/components/ui";
 import {
@@ -54,7 +55,7 @@ import {
 } from "@/stores/navigationStore";
 import { useToast } from "@/providers/ToastProvider";
 import type { Session } from "@supabase/supabase-js";
-import type { Profile } from "@/types/database";
+
 import * as Sentry from "@sentry/react-native";
 import { useFeatureFlags } from "@/lib/featureFlags";
 
@@ -297,7 +298,6 @@ function useProtectedRoute(
   session: Session | null,
   isLoading: boolean,
   uiVersion: "v1" | "v2" | null,
-  profile: Profile | null,
 ) {
   const segments = useSegments() as string[];
   const router = useRouter();
@@ -368,11 +368,18 @@ function useProtectedRoute(
       (uiVersion === "v2" && inV1Tabs) || (uiVersion === "v1" && inV2Tabs);
 
     // Check if user needs V2 onboarding
+    // Uses user_metadata to avoid waiting for profile query
+    //
+    // Logic:
+    // - onboarding_completed === true: User completed onboarding → skip
+    // - onboarding_completed === false: New user, explicitly needs onboarding → show
+    // - onboarding_completed === undefined: Existing user (grandfathered) → skip
+    //
+    // New signups will have onboarding_completed set to false, then true after completion
     const needsV2Onboarding =
       uiVersion === "v2" &&
       session &&
-      profile &&
-      (!profile.display_name || profile.display_name === profile.username);
+      session.user.user_metadata?.onboarding_completed === false;
 
     console.log(
       `${LOG} State: atRoot=${atRoot}, inAnyAuth=${inAnyAuth}, inV2Tabs=${inV2Tabs}, needsOnboarding=${needsV2Onboarding}`,
@@ -439,13 +446,6 @@ function useProtectedRoute(
       return;
     }
 
-    // Need to determine destination
-    // For V2: wait for profile to load before deciding
-    if (uiVersion === "v2" && profile === null) {
-      console.log(`${LOG}   → Waiting for profile to load`);
-      return;
-    }
-
     // Check if we're in the correct tabs
     const inCorrectTabs = uiVersion === "v2" ? inV2Tabs : inV1Tabs;
     if (inCorrectTabs) {
@@ -497,7 +497,6 @@ function useProtectedRoute(
     segments,
     isLoading,
     uiVersion,
-    profile,
     router,
     navigationState?.key,
     isNavigationLocked,
@@ -508,7 +507,15 @@ function RootLayoutNav() {
   const { colors, isDark } = useAppTheme();
   const { showToast } = useToast();
   // Use centralized auth state - NO MORE DUPLICATE SUBSCRIPTION
-  const { session, loading: isLoading, profile, signOut } = useAuth();
+  const {
+    session,
+    loading: isLoading,
+    profile,
+    profileError,
+    isRefreshingProfile,
+    refreshProfile,
+    signOut,
+  } = useAuth();
   const { uiVersion, isLoading: flagsLoading } = useFeatureFlags();
   // Track if we've shown storage warning for this session
   const storageWarningShown = useRef(false);
@@ -520,7 +527,8 @@ function RootLayoutNav() {
   const processQueue = useOfflineStore((s) => s.processQueue);
   const queueLength = useOfflineStore((s) => s.queue.length);
 
-  useProtectedRoute(session, isLoading || flagsLoading, uiVersion, profile);
+  // Protected route logic - uses only session, not profile
+  useProtectedRoute(session, isLoading || flagsLoading, uiVersion);
 
   // Initialize navigation store recovery listener (for stale lock cleanup)
   useEffect(() => {
@@ -644,78 +652,85 @@ function RootLayoutNav() {
           <OfflineIndicator />
         </View>
       )}
-      <Stack
-        screenOptions={{
-          headerStyle: {
-            backgroundColor: colors.background,
-          },
-          headerTintColor: colors.primary.main,
-          headerTitleStyle: {
-            fontWeight: "600",
-            fontFamily: "PlusJakartaSans_600SemiBold",
-          },
-          contentStyle: {
-            backgroundColor: colors.background,
-          },
-          headerShadowVisible: false,
-        }}
+      {/* Profile error boundary - shows retry UI if profile fails to load */}
+      <ProfileErrorBoundary
+        error={session ? profileError : null}
+        isRetrying={isRefreshingProfile}
+        onRetry={refreshProfile}
       >
-        <Stack.Screen
-          name="index"
-          options={{
-            headerShown: false,
+        <Stack
+          screenOptions={{
+            headerStyle: {
+              backgroundColor: colors.background,
+            },
+            headerTintColor: colors.primary.main,
+            headerTitleStyle: {
+              fontWeight: "600",
+              fontFamily: "PlusJakartaSans_600SemiBold",
+            },
+            contentStyle: {
+              backgroundColor: colors.background,
+            },
+            headerShadowVisible: false,
           }}
-        />
-        <Stack.Screen
-          name="(auth)"
-          options={{
-            headerShown: false,
-          }}
-        />
-        <Stack.Screen
-          name="(tabs)"
-          options={{
-            headerShown: false,
-          }}
-        />
-        <Stack.Screen
-          name="(auth-v2)"
-          options={{
-            headerShown: false,
-          }}
-        />
-        <Stack.Screen
-          name="(tabs-v2)"
-          options={{
-            headerShown: false,
-          }}
-        />
-        <Stack.Screen
-          name="challenge/create"
-          options={{
-            title: "Create Challenge",
-            presentation: "modal",
-          }}
-        />
-        <Stack.Screen
-          name="challenge/[id]"
-          options={{
-            title: "Challenge",
-          }}
-        />
-        <Stack.Screen
-          name="notifications"
-          options={{
-            title: "Notifications",
-          }}
-        />
-        <Stack.Screen
-          name="settings"
-          options={{
-            title: "Settings",
-          }}
-        />
-      </Stack>
+        >
+          <Stack.Screen
+            name="index"
+            options={{
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name="(auth)"
+            options={{
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name="(tabs)"
+            options={{
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name="(auth-v2)"
+            options={{
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name="(tabs-v2)"
+            options={{
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name="challenge/create"
+            options={{
+              title: "Create Challenge",
+              presentation: "modal",
+            }}
+          />
+          <Stack.Screen
+            name="challenge/[id]"
+            options={{
+              title: "Challenge",
+            }}
+          />
+          <Stack.Screen
+            name="notifications"
+            options={{
+              title: "Notifications",
+            }}
+          />
+          <Stack.Screen
+            name="settings"
+            options={{
+              title: "Settings",
+            }}
+          />
+        </Stack>
+      </ProfileErrorBoundary>
     </GestureHandlerRootView>
   );
 }
