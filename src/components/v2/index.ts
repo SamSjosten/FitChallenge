@@ -83,3 +83,19 @@ export type { ActivityCardProps, ActivityListItemProps } from "./ActivityCard";
 
 // Notifications screen
 export { V2NotificationsScreen } from "./NotificationsScreen";
+
+// Home screen components (V2 redesign)
+export {
+  LeaderboardPreview,
+  MAX_LEADERBOARD_PREVIEW,
+  ExpandableChallengeCard,
+  SectionHeader,
+  StartingSoonCard,
+} from "./home";
+export type {
+  LeaderboardPreviewProps,
+  ExpandableChallengeCardProps,
+  SectionHeaderProps,
+  SectionVariant,
+  StartingSoonCardProps,
+} from "./home";
