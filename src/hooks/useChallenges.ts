@@ -27,6 +27,7 @@ export const challengeKeys = {
   all: ["challenges"] as const,
   active: () => [...challengeKeys.all, "active"] as const,
   pending: () => [...challengeKeys.all, "pending"] as const,
+  startingSoon: () => [...challengeKeys.all, "startingSoon"] as const,
   detail: (id: string) => [...challengeKeys.all, "detail", id] as const,
   leaderboard: (id: string) =>
     [...challengeKeys.all, "leaderboard", id] as const,
@@ -113,6 +114,20 @@ export function useCompletedChallenges() {
 }
 
 /**
+ * @deprecated Use useActiveChallenges() and filter client-side by start_date.
+ * The get_my_challenges RPC already returns both "starting soon" and "in progress"
+ * challenges. This separate query is redundant.
+ *
+ * See useHomeScreenData for the correct pattern.
+ */
+export function useStartingSoonChallenges() {
+  return useQuery({
+    queryKey: challengeKeys.startingSoon(),
+    queryFn: () => challengeService.getStartingSoonChallenges(),
+  });
+}
+
+/**
  * Get pending invites
  */
 export function usePendingInvites() {
@@ -134,15 +149,40 @@ export function useChallenge(challengeId: string | undefined) {
 }
 
 /**
+ * Options for useLeaderboard hook
+ */
+interface UseLeaderboardOptions {
+  /** Whether to fetch the leaderboard (for lazy loading on expand) */
+  enabled?: boolean;
+  /** Max number of entries to return (for preview mode) */
+  limit?: number;
+}
+
+/**
  * Get leaderboard for a challenge
  * RLS handles visibility - pending users get empty results
  * CONTRACT: UI must not gate this query on invite_status (Rule 2)
+ *
+ * @param challengeId - The challenge ID
+ * @param options - Optional configuration
+ * @param options.enabled - Whether to fetch (default: true when challengeId exists)
+ * @param options.limit - Max entries to return (default: all)
  */
-export function useLeaderboard(challengeId: string | undefined) {
+export function useLeaderboard(
+  challengeId: string | undefined,
+  options?: UseLeaderboardOptions,
+) {
+  const { enabled = true, limit } = options ?? {};
+
   return useQuery({
-    queryKey: challengeKeys.leaderboard(challengeId!),
-    queryFn: () => challengeService.getLeaderboard(challengeId!),
-    enabled: !!challengeId, // Only gate on having an ID, not authorization
+    queryKey: [...challengeKeys.leaderboard(challengeId!), { limit }],
+    queryFn: async () => {
+      const data = await challengeService.getLeaderboard(challengeId!);
+      // Apply client-side limit if specified
+      return limit ? data.slice(0, limit) : data;
+    },
+    enabled: !!challengeId && enabled, // Gate on ID + explicit enabled flag
+    staleTime: 30_000, // 30s - leaderboards change often during active challenges
   });
 }
 

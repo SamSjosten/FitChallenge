@@ -1,15 +1,15 @@
 // app/(tabs-v2)/index.tsx
 // V2 Home Screen - Dashboard with challenges overview
-// Design System v2.0 - Based on prototype
+// Design System v2.0 - Based on mockup home-screen-expandable.jsx
 //
 // Features:
-// - Greeting header with user name
+// - "Welcome, {name}" header with notification bell
+// - Streak badge in header when banner is dismissed
 // - Animated streak banner with swipe-to-dismiss
-// - Challenge filter dropdown
-// - Pending invites section
-// - Active challenges (collapsible cards)
-// - Recent activity section
-// - Completed challenges (collapsible section)
+// - In Progress section with filter dropdown
+// - Starting Soon section (amber themed)
+// - Recent Activity section
+// - Completed challenges (collapsible card-style section)
 
 import React, { useState, useCallback, useEffect } from "react";
 import {
@@ -31,8 +31,6 @@ import { useHomeScreenData, useChallengeFilters } from "@/hooks/v2";
 import {
   LoadingState,
   EmptyState,
-  ChallengeCard,
-  CompletedChallengeRow,
   InviteCard,
   ChallengeFilter,
   ActiveFilterBadge,
@@ -40,6 +38,9 @@ import {
   ActivityRow,
   RecentActivityHeader,
   NoRecentActivity,
+  ExpandableChallengeCard,
+  SectionHeader,
+  StartingSoonCard,
 } from "@/components/v2";
 import { Toast, useToast } from "@/components/v2/Toast";
 import { BiometricSetupModal } from "@/components/BiometricSetupModal";
@@ -49,6 +50,7 @@ import {
   ChevronUpIcon,
   BellIcon,
 } from "react-native-heroicons/outline";
+import { FireIcon } from "react-native-heroicons/solid";
 import type { ActivityType } from "@/components/icons/ActivityIcons";
 
 // Enable LayoutAnimation on Android
@@ -59,6 +61,8 @@ if (
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
+const STREAK_BANNER_STORAGE_KEY = "fitchallenge_streak_banner_dismissed";
+
 export default function HomeScreenV2() {
   const { colors, spacing, radius } = useAppTheme();
   const { toast, showToast, hideToast } = useToast();
@@ -66,6 +70,7 @@ export default function HomeScreenV2() {
   // Consolidated data fetching
   const {
     activeChallenges,
+    startingSoonChallenges,
     pendingInvites,
     completedChallenges,
     displayActivities,
@@ -92,12 +97,36 @@ export default function HomeScreenV2() {
   // UI-specific state
   const [completedExpanded, setCompletedExpanded] = useState(false);
 
+  // Accordion state: only one challenge card expanded at a time
+  const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
+
+  // Track if streak banner is dismissed (show badge in header)
+  const [streakBannerDismissed, setStreakBannerDismissed] = useState(false);
+
   // Biometric setup modal state (shown after sign-in if eligible)
   const [showBiometricSetup, setShowBiometricSetup] = useState(false);
   const [pendingCredentials, setPendingCredentials] = useState<{
     email: string;
     password: string;
   } | null>(null);
+
+  // Check if streak banner was dismissed today on mount
+  useEffect(() => {
+    const checkStreakBannerDismissed = async () => {
+      try {
+        const dismissedDate = await AsyncStorage.getItem(
+          STREAK_BANNER_STORAGE_KEY,
+        );
+        const today = new Date().toDateString();
+        if (dismissedDate === today) {
+          setStreakBannerDismissed(true);
+        }
+      } catch (error) {
+        console.error("Error checking streak banner state:", error);
+      }
+    };
+    checkStreakBannerDismissed();
+  }, []);
 
   // Check for pending biometric setup on mount
   useEffect(() => {
@@ -150,16 +179,49 @@ export default function HomeScreenV2() {
     setCompletedExpanded(!completedExpanded);
   };
 
-  const handleStreakDismiss = () => {
-    // Banner handles its own dismiss logic
-  };
+  const handleStreakDismiss = async () => {
+    setStreakBannerDismissed(true);
 
-  const handleShowUndoToast = (onUndo: () => void) => {
+    // Persist dismissal for today
+    const today = new Date().toDateString();
+    try {
+      await AsyncStorage.setItem(STREAK_BANNER_STORAGE_KEY, today);
+    } catch (error) {
+      console.error("Error saving streak banner state:", error);
+    }
+
+    // Show undo toast
     showToast("Streak moved to Profile", {
       actionLabel: "Undo",
-      onAction: onUndo,
+      onAction: async () => {
+        setStreakBannerDismissed(false);
+        try {
+          await AsyncStorage.removeItem(STREAK_BANNER_STORAGE_KEY);
+        } catch (error) {
+          console.error("Error clearing streak banner state:", error);
+        }
+      },
     });
   };
+
+  // Toggle challenge card expansion (accordion - only one at a time)
+  const handleToggleCardExpand = useCallback((challengeId: string) => {
+    LayoutAnimation.configureNext({
+      duration: 200,
+      create: {
+        type: LayoutAnimation.Types.easeInEaseOut,
+        property: LayoutAnimation.Properties.opacity,
+      },
+      update: { type: LayoutAnimation.Types.easeInEaseOut },
+      delete: {
+        type: LayoutAnimation.Types.easeInEaseOut,
+        property: LayoutAnimation.Properties.opacity,
+      },
+    });
+    setExpandedCardId((prevId) =>
+      prevId === challengeId ? null : challengeId,
+    );
+  }, []);
 
   // Loading state
   if (isLoading) {
@@ -190,51 +252,80 @@ export default function HomeScreenV2() {
           />
         }
       >
-        {/* Header */}
+        {/* ================================================================ */}
+        {/* HEADER - "Welcome, {name}" + streak badge (when dismissed) + bell */}
+        {/* ================================================================ */}
         <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <Text style={[styles.greeting, { color: colors.textSecondary }]}>
-              Hello,
-            </Text>
-            <Text style={[styles.displayName, { color: colors.textPrimary }]}>
-              {displayName}! 👋
-            </Text>
-          </View>
-          <TouchableOpacity
-            style={styles.notificationButton}
-            onPress={() => router.push("/notifications")}
-          >
-            <BellIcon size={24} color={colors.textSecondary} />
-            {unreadCount !== undefined && unreadCount > 0 && (
+          <Text style={[styles.welcomeText, { color: colors.textPrimary }]}>
+            Welcome, {displayName}
+          </Text>
+
+          <View style={styles.headerRight}>
+            {/* Streak badge - shown when banner is dismissed */}
+            {streakBannerDismissed && currentStreak > 0 && (
               <View
                 style={[
-                  styles.notificationBadge,
-                  { backgroundColor: colors.error },
+                  styles.streakBadge,
+                  { backgroundColor: "rgba(255, 150, 50, 0.15)" },
                 ]}
               >
-                <Text style={styles.notificationBadgeText}>
-                  {unreadCount > 9 ? "9+" : unreadCount}
-                </Text>
+                <FireIcon size={14} color="#FF9632" />
+                <Text style={styles.streakBadgeText}>{currentStreak}</Text>
               </View>
             )}
-          </TouchableOpacity>
+
+            {/* Notification bell */}
+            <TouchableOpacity
+              style={[
+                styles.notificationButton,
+                {
+                  backgroundColor: colors.surface,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                },
+              ]}
+              onPress={() => router.push("/notifications")}
+            >
+              <BellIcon size={20} color={colors.textSecondary} />
+              {unreadCount !== undefined && unreadCount > 0 && (
+                <View
+                  style={[
+                    styles.notificationBadge,
+                    { backgroundColor: colors.error },
+                  ]}
+                >
+                  <Text style={styles.notificationBadgeText}>
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
 
-        {/* Animated Streak Banner with Swipe-to-Dismiss */}
-        <View style={{ marginTop: spacing.lg }}>
-          <StreakBanner
-            streak={currentStreak}
-            onDismiss={handleStreakDismiss}
-            showUndoToast={handleShowUndoToast}
-          />
-        </View>
+        {/* ================================================================ */}
+        {/* STREAK BANNER - Swipe to dismiss */}
+        {/* ================================================================ */}
+        {!streakBannerDismissed && currentStreak > 0 && (
+          <View style={{ marginTop: spacing.lg }}>
+            <StreakBanner
+              streak={currentStreak}
+              onDismiss={handleStreakDismiss}
+            />
+          </View>
+        )}
 
-        {/* Pending Invites */}
+        {/* ================================================================ */}
+        {/* PENDING INVITES */}
+        {/* ================================================================ */}
         {pendingInvites && pendingInvites.length > 0 && (
           <View style={[styles.section, { marginTop: spacing.xl }]}>
-            <View style={styles.sectionHeader}>
+            <View style={styles.sectionHeaderSimple}>
               <Text
-                style={[styles.sectionTitle, { color: colors.textSecondary }]}
+                style={[
+                  styles.sectionTitleUppercase,
+                  { color: colors.textSecondary },
+                ]}
               >
                 PENDING INVITES
               </Text>
@@ -249,16 +340,14 @@ export default function HomeScreenV2() {
                 </Text>
               </View>
             </View>
+
             <View style={{ gap: spacing.sm }}>
               {pendingInvites.map((invite) => (
                 <InviteCard
                   key={invite.challenge.id}
                   invite={invite}
-                  onAccept={handleAcceptInvite}
-                  onDecline={handleDeclineInvite}
-                  onPress={(challengeId) =>
-                    router.push(`/invite/${challengeId}`)
-                  }
+                  onAccept={() => handleAcceptInvite(invite.challenge.id)}
+                  onDecline={() => handleDeclineInvite(invite.challenge.id)}
                   loading={isRespondingToInvite}
                 />
               ))}
@@ -266,32 +355,21 @@ export default function HomeScreenV2() {
           </View>
         )}
 
-        {/* Active Challenges with Filter */}
+        {/* ================================================================ */}
+        {/* IN PROGRESS - Active challenges with expandable cards */}
+        {/* ================================================================ */}
         <View style={[styles.section, { marginTop: spacing.xl }]}>
-          <View style={styles.sectionHeader}>
-            <View style={styles.sectionHeaderLeft}>
-              <Text
-                style={[styles.sectionTitle, { color: colors.textSecondary }]}
-              >
-                ACTIVE CHALLENGES
-              </Text>
-              <ChallengeFilter
-                activeFilter={activeFilter}
-                onFilterChange={handleFilterChange}
-              />
-            </View>
-            {activeChallenges && activeChallenges.length > 0 && (
-              <TouchableOpacity
-                onPress={() => router.push("/(tabs-v2)/challenges")}
-              >
-                <Text
-                  style={[styles.seeAllText, { color: colors.primary.main }]}
-                >
-                  See All
-                </Text>
-              </TouchableOpacity>
-            )}
-          </View>
+          <SectionHeader
+            title="In Progress"
+            count={activeChallenges?.length || 0}
+            icon={<Text style={{ fontSize: 14 }}>🏃</Text>}
+            variant="primary"
+          >
+            <ChallengeFilter
+              activeFilter={activeFilter}
+              onFilterChange={handleFilterChange}
+            />
+          </SectionHeader>
 
           {/* Active Filter Badge */}
           <ActiveFilterBadge
@@ -334,19 +412,41 @@ export default function HomeScreenV2() {
             <View style={{ gap: spacing.sm }}>
               {(activeFilter !== "all"
                 ? filteredChallenges
-                : filteredChallenges.slice(0, 3)
-              ).map((challenge, index) => (
-                <ChallengeCard
+                : filteredChallenges.slice(0, 5)
+              ).map((challenge) => (
+                <ExpandableChallengeCard
                   key={challenge.id}
                   challenge={challenge}
-                  defaultExpanded={index === 0}
+                  isExpanded={expandedCardId === challenge.id}
+                  onToggleExpand={() => handleToggleCardExpand(challenge.id)}
                 />
               ))}
             </View>
           )}
         </View>
 
-        {/* Recent Activity Section */}
+        {/* ================================================================ */}
+        {/* STARTING SOON - Amber themed cards */}
+        {/* ================================================================ */}
+        {startingSoonChallenges && startingSoonChallenges.length > 0 && (
+          <View style={[styles.section, { marginTop: spacing.xl }]}>
+            <SectionHeader
+              title="Starting Soon"
+              count={startingSoonChallenges.length}
+              icon={<Text style={{ fontSize: 14 }}>🕐</Text>}
+              variant="warning"
+            />
+            <View style={{ gap: spacing.sm }}>
+              {startingSoonChallenges.map((challenge) => (
+                <StartingSoonCard key={challenge.id} challenge={challenge} />
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* ================================================================ */}
+        {/* RECENT ACTIVITY */}
+        {/* ================================================================ */}
         <View style={[styles.section, { marginTop: spacing.xl }]}>
           <RecentActivityHeader onSeeAll={() => router.push("/activity")} />
 
@@ -359,6 +459,8 @@ export default function HomeScreenV2() {
                 {
                   backgroundColor: colors.surface,
                   borderRadius: radius.xl,
+                  borderWidth: 1,
+                  borderColor: colors.border,
                   overflow: "hidden",
                 },
               ]}
@@ -381,71 +483,123 @@ export default function HomeScreenV2() {
           )}
         </View>
 
-        {/* Completed Challenges */}
+        {/* ================================================================ */}
+        {/* COMPLETED - Collapsible card-style section */}
+        {/* ================================================================ */}
         {completedChallenges && completedChallenges.length > 0 && (
           <View style={[styles.section, { marginTop: spacing.xl }]}>
             <TouchableOpacity
-              style={styles.sectionHeader}
+              style={[
+                styles.completedHeader,
+                {
+                  backgroundColor: colors.surface,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  borderRadius: completedExpanded ? radius.lg : radius.lg,
+                  borderBottomLeftRadius: completedExpanded ? 0 : radius.lg,
+                  borderBottomRightRadius: completedExpanded ? 0 : radius.lg,
+                  padding: spacing.md,
+                },
+              ]}
               onPress={toggleCompleted}
               activeOpacity={0.7}
             >
-              <View style={styles.sectionHeaderLeft}>
+              <View style={styles.completedHeaderLeft}>
+                <Text style={{ fontSize: 16 }}>🏆</Text>
                 <Text
-                  style={[styles.sectionTitle, { color: colors.textSecondary }]}
+                  style={[styles.completedTitle, { color: colors.textPrimary }]}
                 >
-                  COMPLETED
+                  Completed
                 </Text>
                 <View
                   style={[
-                    styles.countBadge,
-                    { backgroundColor: colors.achievement.subtle },
+                    styles.completedCountBadge,
+                    { backgroundColor: `${colors.textMuted}15` },
                   ]}
                 >
                   <Text
                     style={[
-                      styles.countText,
-                      { color: colors.achievement.dark },
+                      styles.completedCountText,
+                      { color: colors.textSecondary },
                     ]}
                   >
                     {completedChallenges.length}
                   </Text>
                 </View>
               </View>
-              {completedExpanded ? (
-                <ChevronUpIcon size={20} color={colors.textMuted} />
-              ) : (
-                <ChevronDownIcon size={20} color={colors.textMuted} />
-              )}
+              <Text
+                style={[
+                  styles.chevronText,
+                  {
+                    color: colors.textMuted,
+                    transform: [
+                      { rotate: completedExpanded ? "180deg" : "0deg" },
+                    ],
+                  },
+                ]}
+              >
+                ▼
+              </Text>
             </TouchableOpacity>
 
             {completedExpanded && (
-              <View style={{ gap: spacing.sm }}>
+              <View
+                style={[
+                  styles.completedContent,
+                  {
+                    backgroundColor: colors.surface,
+                    borderWidth: 1,
+                    borderTopWidth: 0,
+                    borderColor: colors.border,
+                    borderBottomLeftRadius: radius.lg,
+                    borderBottomRightRadius: radius.lg,
+                    padding: spacing.sm,
+                  },
+                ]}
+              >
                 {completedChallenges.slice(0, 5).map((challenge) => (
-                  <CompletedChallengeRow
+                  <TouchableOpacity
                     key={challenge.id}
-                    challenge={challenge}
-                  />
+                    style={styles.completedRow}
+                    onPress={() => router.push(`/challenge/${challenge.id}`)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.completedRowLeft}>
+                      <Text style={{ fontSize: 14 }}>
+                        {challenge.my_rank === 1 ? "🏆" : "✓"}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.completedRowTitle,
+                          { color: colors.textSecondary },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {challenge.title}
+                      </Text>
+                    </View>
+                    <Text
+                      style={[
+                        styles.completedRowRank,
+                        { color: colors.textMuted },
+                      ]}
+                    >
+                      #{challenge.my_rank || "-"}
+                    </Text>
+                  </TouchableOpacity>
                 ))}
                 {completedChallenges.length > 5 && (
                   <TouchableOpacity
-                    style={[
-                      styles.viewMoreButton,
-                      {
-                        backgroundColor: colors.surface,
-                        borderRadius: radius.lg,
-                        borderWidth: 1,
-                        borderColor: colors.border,
-                      },
-                    ]}
+                    style={[styles.viewAllCompleted, { marginTop: spacing.sm }]}
                     onPress={() => router.push("/(tabs-v2)/challenges")}
                   >
                     <Text
                       style={[
-                        styles.viewMoreText,
+                        styles.viewAllCompletedText,
                         { color: colors.primary.main },
                       ]}
                     >
-                      View All Completed
+                      View All Completed →
                     </Text>
                   </TouchableOpacity>
                 )}
@@ -488,54 +642,66 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
   },
+  // Header styles
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
-  headerLeft: {},
-  greeting: {
-    fontSize: 14,
-    fontFamily: "PlusJakartaSans_500Medium",
-  },
-  displayName: {
+  welcomeText: {
     fontSize: 24,
     fontFamily: "PlusJakartaSans_700Bold",
-    marginTop: 2,
+  },
+  headerRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  streakBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  streakBadgeText: {
+    color: "#FF9632",
+    fontSize: 13,
+    fontFamily: "PlusJakartaSans_600SemiBold",
   },
   notificationButton: {
-    position: "relative",
-    padding: 8,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
   },
   notificationBadge: {
     position: "absolute",
     top: 4,
     right: 4,
     borderRadius: 10,
-    minWidth: 18,
-    height: 18,
+    minWidth: 16,
+    height: 16,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 4,
   },
   notificationBadgeText: {
     color: "#FFFFFF",
-    fontSize: 10,
+    fontSize: 9,
     fontFamily: "PlusJakartaSans_700Bold",
   },
+  // Section styles
   section: {},
-  sectionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  sectionHeaderLeft: {
+  sectionHeaderSimple: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
+    marginBottom: 12,
   },
-  sectionTitle: {
+  sectionTitleUppercase: {
     fontSize: 12,
     fontFamily: "PlusJakartaSans_600SemiBold",
     letterSpacing: 0.5,
@@ -547,18 +713,6 @@ const styles = StyleSheet.create({
   },
   countText: {
     fontSize: 12,
-    fontFamily: "PlusJakartaSans_600SemiBold",
-  },
-  seeAllText: {
-    fontSize: 14,
-    fontFamily: "PlusJakartaSans_600SemiBold",
-  },
-  viewMoreButton: {
-    paddingVertical: 12,
-    alignItems: "center",
-  },
-  viewMoreText: {
-    fontSize: 14,
     fontFamily: "PlusJakartaSans_600SemiBold",
   },
   noMatchCard: {
@@ -573,4 +727,62 @@ const styles = StyleSheet.create({
     fontFamily: "PlusJakartaSans_600SemiBold",
   },
   activityCard: {},
+  // Completed section styles
+  completedHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  completedHeaderLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  completedTitle: {
+    fontSize: 14,
+    fontFamily: "PlusJakartaSans_600SemiBold",
+  },
+  completedCountBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  completedCountText: {
+    fontSize: 11,
+    fontFamily: "PlusJakartaSans_600SemiBold",
+  },
+  chevronText: {
+    fontSize: 14,
+  },
+  completedContent: {},
+  completedRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+  },
+  completedRowLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flex: 1,
+  },
+  completedRowTitle: {
+    fontSize: 13,
+    fontFamily: "PlusJakartaSans_500Medium",
+    flex: 1,
+  },
+  completedRowRank: {
+    fontSize: 12,
+    fontFamily: "PlusJakartaSans_500Medium",
+  },
+  viewAllCompleted: {
+    alignItems: "center",
+    paddingVertical: 8,
+  },
+  viewAllCompletedText: {
+    fontSize: 13,
+    fontFamily: "PlusJakartaSans_600SemiBold",
+  },
 });

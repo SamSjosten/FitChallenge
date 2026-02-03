@@ -115,6 +115,8 @@ export interface ChallengeWithParticipation extends Challenge {
   my_participation?: MyParticipation;
   participant_count?: number; // Total accepted participants
   my_rank?: number; // User's rank (1-indexed)
+  is_creator?: boolean; // Whether current user created this challenge
+  creator_name?: string; // Creator's display name (for "Invited by X" UI)
 }
 
 export interface LeaderboardEntry {
@@ -294,6 +296,119 @@ export const challengeService = {
       const validated = challengeRpcResponseSchema.parse(data);
 
       return validated.map(mapRpcToChallengeWithParticipation);
+    });
+  },
+
+  /**
+   * @deprecated Use getMyActiveChallenges() and filter client-side by start_date.
+   * The get_my_challenges RPC already returns all challenges where end_date > now(),
+   * which includes both "starting soon" and "in progress" challenges.
+   *
+   * See useHomeScreenData for the correct pattern:
+   *   const { inProgress, startingSoon } = splitChallengesByStartDate(activeChallenges)
+   *
+   * CONTRACT: Status is 'pending' (not yet started)
+   * CONTRACT: start_date > now() (in the future)
+   * CONTRACT: User is an accepted participant (created OR joined)
+   */
+  async getStartingSoonChallenges(): Promise<ChallengeWithParticipation[]> {
+    return withAuth(async (userId) => {
+      // Query challenges where user is an accepted participant
+      // This includes both challenges they created AND challenges they joined
+      const { data, error } = await getSupabaseClient()
+        .from("challenges")
+        .select(
+          `
+          *,
+          challenge_participants!inner (
+            user_id,
+            invite_status,
+            current_progress
+          )
+        `,
+        )
+        .eq("challenge_participants.user_id", userId)
+        .eq("challenge_participants.invite_status", "accepted")
+        .eq("status", "pending")
+        .gt("start_date", new Date().toISOString())
+        .order("start_date", { ascending: true });
+
+      if (error) throw error;
+
+      // Get participant counts for each challenge
+      const challengeIds = (data || []).map((c) => c.id);
+
+      // Guard: skip query if no challenges
+      let participantCounts = new Map<string, number>();
+      if (challengeIds.length > 0) {
+        const { data: counts, error: countsError } = await getSupabaseClient()
+          .from("challenge_participants")
+          .select("challenge_id")
+          .in("challenge_id", challengeIds)
+          .eq("invite_status", "accepted");
+
+        if (!countsError && counts) {
+          // Count participants per challenge
+          for (const row of counts) {
+            const current = participantCounts.get(row.challenge_id) || 0;
+            participantCounts.set(row.challenge_id, current + 1);
+          }
+        }
+      }
+
+      // Fetch creator names for challenges where user is NOT the creator
+      // This is needed for "Invited by {name}" UI
+      const creatorIds = (data || [])
+        .filter((c) => c.creator_id && c.creator_id !== userId)
+        .map((c) => c.creator_id!);
+
+      let creatorNames = new Map<string, string>();
+      if (creatorIds.length > 0) {
+        const { data: creators, error: creatorsError } =
+          await getSupabaseClient()
+            .from("profiles_public")
+            .select("id, username, display_name")
+            .in("id", creatorIds);
+
+        if (!creatorsError && creators) {
+          for (const creator of creators) {
+            creatorNames.set(
+              creator.id,
+              creator.display_name || creator.username || "Someone",
+            );
+          }
+        }
+      }
+
+      return (data || []).map((challenge) => {
+        // Find the current user's participation row
+        const myParticipation = Array.isArray(challenge.challenge_participants)
+          ? challenge.challenge_participants.find(
+              (p: any) => p.user_id === userId,
+            )
+          : challenge.challenge_participants;
+
+        // Determine if user is creator (for UI differentiation if needed)
+        const isCreator = challenge.creator_id === userId;
+
+        return {
+          ...challenge,
+          challenge_participants: undefined, // Remove nested data
+          my_participation: myParticipation
+            ? {
+                invite_status: myParticipation.invite_status,
+                current_progress: myParticipation.current_progress ?? 0,
+              }
+            : undefined,
+          participant_count: participantCounts.get(challenge.id) || 1,
+          my_rank: 1, // Not meaningful for not-started challenges
+          is_creator: isCreator,
+          creator_name:
+            !isCreator && challenge.creator_id
+              ? creatorNames.get(challenge.creator_id)
+              : undefined,
+        };
+      });
     });
   },
 

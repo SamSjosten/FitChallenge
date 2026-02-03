@@ -2,12 +2,17 @@
 // Consolidated data fetching hook for V2 Home Screen
 //
 // Combines:
-// - Active challenges query
+// - Active challenges query (includes both "starting soon" and "in progress")
 // - Pending invites query
 // - Completed challenges query
 // - Recent activities query
 // - Unified refresh logic
 // - View model transformation
+//
+// NOTE: "Starting soon" is derived client-side from activeChallenges using
+// getEffectiveStatus() with server-synchronized time. This avoids a redundant
+// query since get_my_challenges RPC already returns all challenges where
+// end_date > now() (which includes pending/upcoming ones).
 
 import { useState, useCallback, useMemo } from "react";
 import { useFocusEffect } from "expo-router";
@@ -21,10 +26,14 @@ import { useRecentActivities, toDisplayActivity } from "@/hooks/useActivities";
 import { useUnreadNotificationCount } from "@/hooks/useNotifications";
 import { useAuth } from "@/providers/AuthProvider";
 import { pushTokenService } from "@/services/pushTokens";
+import { getServerNow } from "@/lib/serverTime";
+import { getEffectiveStatus } from "@/lib/challengeStatus";
+import type { ChallengeWithParticipation } from "@/services/challenges";
 
 export interface HomeScreenData {
-  // Raw data
-  activeChallenges: ReturnType<typeof useActiveChallenges>["data"];
+  // Derived challenge lists
+  activeChallenges: ChallengeWithParticipation[] | undefined; // In progress (start_date <= now)
+  startingSoonChallenges: ChallengeWithParticipation[] | undefined; // Upcoming (start_date > now)
   pendingInvites: ReturnType<typeof usePendingInvites>["data"];
   completedChallenges: ReturnType<typeof useCompletedChallenges>["data"];
   recentActivities: ReturnType<typeof useRecentActivities>["data"];
@@ -48,16 +57,76 @@ export interface HomeScreenData {
   isRespondingToInvite: boolean;
 }
 
+/**
+ * Splits challenges into "starting soon" (upcoming) and "in progress" (active)
+ *
+ * Uses getEffectiveStatus() with server-synchronized time from getServerNow().
+ * This mirrors the DB function challenge_effective_status() and avoids
+ * client/server clock drift issues.
+ *
+ * @internal Exported for testing only
+ */
+export function splitChallengesByStatus(
+  challenges: ChallengeWithParticipation[] | undefined,
+  userId: string | undefined,
+): {
+  inProgress: ChallengeWithParticipation[] | undefined;
+  startingSoon: ChallengeWithParticipation[] | undefined;
+} {
+  if (!challenges) return { inProgress: undefined, startingSoon: undefined };
+
+  // Use server-synchronized time (not raw client time)
+  const now = getServerNow();
+
+  const inProgress: ChallengeWithParticipation[] = [];
+  const startingSoon: ChallengeWithParticipation[] = [];
+
+  for (const challenge of challenges) {
+    // Add is_creator flag for UI (show/hide invite button)
+    const enrichedChallenge: ChallengeWithParticipation = {
+      ...challenge,
+      is_creator: userId ? challenge.creator_id === userId : false,
+    };
+
+    // Use time-derived status (mirrors DB function challenge_effective_status)
+    const effectiveStatus = getEffectiveStatus(challenge, now);
+
+    if (effectiveStatus === "upcoming") {
+      startingSoon.push(enrichedChallenge);
+    } else if (effectiveStatus === "active") {
+      inProgress.push(enrichedChallenge);
+    }
+    // 'completed' won't be in this list (filtered out by RPC)
+    // 'cancelled'/'archived' also filtered by RPC
+  }
+
+  // Sort starting soon by start_date ascending (soonest first)
+  startingSoon.sort(
+    (a, b) =>
+      new Date(a.start_date).getTime() - new Date(b.start_date).getTime(),
+  );
+
+  return { inProgress, startingSoon };
+}
+
 export function useHomeScreenData(): HomeScreenData {
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
 
-  // Queries
+  // Queries - activeChallenges includes BOTH in-progress AND starting-soon
   const {
-    data: activeChallenges,
+    data: allActiveChallenges,
     isLoading: loadingActive,
     refetch: refetchActive,
   } = useActiveChallenges();
+
+  // Derive startingSoon and inProgress from the single query
+  // Uses server-managed status column (not client time) to avoid drift issues
+  const { inProgress: activeChallenges, startingSoon: startingSoonChallenges } =
+    useMemo(
+      () => splitChallengesByStatus(allActiveChallenges, user?.id),
+      [allActiveChallenges, user?.id],
+    );
 
   const {
     data: pendingInvites,
@@ -143,8 +212,9 @@ export function useHomeScreenData(): HomeScreenData {
   );
 
   return {
-    // Raw data
-    activeChallenges,
+    // Challenge data (derived from single RPC query)
+    activeChallenges, // In progress (start_date <= now)
+    startingSoonChallenges, // Upcoming (start_date > now)
     pendingInvites,
     completedChallenges,
     recentActivities,
@@ -155,8 +225,8 @@ export function useHomeScreenData(): HomeScreenData {
     currentStreak,
     unreadCount,
 
-    // Loading states
-    isLoading: loadingActive && loadingPending,
+    // Loading states - show loading until primary data is ready
+    isLoading: loadingActive || loadingPending,
     isRefreshing: refreshing,
 
     // Actions
