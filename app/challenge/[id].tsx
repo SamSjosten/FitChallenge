@@ -1,6 +1,6 @@
 // app/challenge/[id].tsx
-// Challenge detail screen - Design System v1.0
-// Matches mockup: gradient header, progress card, styled leaderboard
+// Challenge detail screen router
+// Conditionally renders V1 or V2 based on feature flag
 
 import React, { useState, useEffect } from "react";
 import {
@@ -50,7 +50,36 @@ import {
 } from "react-native-heroicons/outline";
 import type { ProfilePublic } from "@/types/database";
 
+// V2 Import
+import { ChallengeDetailScreenV2 } from "@/components/challenge-detail-v2";
+
+// =============================================================================
+// ROUTER COMPONENT
+// =============================================================================
+
 export default function ChallengeDetailScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const { uiVersion, isLoading: flagsLoading } = useFeatureFlags();
+
+  // Show loading while flags are loading
+  if (flagsLoading) {
+    return <LoadingScreen />;
+  }
+
+  // Route to V2 if enabled
+  if (uiVersion === "v2" && id) {
+    return <ChallengeDetailScreenV2 challengeId={id} />;
+  }
+
+  // Otherwise render V1
+  return <ChallengeDetailScreenV1 />;
+}
+
+// =============================================================================
+// V1 IMPLEMENTATION (Original)
+// =============================================================================
+
+function ChallengeDetailScreenV1() {
   const { colors, spacing, radius, typography, shadows } = useAppTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { profile } = useAuth();
@@ -246,27 +275,14 @@ export default function ChallengeDetailScreen() {
     100,
   );
 
-  // Calculate days remaining using server time
-  const endDate = new Date(challenge.end_date);
-  const now = getServerNow();
-  const daysLeft = Math.max(
-    0,
-    Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)),
-  );
-
   return (
     <View
       testID={TestIDs.screens.challengeDetail}
       style={{ flex: 1, backgroundColor: colors.background }}
     >
       <ScrollView
-        contentContainerStyle={{ paddingBottom: 100 }}
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor="#FFFFFF"
-          />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
         {/* Gradient Header */}
@@ -274,142 +290,165 @@ export default function ChallengeDetailScreen() {
           colors={[colors.primary.main, colors.primary.dark]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
-          style={{
-            paddingTop: spacing["2xl"],
-            paddingHorizontal: spacing.lg,
-            paddingBottom: spacing.xl + 40, // Extra padding for overlap
-          }}
+          style={{ paddingTop: 60, paddingBottom: spacing.xl }}
         >
           {/* Back Button */}
           <TouchableOpacity
             testID={TestIDs.nav.backButton}
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              marginBottom: spacing.sm,
-            }}
             onPress={() => {
               if (router.canGoBack()) {
                 router.back();
               } else {
-                // Fallback to home if no back history
                 router.replace(homeFallback);
               }
             }}
+            style={{
+              position: "absolute",
+              top: 48,
+              left: spacing.md,
+              zIndex: 10,
+              padding: spacing.sm,
+            }}
           >
-            <ChevronLeftIcon size={20} color="rgba(255,255,255,0.8)" />
+            <ChevronLeftIcon size={28} color="#FFFFFF" />
           </TouchableOpacity>
 
-          {/* Title */}
-          <Text
-            style={{
-              fontSize: typography.fontSize.lg,
-              fontFamily: "PlusJakartaSans_700Bold",
-              color: "#FFFFFF",
-            }}
-          >
-            {challenge.title}
-          </Text>
+          {/* Header Content */}
+          <View style={{ paddingHorizontal: spacing.lg }}>
+            <Text
+              testID={TestIDs.challengeDetail.challengeTitle}
+              style={{
+                fontSize: typography.fontSize["2xl"],
+                fontFamily: "PlusJakartaSans_700Bold",
+                color: "#FFFFFF",
+                marginTop: spacing.lg,
+                marginBottom: spacing.xs,
+              }}
+            >
+              {challenge.title}
+            </Text>
 
-          {/* Meta Info */}
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              gap: spacing.sm,
-              marginTop: spacing.xs,
-            }}
-          >
+            {/* Status Badge */}
             <View
               style={{
-                backgroundColor: "rgba(255,255,255,0.2)",
-                paddingHorizontal: spacing.sm,
-                paddingVertical: spacing.xs,
-                borderRadius: radius.tag,
+                flexDirection: "row",
+                alignItems: "center",
+                gap: spacing.sm,
               }}
             >
-              <Text
+              <View
+                testID={TestIDs.challengeDetail.challengeStatus}
                 style={{
-                  fontSize: typography.fontSize.xs,
-                  fontFamily: "PlusJakartaSans_500Medium",
-                  color: "#FFFFFF",
+                  backgroundColor: "rgba(255,255,255,0.2)",
+                  paddingHorizontal: spacing.sm,
+                  paddingVertical: spacing.xs,
+                  borderRadius: radius.badge,
                 }}
               >
-                {daysLeft} days left
-              </Text>
+                <Text
+                  style={{
+                    fontSize: typography.fontSize.xs,
+                    fontFamily: "PlusJakartaSans_600SemiBold",
+                    color: "#FFFFFF",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  {getStatusLabel(effectiveStatus)}
+                </Text>
+              </View>
+              {effectiveStatus === "active" && (
+                <Text
+                  testID={TestIDs.challengeDetail.daysRemaining}
+                  style={{
+                    fontSize: typography.fontSize.sm,
+                    fontFamily: "PlusJakartaSans_500Medium",
+                    color: "rgba(255,255,255,0.9)",
+                  }}
+                >
+                  {Math.ceil(
+                    (new Date(challenge.end_date).getTime() - Date.now()) /
+                      (1000 * 60 * 60 * 24),
+                  )}{" "}
+                  days left
+                </Text>
+              )}
             </View>
-            <Text
-              style={{
-                fontSize: typography.fontSize.sm,
-                fontFamily: "PlusJakartaSans_500Medium",
-                color: "rgba(255,255,255,0.8)",
-              }}
-            >
-              • {leaderboard?.length || 0} participants
-            </Text>
           </View>
         </LinearGradient>
 
-        {/* Progress Card (overlapping header) */}
-        <View style={{ paddingHorizontal: spacing.lg, marginTop: -40 }}>
+        {/* Progress Card */}
+        <View
+          testID={TestIDs.challengeDetail.progressCard}
+          style={{
+            marginHorizontal: spacing.lg,
+            marginTop: -spacing.xl,
+            backgroundColor: colors.surface,
+            borderRadius: radius.card,
+            padding: spacing.lg,
+            ...shadows.card,
+          }}
+        >
+          <Text
+            style={{
+              fontSize: typography.fontSize.xs,
+              fontFamily: "PlusJakartaSans_600SemiBold",
+              color: colors.textSecondary,
+              textTransform: "uppercase",
+              letterSpacing: 0.5,
+              marginBottom: spacing.sm,
+            }}
+          >
+            Your Progress
+          </Text>
+
           <View
             style={{
-              backgroundColor: colors.surface,
-              borderRadius: radius.card,
-              padding: spacing.lg,
-              alignItems: "center",
-              ...shadows.elevated,
+              flexDirection: "row",
+              alignItems: "baseline",
+              marginBottom: spacing.xs,
             }}
           >
             <Text
+              testID={TestIDs.challengeDetail.progressText}
               style={{
-                fontSize: typography.fontSize.xs,
-                fontFamily: "PlusJakartaSans_500Medium",
-                color: colors.textSecondary,
-              }}
-            >
-              Your Progress
-            </Text>
-            <Text
-              style={{
-                fontSize: 32,
+                fontSize: typography.fontSize["3xl"],
                 fontFamily: "PlusJakartaSans_700Bold",
                 color: colors.primary.main,
-                marginVertical: spacing.xs,
               }}
             >
               {progress.toLocaleString()}
             </Text>
             <Text
               style={{
-                fontSize: typography.fontSize.sm,
+                fontSize: typography.fontSize.lg,
                 fontFamily: "PlusJakartaSans_500Medium",
                 color: colors.textMuted,
+                marginLeft: spacing.xs,
               }}
             >
-              of {challenge.goal_value.toLocaleString()} {challenge.goal_unit}
+              / {challenge.goal_value.toLocaleString()} {challenge.goal_unit}
             </Text>
+          </View>
 
-            {/* Progress Bar */}
+          {/* Progress Bar */}
+          <View
+            testID={TestIDs.challengeDetail.progressBar}
+            style={{
+              height: 8,
+              backgroundColor: colors.progressBackground,
+              borderRadius: 4,
+              marginTop: spacing.md,
+              overflow: "hidden",
+            }}
+          >
             <View
               style={{
-                width: "100%",
-                height: 8,
-                backgroundColor: colors.primary.subtle,
+                width: `${progressPercent}%`,
+                height: "100%",
+                backgroundColor: colors.primary.main,
                 borderRadius: 4,
-                marginTop: spacing.md,
-                overflow: "hidden",
               }}
-            >
-              <View
-                style={{
-                  width: `${progressPercent}%`,
-                  height: "100%",
-                  backgroundColor: colors.primary.main,
-                  borderRadius: 4,
-                }}
-              />
-            </View>
+            />
           </View>
         </View>
 
@@ -549,17 +588,22 @@ export default function ChallengeDetailScreen() {
             </View>
           ) : (
             <EmptyState
+              icon="📊"
               title="No participants yet"
               message="Invite friends to compete!"
             />
           )}
         </View>
 
-        {/* Log Activity Button */}
-        {challengeAllowsLogging && myInviteStatus === "accepted" && (
-          <View
-            style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.xl }}
-          >
+        {/* Action Buttons */}
+        <View
+          style={{
+            padding: spacing.lg,
+            gap: spacing.md,
+          }}
+        >
+          {/* Log Activity Button - only show if challenge is active and user is accepted */}
+          {myInviteStatus === "accepted" && challengeAllowsLogging && (
             <TouchableOpacity
               testID={TestIDs.challengeDetail.logActivityButton}
               style={{
@@ -568,12 +612,13 @@ export default function ChallengeDetailScreen() {
                 justifyContent: "center",
                 gap: spacing.sm,
                 backgroundColor: colors.primary.main,
-                borderRadius: radius.button,
                 paddingVertical: spacing.md,
+                borderRadius: radius.button,
+                ...shadows.button,
               }}
               onPress={() => setShowLogModal(true)}
             >
-              <PlusIcon size={18} color="#FFFFFF" />
+              <PlusIcon size={20} color="#FFFFFF" />
               <Text
                 style={{
                   fontSize: typography.fontSize.base,
@@ -584,14 +629,10 @@ export default function ChallengeDetailScreen() {
                 Log Activity
               </Text>
             </TouchableOpacity>
-          </View>
-        )}
+          )}
 
-        {/* Creator Actions */}
-        {isCreator && effectiveStatus === "upcoming" && (
-          <View
-            style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md }}
-          >
+          {/* Invite Button - only show if creator */}
+          {isCreator && (
             <TouchableOpacity
               testID={TestIDs.challengeDetail.inviteButton}
               style={{
@@ -600,10 +641,10 @@ export default function ChallengeDetailScreen() {
                 justifyContent: "center",
                 gap: spacing.sm,
                 backgroundColor: "transparent",
+                paddingVertical: spacing.md,
+                borderRadius: radius.button,
                 borderWidth: 1,
                 borderColor: colors.primary.main,
-                borderRadius: radius.button,
-                paddingVertical: spacing.md,
               }}
               onPress={() => setShowInviteModal(true)}
             >
@@ -614,40 +655,52 @@ export default function ChallengeDetailScreen() {
                   color: colors.primary.main,
                 }}
               >
-                + Invite Friends
+                Invite Friends
               </Text>
             </TouchableOpacity>
-          </View>
-        )}
+          )}
 
-        {/* Leave/Cancel - Hidden for completed challenges */}
-        {myInviteStatus === "accepted" && effectiveStatus !== "completed" && (
-          <View
-            style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.xl }}
-          >
+          {/* Leave/Cancel Button */}
+          {isCreator ? (
             <TouchableOpacity
+              testID={TestIDs.challengeDetail.cancelChallengeButton}
               style={{
-                backgroundColor: "transparent",
-                borderWidth: 1,
-                borderColor: colors.error,
-                borderRadius: radius.button,
-                paddingVertical: spacing.md,
+                alignItems: "center",
+                paddingVertical: spacing.sm,
               }}
-              onPress={isCreator ? handleCancelChallenge : handleLeaveChallenge}
+              onPress={handleCancelChallenge}
             >
               <Text
                 style={{
-                  fontSize: typography.fontSize.base,
-                  fontFamily: "PlusJakartaSans_600SemiBold",
+                  fontSize: typography.fontSize.sm,
+                  fontFamily: "PlusJakartaSans_500Medium",
                   color: colors.error,
-                  textAlign: "center",
                 }}
               >
-                {isCreator ? "Cancel Challenge" : "Leave Challenge"}
+                Cancel Challenge
               </Text>
             </TouchableOpacity>
-          </View>
-        )}
+          ) : myInviteStatus === "accepted" ? (
+            <TouchableOpacity
+              testID={TestIDs.challengeDetail.leaveButton}
+              style={{
+                alignItems: "center",
+                paddingVertical: spacing.sm,
+              }}
+              onPress={handleLeaveChallenge}
+            >
+              <Text
+                style={{
+                  fontSize: typography.fontSize.sm,
+                  fontFamily: "PlusJakartaSans_500Medium",
+                  color: colors.error,
+                }}
+              >
+                Leave Challenge
+              </Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
       </ScrollView>
 
       {/* Log Activity Modal */}
@@ -673,27 +726,16 @@ export default function ChallengeDetailScreen() {
               padding: spacing.xl,
             }}
           >
-            <View
+            <Text
               style={{
-                flexDirection: "row",
-                justifyContent: "space-between",
-                alignItems: "center",
+                fontSize: typography.fontSize.xl,
+                fontFamily: "PlusJakartaSans_700Bold",
+                color: colors.textPrimary,
                 marginBottom: spacing.lg,
               }}
             >
-              <Text
-                style={{
-                  fontSize: typography.fontSize.lg,
-                  fontFamily: "PlusJakartaSans_700Bold",
-                  color: colors.textPrimary,
-                }}
-              >
-                Log Activity
-              </Text>
-              <TouchableOpacity onPress={() => setShowLogModal(false)}>
-                <XMarkIcon size={24} color={colors.textSecondary} />
-              </TouchableOpacity>
-            </View>
+              Log Activity
+            </Text>
 
             <Text
               style={{
@@ -703,21 +745,15 @@ export default function ChallengeDetailScreen() {
                 marginBottom: spacing.xs,
               }}
             >
-              {challenge.challenge_type === "custom" &&
-              challenge.custom_activity_name
-                ? challenge.custom_activity_name
-                : challenge.challenge_type.replace("_", " ")}{" "}
-              ({challenge.goal_unit})
+              Enter {challenge.goal_unit}
             </Text>
+
             <TextInput
-              testID={TestIDs.logActivity.valueInput}
+              testID={TestIDs.logActivity.input}
               style={{
                 backgroundColor: colors.background,
                 borderRadius: radius.input,
-                paddingHorizontal: spacing.md,
-                paddingVertical: spacing.md,
-                borderWidth: 1,
-                borderColor: colors.border,
+                padding: spacing.md,
                 fontSize: typography.fontSize.base,
                 fontFamily: "PlusJakartaSans_500Medium",
                 color: colors.textPrimary,
