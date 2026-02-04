@@ -18,6 +18,7 @@ import {
   UsersIcon,
   UserPlusIcon,
 } from "react-native-heroicons/outline";
+import { formatStartsIn } from "@/lib/serverTime";
 import type { ChallengeWithParticipation } from "@/services/challenges";
 
 // ============================================================================
@@ -29,22 +30,6 @@ export interface StartingSoonCardProps {
 }
 
 // ============================================================================
-// HELPERS
-// ============================================================================
-function getDaysUntilStart(startDate: string): number {
-  const start = new Date(startDate);
-  const now = new Date();
-  const diffMs = start.getTime() - now.getTime();
-  return Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
-}
-
-function formatStartsIn(days: number): string {
-  if (days === 0) return "Starts today";
-  if (days === 1) return "Starts tomorrow";
-  return `Starts in ${days} days`;
-}
-
-// ============================================================================
 // COMPONENT
 // ============================================================================
 export function StartingSoonCard({
@@ -53,7 +38,6 @@ export function StartingSoonCard({
 }: StartingSoonCardProps) {
   const { colors, spacing, radius } = useAppTheme();
 
-  const daysUntilStart = getDaysUntilStart(challenge.start_date);
   const participantCount = challenge.participant_count || 1;
 
   // Determine view mode
@@ -115,7 +99,7 @@ export function StartingSoonCard({
               {challenge.title}
             </Text>
             <Text style={[styles.meta, { color: colors.warning }]}>
-              {formatStartsIn(daysUntilStart)}
+              {formatStartsIn(challenge.start_date)}
               {isCreator
                 ? ` • ${participantCount} joined`
                 : inviterName

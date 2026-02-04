@@ -10,6 +10,7 @@
 import { useState, useMemo, useCallback } from "react";
 import { LayoutAnimation, Platform, UIManager } from "react-native";
 import { CHALLENGE_FILTERS, type ChallengeFilterType } from "@/components/v2";
+import { getDaysRemaining } from "@/lib/serverTime";
 
 // Enable LayoutAnimation on Android (idempotent)
 if (
@@ -58,11 +59,7 @@ export function useChallengeFilters<T extends FilterableChallenge>(
         // Sort by days left, filter to those ending within 5 days
         filtered = filtered
           .filter((c) => {
-            const endDate = new Date(c.end_date);
-            const now = new Date();
-            const daysLeft = Math.ceil(
-              (endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
-            );
+            const daysLeft = getDaysRemaining(c.end_date);
             return daysLeft <= 5 && daysLeft >= 0;
           })
           .sort(

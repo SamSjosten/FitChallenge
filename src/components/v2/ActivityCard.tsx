@@ -16,6 +16,7 @@ import {
   HeartIcon,
   MapPinIcon,
 } from "react-native-heroicons/outline";
+import { getDayLabel } from "@/lib/serverTime";
 
 export interface ActivityCardProps {
   id: string;
@@ -53,22 +54,6 @@ export function ActivityCard({
   const { colors, spacing, radius } = useAppTheme();
   const IconComponent = getActivityIcon(type);
   const typeColors = activityColors[type] || activityColors.custom;
-
-  const formatDate = (date: Date) => {
-    const now = new Date();
-    const diffDays = Math.floor(
-      (now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24),
-    );
-
-    if (diffDays === 0) return "Today";
-    if (diffDays === 1) return "Yesterday";
-    if (diffDays < 7)
-      return date.toLocaleDateString(undefined, { weekday: "long" });
-    return date.toLocaleDateString(undefined, {
-      month: "short",
-      day: "numeric",
-    });
-  };
 
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString(undefined, {
@@ -121,7 +106,7 @@ export function ActivityCard({
             {name}
           </Text>
           <Text style={[styles.dateTime, { color: colors.textSecondary }]}>
-            {formatDate(recordedAt)} • {formatTime(recordedAt)}
+            {getDayLabel(recordedAt)} • {formatTime(recordedAt)}
           </Text>
         </View>
 

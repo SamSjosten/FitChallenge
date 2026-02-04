@@ -6,6 +6,8 @@
 //   Active range: start_date <= now < end_date
 //   This matches activity log queries: recorded_at >= start AND recorded_at < end
 
+import { getServerNow } from "./serverTime";
+
 export type EffectiveStatus =
   | "upcoming"
   | "active"
@@ -15,6 +17,7 @@ export type EffectiveStatus =
 
 /**
  * Get effective challenge status from time bounds
+ * Uses server-synced time to prevent client clock manipulation
  */
 export function getEffectiveStatus(
   challenge: {
@@ -22,13 +25,13 @@ export function getEffectiveStatus(
     start_date: string;
     end_date: string;
   },
-  nowOverride?: Date
+  nowOverride?: Date,
 ): EffectiveStatus {
   if (challenge.status === "cancelled" || challenge.status === "archived") {
     return challenge.status as EffectiveStatus;
   }
 
-  const nowMs = (nowOverride ?? new Date()).getTime();
+  const nowMs = (nowOverride ?? getServerNow()).getTime();
   const startMs = new Date(challenge.start_date).getTime();
   const endMs = new Date(challenge.end_date).getTime();
 
@@ -46,7 +49,7 @@ export function canLogActivity(
     start_date: string;
     end_date: string;
   },
-  nowOverride?: Date
+  nowOverride?: Date,
 ): boolean {
   return getEffectiveStatus(challenge, nowOverride) === "active";
 }

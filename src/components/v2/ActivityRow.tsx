@@ -10,6 +10,7 @@ import {
   activityColors,
   type ActivityType,
 } from "@/components/icons/ActivityIcons";
+import { getDayLabel } from "@/lib/serverTime";
 
 export interface ActivityRowProps {
   id: string;
@@ -109,18 +110,6 @@ export function ActivityRowCompact({
     return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
   };
 
-  const formatDate = (date: Date) => {
-    const now = new Date();
-    const diffDays = Math.floor(
-      (now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24),
-    );
-
-    if (diffDays === 0) return "Today";
-    if (diffDays === 1) return "Yesterday";
-    if (diffDays < 7) return date.toLocaleDateString([], { weekday: "long" });
-    return date.toLocaleDateString([], { month: "short", day: "numeric" });
-  };
-
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -154,7 +143,7 @@ export function ActivityRowCompact({
           {name}
         </Text>
         <Text style={[styles.compactMeta, { color: colors.textSecondary }]}>
-          {formatDate(timestamp)} • {formatTime(timestamp)}
+          {getDayLabel(timestamp)} • {formatTime(timestamp)}
         </Text>
       </View>
 

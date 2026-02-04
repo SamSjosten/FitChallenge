@@ -96,7 +96,7 @@ export function ExpandableChallengeCard({
   };
 
   const handleLogActivity = () => {
-    router.push(`/challenge/${challenge.id}/log`);
+    router.push(`/challenge/${challenge.id}?action=log`);
   };
 
   const handleViewAllParticipants = () => {

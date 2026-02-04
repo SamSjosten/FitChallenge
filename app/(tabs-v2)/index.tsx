@@ -276,14 +276,7 @@ export default function HomeScreenV2() {
 
             {/* Notification bell */}
             <TouchableOpacity
-              style={[
-                styles.notificationButton,
-                {
-                  backgroundColor: colors.surface,
-                  borderWidth: 1,
-                  borderColor: colors.border,
-                },
-              ]}
+              style={styles.notificationButton}
               onPress={() => router.push("/notifications")}
             >
               <BellIcon size={20} color={colors.textSecondary} />
@@ -362,7 +355,6 @@ export default function HomeScreenV2() {
           <SectionHeader
             title="In Progress"
             count={activeChallenges?.length || 0}
-            icon={<Text style={{ fontSize: 14 }}>🏃</Text>}
             variant="primary"
           >
             <ChallengeFilter
@@ -433,7 +425,6 @@ export default function HomeScreenV2() {
             <SectionHeader
               title="Starting Soon"
               count={startingSoonChallenges.length}
-              icon={<Text style={{ fontSize: 14 }}>🕐</Text>}
               variant="warning"
             />
             <View style={{ gap: spacing.sm }}>
@@ -484,30 +475,21 @@ export default function HomeScreenV2() {
         </View>
 
         {/* ================================================================ */}
-        {/* COMPLETED - Collapsible card-style section */}
+        {/* COMPLETED - Simple collapsible text header */}
         {/* ================================================================ */}
         {completedChallenges && completedChallenges.length > 0 && (
           <View style={[styles.section, { marginTop: spacing.xl }]}>
             <TouchableOpacity
-              style={[
-                styles.completedHeader,
-                {
-                  backgroundColor: colors.surface,
-                  borderWidth: 1,
-                  borderColor: colors.border,
-                  borderRadius: completedExpanded ? radius.lg : radius.lg,
-                  borderBottomLeftRadius: completedExpanded ? 0 : radius.lg,
-                  borderBottomRightRadius: completedExpanded ? 0 : radius.lg,
-                  padding: spacing.md,
-                },
-              ]}
+              style={[styles.completedHeader, { paddingVertical: spacing.sm }]}
               onPress={toggleCompleted}
               activeOpacity={0.7}
             >
               <View style={styles.completedHeaderLeft}>
-                <Text style={{ fontSize: 16 }}>🏆</Text>
                 <Text
-                  style={[styles.completedTitle, { color: colors.textPrimary }]}
+                  style={[
+                    styles.completedTitle,
+                    { color: colors.textSecondary },
+                  ]}
                 >
                   Completed
                 </Text>
@@ -548,12 +530,9 @@ export default function HomeScreenV2() {
                   styles.completedContent,
                   {
                     backgroundColor: colors.surface,
-                    borderWidth: 1,
-                    borderTopWidth: 0,
-                    borderColor: colors.border,
-                    borderBottomLeftRadius: radius.lg,
-                    borderBottomRightRadius: radius.lg,
+                    borderRadius: radius.lg,
                     padding: spacing.sm,
+                    marginTop: spacing.xs,
                   },
                 ]}
               >
