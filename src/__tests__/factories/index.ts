@@ -76,6 +76,7 @@ export interface MockLeaderboardEntry {
   user_id: string;
   current_progress: number;
   current_streak: number;
+  today_change: number;
   profile: MockProfilePublic; // NOT profiles_public!
 }
 
@@ -186,6 +187,7 @@ export function createMockLeaderboardEntry(
     user_id: "user-1",
     current_progress: 35000,
     current_streak: 5,
+    today_change: 0,
     profile: {
       username: "testuser",
       display_name: "Test User",

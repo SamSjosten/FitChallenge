@@ -6,7 +6,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   challengeService,
-  LeaderboardEntry,
   PendingInvite,
   ChallengeWithParticipation,
 } from "@/services/challenges";
@@ -17,6 +16,7 @@ import {
 } from "@/services/activities";
 import { useAuth } from "@/hooks/useAuth";
 import { notificationsKeys } from "@/hooks/useNotifications";
+import { activityKeys } from "@/hooks/useActivities";
 import type { Challenge, ChallengeType } from "@/types/database";
 
 // =============================================================================
@@ -36,39 +36,6 @@ export const challengeKeys = {
 // =============================================================================
 // OPTIMISTIC UPDATE HELPERS
 // =============================================================================
-
-/**
- * Optimistically update leaderboard with new activity value.
- *
- * GUARDRAIL 3: Returns new array for immutable update
- */
-function optimisticallyUpdateLeaderboard(
-  leaderboard: LeaderboardEntry[] | undefined,
-  userId: string,
-  additionalValue: number,
-): LeaderboardEntry[] {
-  if (!leaderboard) return [];
-
-  return (
-    leaderboard
-      .map((entry) => {
-        if (entry.user_id === userId) {
-          return {
-            ...entry,
-            current_progress: entry.current_progress + additionalValue,
-          };
-        }
-        return entry;
-      })
-      // Re-sort by progress (descending)
-      .sort((a, b) => b.current_progress - a.current_progress)
-      // Re-rank
-      .map((entry, index) => ({
-        ...entry,
-        rank: index + 1,
-      }))
-  );
-}
 
 /**
  * Optimistically update challenge detail with new progress.
@@ -327,34 +294,16 @@ export function useLogActivity() {
 
       // Cancel outgoing refetches to prevent race conditions
       await queryClient.cancelQueries({
-        queryKey: challengeKeys.leaderboard(variables.challenge_id),
-      });
-      await queryClient.cancelQueries({
         queryKey: challengeKeys.detail(variables.challenge_id),
       });
 
-      // Snapshot previous values for rollback
-      const previousLeaderboard = queryClient.getQueryData<LeaderboardEntry[]>(
-        challengeKeys.leaderboard(variables.challenge_id),
-      );
+      // Snapshot previous value for rollback
       const previousDetail =
         queryClient.getQueryData<ChallengeWithParticipation | null>(
           challengeKeys.detail(variables.challenge_id),
         );
 
-      // Optimistically update leaderboard
-      if (previousLeaderboard) {
-        queryClient.setQueryData(
-          challengeKeys.leaderboard(variables.challenge_id),
-          optimisticallyUpdateLeaderboard(
-            previousLeaderboard,
-            userId,
-            variables.value,
-          ),
-        );
-      }
-
-      // Optimistically update challenge detail
+      // Optimistically update challenge detail (progress bar, stats)
       if (previousDetail) {
         queryClient.setQueryData(
           challengeKeys.detail(variables.challenge_id),
@@ -363,19 +312,15 @@ export function useLogActivity() {
       }
 
       // Return context for rollback
-      return { previousLeaderboard, previousDetail };
+      // Leaderboard is NOT optimistically updated — it derives rank, today_change,
+      // and participant count server-side. onSettled invalidation triggers a refetch
+      // within ~200ms, which is imperceptible vs an incomplete client approximation.
+      return { previousDetail };
     },
 
     // GUARDRAIL 3: Rollback on error
     onError: (error, variables, context) => {
       console.warn("[useLogActivity] Rolling back optimistic update:", error);
-
-      if (context?.previousLeaderboard) {
-        queryClient.setQueryData(
-          challengeKeys.leaderboard(variables.challenge_id),
-          context.previousLeaderboard,
-        );
-      }
 
       if (context?.previousDetail) {
         queryClient.setQueryData(
@@ -399,6 +344,10 @@ export function useLogActivity() {
       });
       queryClient.invalidateQueries({
         queryKey: challengeKeys.detail(variables.challenge_id),
+      });
+      // Invalidate activity queries so recent activities section updates
+      queryClient.invalidateQueries({
+        queryKey: activityKeys.all,
       });
     },
   });

@@ -29,6 +29,8 @@ export interface ErrorStateProps {
   message?: string;
   onRetry?: () => void;
   retryLabel?: string;
+  onBack?: () => void;
+  backLabel?: string;
   fullScreen?: boolean;
   style?: ViewStyle;
   testID?: string;
@@ -79,6 +81,8 @@ export function ErrorState({
   message,
   onRetry,
   retryLabel = "Try again",
+  onBack,
+  backLabel = "Go Back",
   fullScreen = true,
   style,
   testID = "error-state",
@@ -136,6 +140,21 @@ export function ErrorState({
           </Text>
         </Pressable>
       )}
+
+      {onBack && (
+        <Pressable
+          style={({ pressed }) => [
+            styles.backButton,
+            { opacity: pressed ? 0.6 : 1 },
+          ]}
+          onPress={onBack}
+          testID={`${testID}-back`}
+        >
+          <Text style={[styles.backText, { color: colors.textSecondary }]}>
+            {backLabel}
+          </Text>
+        </Pressable>
+      )}
     </View>
   );
 
@@ -189,6 +208,15 @@ const styles = StyleSheet.create({
   retryText: {
     fontSize: 15,
     fontFamily: "PlusJakartaSans_600SemiBold",
+  },
+  backButton: {
+    marginTop: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  backText: {
+    fontSize: 14,
+    fontFamily: "PlusJakartaSans_500Medium",
   },
 });
 

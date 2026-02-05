@@ -289,6 +289,7 @@ export interface MockLeaderboardEntry {
   avatar_url: string | null;
   current_progress: number;
   rank: number;
+  today_change: number;
 }
 
 export interface MockProfilePublic {
@@ -378,6 +379,7 @@ export function createMockLeaderboardEntry(
     avatar_url: overrides.avatar_url ?? null,
     current_progress: overrides.current_progress ?? 5000,
     rank: overrides.rank ?? 1,
+    today_change: overrides.today_change ?? 0,
   };
 }
 

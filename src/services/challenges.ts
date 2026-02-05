@@ -85,6 +85,7 @@ const leaderboardRpcRowSchema = z.object({
   current_progress: z.number(),
   current_streak: z.number(),
   rank: z.number(),
+  today_change: z.number().default(0), // Defaults to 0 if migration 033 not yet applied
   // Flattened profile fields
   username: z.string(),
   display_name: z.string().nullable(),
@@ -124,6 +125,7 @@ export interface LeaderboardEntry {
   current_progress: number; // Coalesced to 0
   current_streak: number; // Coalesced to 0
   rank: number;
+  today_change: number; // Sum of today's activity (UTC day boundary)
   profile: ProfilePublic;
 }
 
@@ -505,9 +507,25 @@ export const challengeService = {
 
       // Flatten via destructuring, coalesce numeric nulls
       const { challenge_participants, ...challenge } = data;
+
+      // Resolve creator display name from profiles_public (Rule 4)
+      let creatorName: string | undefined;
+      if (challenge.creator_id) {
+        const { data: creator } = await getSupabaseClient()
+          .from("profiles_public")
+          .select("display_name, username")
+          .eq("id", challenge.creator_id)
+          .single();
+
+        if (creator) {
+          creatorName = creator.display_name || creator.username || undefined;
+        }
+      }
+
       return {
         ...challenge,
         my_participation: mapParticipation(challenge_participants?.[0]),
+        creator_name: creatorName,
       };
     });
   },
@@ -645,6 +663,7 @@ export const challengeService = {
         current_progress: row.current_progress,
         current_streak: row.current_streak,
         rank: row.rank,
+        today_change: row.today_change,
         profile: {
           id: row.user_id,
           username: row.username,

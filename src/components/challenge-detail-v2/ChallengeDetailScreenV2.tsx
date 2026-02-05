@@ -160,29 +160,36 @@ export function ChallengeDetailScreenV2({
     if (!challenge) return null;
 
     const myProgress = challenge.my_participation?.current_progress || 0;
-    const myRank = challenge.my_rank || 0;
     const goalValue = challenge.goal_value;
     const progressPercent = Math.min((myProgress / goalValue) * 100, 100);
     const daysLeft = getDaysRemaining(challenge.end_date);
     const daysElapsed = getDaysElapsed(challenge.start_date);
-    const participantCount = challenge.participant_count || 1;
 
-    // Calculate today's progress (sum of activities from today)
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayProgress =
-      recentActivities
-        ?.filter((a) => new Date(a.recorded_at) >= today)
-        .reduce((sum, a) => sum + a.value, 0) || 0;
+    // Derive rank, today, and participant count from leaderboard (server-authoritative)
+    const myLeaderboardEntry = leaderboard?.find(
+      (e) => e.user_id === profile?.id,
+    );
+    const myRank = myLeaderboardEntry?.rank || 0;
+    const todayProgress = myLeaderboardEntry?.today_change || 0;
+    const participantCount = leaderboard?.length || 1;
 
     // Calculate average per day
     const avgPerDay =
       daysElapsed > 0 ? Math.round(myProgress / daysElapsed) : myProgress;
 
-    // Calculate trend (compare recent avg to overall avg)
-    // Simplified: just show positive trend for now
-    const showTrend = daysElapsed >= TREND_THRESHOLD_DAYS;
-    const trend = showTrend ? Math.round(Math.random() * 20 - 5) : 0; // Placeholder
+    // Calculate trend: how far ahead/behind goal pace
+    // Positive = ahead of pace needed to complete goal
+    // Negative = behind pace
+    const totalDays = daysElapsed + daysLeft;
+    const showTrend = daysElapsed >= TREND_THRESHOLD_DAYS && totalDays > 0;
+    let trend = 0;
+    if (showTrend) {
+      const expectedByNow = (daysElapsed / totalDays) * goalValue;
+      trend =
+        expectedByNow > 0
+          ? Math.round((myProgress / expectedByNow - 1) * 100)
+          : 0;
+    }
 
     return {
       myProgress,
@@ -197,7 +204,7 @@ export function ChallengeDetailScreenV2({
       showTrend,
       trend,
     };
-  }, [challenge, recentActivities]);
+  }, [challenge, leaderboard, profile?.id]);
 
   // Handlers
   const handleLogActivity = async () => {
@@ -989,6 +996,19 @@ function LeaderboardContent({
                   : entry.profile.display_name || entry.profile.username}
               </Text>
 
+              {/* Today's Change */}
+              {entry.today_change > 0 && (
+                <Text
+                  style={{
+                    fontSize: 11,
+                    fontFamily: "PlusJakartaSans_600SemiBold",
+                    color: colors.primary.dark,
+                  }}
+                >
+                  +{formatNumber(entry.today_change)}
+                </Text>
+              )}
+
               {/* Percentage */}
               <Text
                 style={{
@@ -1304,7 +1324,7 @@ function LogActivitySheet({
               {goalUnit.charAt(0).toUpperCase() + goalUnit.slice(1)}
             </Text>
             <TextInput
-              testID={TestIDs.logActivity.input}
+              testID={TestIDs.logActivity.valueInput}
               style={{
                 padding: 14,
                 fontSize: 18,

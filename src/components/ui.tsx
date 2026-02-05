@@ -693,9 +693,10 @@ interface AvatarProps {
   uri?: string | null;
   name?: string;
   size?: "xs" | "sm" | "md" | "lg" | "xl";
+  style?: StyleProp<ViewStyle>;
 }
 
-export function Avatar({ uri, name, size = "md" }: AvatarProps) {
+export function Avatar({ uri, name, size = "md", style }: AvatarProps) {
   const { colors, componentSize } = useTheme();
   const avatarSize = componentSize.avatar[size];
 
@@ -712,13 +713,16 @@ export function Avatar({ uri, name, size = "md" }: AvatarProps) {
   if (uri) {
     return (
       <View
-        style={{
-          width: avatarSize,
-          height: avatarSize,
-          borderRadius: radius.avatar,
-          backgroundColor: colors.surfacePressed,
-          overflow: "hidden",
-        }}
+        style={[
+          {
+            width: avatarSize,
+            height: avatarSize,
+            borderRadius: radius.avatar,
+            backgroundColor: colors.surfacePressed,
+            overflow: "hidden",
+          },
+          style,
+        ]}
       >
         {/* Note: Image component would go here */}
         <View
@@ -746,14 +750,17 @@ export function Avatar({ uri, name, size = "md" }: AvatarProps) {
 
   return (
     <View
-      style={{
-        width: avatarSize,
-        height: avatarSize,
-        borderRadius: radius.avatar,
-        backgroundColor: colors.primary.subtle,
-        justifyContent: "center",
-        alignItems: "center",
-      }}
+      style={[
+        {
+          width: avatarSize,
+          height: avatarSize,
+          borderRadius: radius.avatar,
+          backgroundColor: colors.primary.subtle,
+          justifyContent: "center",
+          alignItems: "center",
+        },
+        style,
+      ]}
     >
       <Text
         style={{

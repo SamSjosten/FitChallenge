@@ -435,7 +435,7 @@ function ChallengeDetailScreenV1() {
             testID={TestIDs.challengeDetail.progressBar}
             style={{
               height: 8,
-              backgroundColor: colors.progressBackground,
+              backgroundColor: colors.primary.subtle,
               borderRadius: 4,
               marginTop: spacing.md,
               overflow: "hidden",
@@ -588,7 +588,6 @@ function ChallengeDetailScreenV1() {
             </View>
           ) : (
             <EmptyState
-              icon="📊"
               title="No participants yet"
               message="Invite friends to compete!"
             />
@@ -749,7 +748,7 @@ function ChallengeDetailScreenV1() {
             </Text>
 
             <TextInput
-              testID={TestIDs.logActivity.input}
+              testID={TestIDs.logActivity.valueInput}
               style={{
                 backgroundColor: colors.background,
                 borderRadius: radius.input,

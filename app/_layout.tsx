@@ -714,7 +714,7 @@ function RootLayoutNav() {
           <Stack.Screen
             name="challenge/[id]"
             options={{
-              title: "Challenge",
+              headerShown: false,
             }}
           />
           <Stack.Screen
