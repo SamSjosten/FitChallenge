@@ -4,6 +4,12 @@
 // Leaderboard with fill bars, Graceful Trend/Avg swap
 
 import React, { useState, useEffect, useMemo } from "react";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  Easing,
+} from "react-native-reanimated";
 import {
   View,
   Text,
@@ -867,6 +873,46 @@ function HeaderCard({
 // LEADERBOARD CONTENT
 // =============================================================================
 
+// =============================================================================
+// ANIMATED BAR (leaderboard fill)
+// =============================================================================
+
+function AnimatedBar({ percent, color }: { percent: number; color: string }) {
+  const width = useSharedValue(0);
+
+  useEffect(() => {
+    width.value = withTiming(Math.min(percent, 100), {
+      duration: 600,
+      easing: Easing.out(Easing.cubic),
+    });
+  }, [percent]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    width: `${width.value}%`,
+  }));
+
+  return (
+    <Animated.View
+      style={[
+        {
+          position: "absolute" as const,
+          left: 0,
+          top: 0,
+          bottom: 0,
+          backgroundColor: `${color}15`,
+          borderRightWidth: 2,
+          borderRightColor: `${color}40`,
+        },
+        animatedStyle,
+      ]}
+    />
+  );
+}
+
+// =============================================================================
+// LEADERBOARD SECTION
+// =============================================================================
+
 interface LeaderboardContentProps {
   leaderboard: LeaderboardEntry[];
   goalValue: number;
@@ -929,19 +975,8 @@ function LeaderboardContent({
               overflow: "hidden",
             }}
           >
-            {/* Background fill bar */}
-            <View
-              style={{
-                position: "absolute",
-                left: 0,
-                top: 0,
-                bottom: 0,
-                width: `${percent}%`,
-                backgroundColor: `${barColor}15`,
-                borderRightWidth: 2,
-                borderRightColor: `${barColor}40`,
-              }}
-            />
+            {/* Background fill bar (animated) */}
+            <AnimatedBar percent={percent} color={barColor} />
 
             {/* Content */}
             <View
