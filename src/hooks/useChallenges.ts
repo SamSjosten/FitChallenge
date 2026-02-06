@@ -13,6 +13,7 @@ import {
   activityService,
   generateClientEventId,
   LogActivityResult,
+  LogWorkoutResult,
 } from "@/services/activities";
 import { useAuth } from "@/hooks/useAuth";
 import { notificationsKeys } from "@/hooks/useNotifications";
@@ -175,6 +176,8 @@ export function useCreateChallenge() {
         | "first_to_goal"
         | "longest_streak"
         | "all_complete";
+      is_solo?: boolean;
+      allowed_workout_types?: string[];
     }) => challengeService.create(input),
     onSuccess: () => {
       // Invalidate and refetch active challenges
@@ -355,6 +358,84 @@ export function useLogActivity() {
 }
 
 /**
+ * Log a workout for a challenge (workout points system)
+ * CONTRACT: Uses atomic log_workout database function
+ * CONTRACT: Server calculates points (duration × multiplier)
+ * CONTRACT: Returns calculated points on success
+ */
+export function useLogWorkout() {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  return useMutation({
+    mutationFn: async (input: {
+      challenge_id: string;
+      workout_type: string;
+      duration_minutes: number;
+      client_event_id: string;
+    }): Promise<LogWorkoutResult> => {
+      return activityService.logWorkout(input);
+    },
+
+    // Optimistic update: increment progress by estimated points
+    onMutate: async (variables) => {
+      const userId = user?.id;
+      if (!userId) return {};
+
+      await queryClient.cancelQueries({
+        queryKey: challengeKeys.detail(variables.challenge_id),
+      });
+
+      const previousDetail =
+        queryClient.getQueryData<ChallengeWithParticipation | null>(
+          challengeKeys.detail(variables.challenge_id),
+        );
+
+      // Optimistic: use duration as rough estimate (actual points calculated server-side)
+      if (previousDetail) {
+        queryClient.setQueryData(
+          challengeKeys.detail(variables.challenge_id),
+          optimisticallyUpdateChallengeDetail(
+            previousDetail,
+            variables.duration_minutes,
+          ),
+        );
+      }
+
+      return { previousDetail };
+    },
+
+    onError: (error, variables, context) => {
+      console.warn("[useLogWorkout] Rolling back optimistic update:", error);
+
+      if (context?.previousDetail) {
+        queryClient.setQueryData(
+          challengeKeys.detail(variables.challenge_id),
+          context.previousDetail,
+        );
+      }
+    },
+
+    onSettled: (data, error, variables) => {
+      if (data?.queued) {
+        console.log("[useLogWorkout] Workout queued for offline sync");
+        return;
+      }
+
+      queryClient.invalidateQueries({
+        queryKey: challengeKeys.leaderboard(variables.challenge_id),
+      });
+      queryClient.invalidateQueries({
+        queryKey: challengeKeys.detail(variables.challenge_id),
+      });
+      queryClient.invalidateQueries({
+        queryKey: activityKeys.all,
+      });
+    },
+  });
+}
+
+/**
  * Leave a challenge (for non-creator participants)
  */
 export function useLeaveChallenge() {
@@ -384,6 +465,27 @@ export function useCancelChallenge() {
       queryClient.invalidateQueries({ queryKey: challengeKeys.active() });
       // Trigger refetch notifications since the DB trigger marked challenge notifications as read
       queryClient.invalidateQueries({ queryKey: notificationsKeys.all });
+    },
+  });
+}
+
+export function useRematchChallenge() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      original,
+      previousParticipantIds,
+    }: {
+      original: ChallengeWithParticipation;
+      previousParticipantIds: string[];
+    }) => challengeService.rematchChallenge(original, previousParticipantIds),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: challengeKeys.active() });
+      queryClient.invalidateQueries({ queryKey: challengeKeys.pending() });
+      queryClient.invalidateQueries({
+        queryKey: challengeKeys.startingSoon(),
+      });
     },
   });
 }

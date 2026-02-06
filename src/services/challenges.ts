@@ -15,6 +15,7 @@ import type {
   ChallengeParticipant,
   ProfilePublic,
 } from "@/types/database-helpers";
+import { getServerNow } from "@/lib/serverTime";
 
 // =============================================================================
 // RPC RESPONSE VALIDATION
@@ -62,6 +63,8 @@ const challengeRpcRowSchema = z.object({
   max_participants: z.number().nullable(),
   is_public: z.boolean().nullable(),
   custom_activity_name: z.string().nullable(),
+  allowed_workout_types: z.array(z.string()).nullable().optional(),
+  is_solo: z.boolean(),
   created_at: z.string(),
   updated_at: z.string(),
   // Participation fields (from RPC)
@@ -118,6 +121,8 @@ export interface ChallengeWithParticipation extends Challenge {
   my_rank?: number; // User's rank (1-indexed)
   is_creator?: boolean; // Whether current user created this challenge
   creator_name?: string; // Creator's display name (for "Invited by X" UI)
+  allowed_workout_types?: string[] | null; // Workout type filter (null = all)
+  is_solo?: boolean; // Solo challenge flag (default false)
 }
 
 export interface LeaderboardEntry {
@@ -226,6 +231,14 @@ export const challengeService = {
             : undefined,
         p_win_condition: validated.win_condition,
         p_daily_target: validated.daily_target,
+        // Workout points + retention (migration 034/035)
+        p_is_solo: validated.is_solo,
+        p_allowed_workout_types:
+          validated.challenge_type === "workouts" &&
+          validated.allowed_workout_types &&
+          validated.allowed_workout_types.length > 0
+            ? validated.allowed_workout_types
+            : undefined,
       },
     );
 
@@ -689,6 +702,83 @@ export const challengeService = {
         .single();
 
       return data?.invite_status === "accepted";
+    });
+  },
+
+  /**
+   * Create a rematch challenge from an existing completed challenge.
+   * CONTRACT: Duplicates parameters with fresh dates, invites all previous participants.
+   * CONTRACT: Uses existing create() + inviteUser() — no new schema required.
+   * CONTRACT: Uses server-authoritative time for date computation.
+   *
+   * @returns New challenge ID
+   */
+  async rematchChallenge(
+    original: ChallengeWithParticipation,
+    previousParticipantIds: string[],
+  ): Promise<string> {
+    return withAuth(async (userId) => {
+      // Compute same duration with new dates (starting tomorrow UTC midnight)
+      const originalStart = new Date(original.start_date);
+      const originalEnd = new Date(original.end_date);
+      const durationMs = originalEnd.getTime() - originalStart.getTime();
+
+      // Use server-authoritative time, not device clock
+      const now = getServerNow();
+      const tomorrowUTC = new Date(
+        Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1),
+      );
+
+      const newEnd = new Date(tomorrowUTC.getTime() + durationMs);
+
+      // Filter to participants other than creator (for invite loop)
+      const othersToInvite = previousParticipantIds.filter(
+        (id) => id !== userId,
+      );
+
+      // Create the new challenge via existing create flow
+      const newChallenge = await challengeService.create({
+        title: original.title,
+        description: original.description ?? undefined,
+        challenge_type: original.challenge_type,
+        goal_value: original.goal_value,
+        goal_unit: original.goal_unit,
+        win_condition: original.win_condition,
+        daily_target: original.daily_target ?? undefined,
+        start_date: tomorrowUTC.toISOString(),
+        end_date: newEnd.toISOString(),
+        is_solo: original.is_solo ?? false, // Preserve original — DB fact, not inference
+        // Carry over custom activity name (required for custom type validation)
+        custom_activity_name:
+          original.challenge_type === "custom"
+            ? (original.custom_activity_name ?? undefined)
+            : undefined,
+        allowed_workout_types:
+          original.challenge_type === "workouts"
+            ? (original.allowed_workout_types ?? undefined)
+            : undefined,
+      });
+
+      // Fire invites in parallel — failures are non-blocking
+      const inviteResults = await Promise.allSettled(
+        othersToInvite.map((participantId) =>
+          challengeService.inviteUser({
+            challenge_id: newChallenge.id,
+            user_id: participantId,
+          }),
+        ),
+      );
+
+      const failedInvites = inviteResults.filter(
+        (r) => r.status === "rejected",
+      );
+      if (failedInvites.length > 0) {
+        console.warn(
+          `Rematch: ${failedInvites.length}/${othersToInvite.length} invites failed`,
+        );
+      }
+
+      return newChallenge.id;
     });
   },
 };

@@ -4,6 +4,7 @@ import React from "react";
 import { View, Text } from "react-native";
 import { useAppTheme } from "@/providers/ThemeProvider";
 import { formatWinCondition } from "./helpers";
+import { WORKOUT_TYPE_CATALOG } from "@/components/v2/create/types";
 import type { ChallengeInfoSectionProps } from "./types";
 
 export function ChallengeInfoSection({
@@ -22,7 +23,24 @@ export function ChallengeInfoSection({
     return `${start.toLocaleDateString("en-US", options)} – ${end.toLocaleDateString("en-US", options)}`;
   };
 
-  const infoItems = [
+  // Build workout types summary for workout challenges
+  const getWorkoutTypeSummary = (): string | null => {
+    if (challenge.challenge_type !== "workouts") return null;
+    const allowed = challenge.allowed_workout_types;
+    // DB convention: null/empty = all types allowed
+    if (!allowed || allowed.length === 0) {
+      return "All types";
+    }
+    // Show names of selected types (max 3, then "+N more")
+    const names = allowed
+      .map((id: string) => WORKOUT_TYPE_CATALOG.find((w) => w.id === id)?.name)
+      .filter(Boolean) as string[];
+    if (names.length === 0) return "All types"; // All IDs unrecognized — safe fallback
+    if (names.length <= 3) return names.join(", ");
+    return `${names.slice(0, 3).join(", ")} +${names.length - 3} more`;
+  };
+
+  const infoItems: Array<{ label: string; value: string }> = [
     {
       label: "Goal",
       value: `${challenge.goal_value.toLocaleString()} ${challenge.goal_unit}`,
@@ -34,6 +52,15 @@ export function ChallengeInfoSection({
     },
     { label: "Created by", value: challenge.creator_name || "Unknown" },
   ];
+
+  // Insert workout types row after Goal for workout challenges
+  const workoutSummary = getWorkoutTypeSummary();
+  if (workoutSummary) {
+    infoItems.splice(1, 0, {
+      label: "Workout Types",
+      value: workoutSummary,
+    });
+  }
 
   return (
     <View>
@@ -62,7 +89,11 @@ export function ChallengeInfoSection({
               fontSize: typography.fontSize.xs,
               fontFamily: "PlusJakartaSans_600SemiBold",
               color: colors.textPrimary,
+              flexShrink: 1,
+              textAlign: "right",
+              maxWidth: "60%",
             }}
+            numberOfLines={2}
           >
             {item.value}
           </Text>

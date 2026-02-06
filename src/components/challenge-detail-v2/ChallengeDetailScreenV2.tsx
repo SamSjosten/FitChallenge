@@ -37,10 +37,12 @@ import {
   useChallenge,
   useLeaderboard,
   useLogActivity,
+  useLogWorkout,
   useInviteUser,
   useLeaveChallenge,
   useCancelChallenge,
   useRespondToInvite,
+  useRematchChallenge,
 } from "@/hooks/useChallenges";
 import { useChallengeActivities } from "@/hooks/useActivities";
 import { generateClientEventId } from "@/services/activities";
@@ -62,6 +64,7 @@ import {
 // Sub-components
 import { HeaderCard } from "./HeaderCard";
 import { PendingInviteBanner } from "./PendingInviteBanner";
+import { CompletedBanner } from "./CompletedBanner";
 import { LeaderboardSection } from "./LeaderboardSection";
 import { ChallengeInfoSection } from "./ChallengeInfoSection";
 import { YourActivitySection } from "./YourActivitySection";
@@ -112,10 +115,12 @@ export function ChallengeDetailScreenV2({
 
   // Mutations
   const logActivity = useLogActivity();
+  const logWorkout = useLogWorkout();
   const inviteUser = useInviteUser();
   const leaveChallenge = useLeaveChallenge();
   const cancelChallenge = useCancelChallenge();
   const respondToInvite = useRespondToInvite();
+  const rematchChallenge = useRematchChallenge();
 
   // UI State — only what the orchestrator needs
   const [refreshing, setRefreshing] = useState(false);
@@ -238,6 +243,31 @@ export function ChallengeDetailScreenV2({
     }
   };
 
+  const handleLogWorkout = async (
+    workoutType: string,
+    durationMinutes: number,
+  ) => {
+    if (!challenge) return;
+    const client_event_id = generateClientEventId();
+    try {
+      const result = await logWorkout.mutateAsync({
+        challenge_id: challenge.id,
+        workout_type: workoutType,
+        duration_minutes: durationMinutes,
+        client_event_id,
+      });
+      setShowLogSheet(false);
+      if (result.points && result.points > 0) {
+        Alert.alert(
+          "Workout Logged!",
+          `You earned ${result.points} point${result.points !== 1 ? "s" : ""}!`,
+        );
+      }
+    } catch (err: any) {
+      Alert.alert("Error", err.message || "Failed to log workout");
+    }
+  };
+
   const handleInviteUser = async (userId: string) => {
     if (!challenge) return;
     await inviteUser.mutateAsync({
@@ -323,6 +353,41 @@ export function ChallengeDetailScreenV2({
       ],
     );
   };
+
+  const handleRematch = () => {
+    if (!challenge || !leaderboard) return;
+    const participantCount = leaderboard.length;
+    const othersCount = participantCount - 1;
+    const message =
+      othersCount > 0
+        ? `This will create a new challenge with the same settings and invite ${othersCount} participant${othersCount === 1 ? "" : "s"}.`
+        : "This will create a new solo challenge with the same settings.";
+
+    Alert.alert("Start Rematch?", message, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Rematch",
+        onPress: async () => {
+          try {
+            const participantIds = leaderboard.map((e) => e.user_id);
+            const newChallengeId = await rematchChallenge.mutateAsync({
+              original: challenge,
+              previousParticipantIds: participantIds,
+            });
+            router.push(`/challenge/${newChallengeId}`);
+          } catch (err: any) {
+            Alert.alert("Error", err.message || "Failed to create rematch");
+          }
+        },
+      },
+    ]);
+  };
+
+  // Derive winner(s) from leaderboard — handle ties
+  const topEntries = leaderboard?.filter((e) => e.rank === 1) ?? [];
+  const winner = topEntries[0] ?? null;
+  const isTied = topEntries.length > 1;
+  const isCurrentUserWinner = topEntries.some((e) => e.user_id === profile?.id);
 
   // =========================================================================
   // LOADING / ERROR STATES
@@ -425,6 +490,19 @@ export function ChallengeDetailScreenV2({
         />
       )}
 
+      {/* Completed Banner — winner display + rematch CTA */}
+      {effectiveStatus === "completed" && viewerRole !== "pending" && (
+        <CompletedBanner
+          winner={winner}
+          isCurrentUserWinner={isCurrentUserWinner}
+          isTied={isTied}
+          isCreator={viewerRole === "creator"}
+          participantCount={computedValues.participantCount}
+          onRematch={handleRematch}
+          isRematchPending={rematchChallenge.isPending}
+        />
+      )}
+
       {/* Content */}
       <ScrollView
         refreshControl={
@@ -497,9 +575,11 @@ export function ChallengeDetailScreenV2({
         visible={showLogSheet}
         onClose={() => setShowLogSheet(false)}
         onSubmit={handleLogActivity}
-        isLoading={logActivity.isPending}
+        onSubmitWorkout={handleLogWorkout}
+        isLoading={logActivity.isPending || logWorkout.isPending}
         goalUnit={challenge.goal_unit}
         challengeType={challenge.challenge_type}
+        allowedWorkoutTypes={challenge.allowed_workout_types}
       />
 
       <MoreMenu

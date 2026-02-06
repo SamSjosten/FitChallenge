@@ -143,9 +143,12 @@ export interface LogActivitySheetProps {
   visible: boolean;
   onClose: () => void;
   onSubmit: (value: number) => void;
+  onSubmitWorkout?: (workoutType: string, durationMinutes: number) => void;
   isLoading: boolean;
   goalUnit: string;
   challengeType: string;
+  /** If set, restricts which workout types can be logged. null = all types. */
+  allowedWorkoutTypes?: string[] | null;
 }
 
 // =============================================================================
