@@ -482,6 +482,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const signInWithApple = useCallback(async () => {
     console.log(`[AuthProvider] 🍎 signInWithApple() called`);
     setState((prev) => ({ ...prev, loading: true, error: null }));
+
+    // Set flag BEFORE the service call so the listener skips the SIGNED_IN
+    // event that fires during signInWithIdToken(). Without this, the listener
+    // processes SIGNED_IN before ensureNewUserOnboarding sets metadata,
+    // causing new social users to skip onboarding.
+    console.log(
+      `[AuthProvider] 🏷️ Setting authActionHandledRef = true (pre-call)`,
+    );
+    authActionHandledRef.current = true;
+
     try {
       await authService.signInWithApple();
 
@@ -503,14 +513,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
       // Ensure new social users get routed through onboarding
       session = await ensureNewUserOnboarding(session);
 
-      // Mark as handled so listener doesn't duplicate work
-      console.log(`[AuthProvider] 🏷️ Setting authActionHandledRef = true`);
-      authActionHandledRef.current = true;
-
       // Load profile and set state
       await loadProfileAndSetState(session);
       console.log(`[AuthProvider] ✅ signInWithApple() complete`);
     } catch (err: any) {
+      // Reset flag on any error so it doesn't stay stuck
+      // (e.g. cancellation before signInWithIdToken fires SIGNED_IN)
+      authActionHandledRef.current = false;
+
       // Apple Sign-In cancellation (user tapped Cancel) - not an error
       if (
         err?.code === "ERR_REQUEST_CANCELED" ||
@@ -532,6 +542,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const signInWithGoogle = useCallback(async () => {
     console.log(`[AuthProvider] 🔵 signInWithGoogle() called`);
     setState((prev) => ({ ...prev, loading: true, error: null }));
+
+    // Set flag BEFORE the service call — same reasoning as signInWithApple.
+    console.log(
+      `[AuthProvider] 🏷️ Setting authActionHandledRef = true (pre-call)`,
+    );
+    authActionHandledRef.current = true;
+
     try {
       await authService.signInWithGoogle();
 
@@ -553,14 +570,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
       // Ensure new social users get routed through onboarding
       session = await ensureNewUserOnboarding(session);
 
-      // Mark as handled so listener doesn't duplicate work
-      console.log(`[AuthProvider] 🏷️ Setting authActionHandledRef = true`);
-      authActionHandledRef.current = true;
-
       // Load profile and set state
       await loadProfileAndSetState(session);
       console.log(`[AuthProvider] ✅ signInWithGoogle() complete`);
     } catch (err: any) {
+      // Reset flag on any error
+      authActionHandledRef.current = false;
+
       // Google Sign-In cancellation - not an error
       const isCancelled =
         err?.code === "SIGN_IN_CANCELLED" ||
