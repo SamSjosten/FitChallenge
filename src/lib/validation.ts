@@ -91,6 +91,10 @@ export const createChallengeSchema = z
     daily_target: z.number().int().positive().optional(),
     start_date: z.string().datetime({ message: "Invalid start date" }),
     end_date: z.string().datetime({ message: "Invalid end date" }),
+    // Workout points (migration 034)
+    allowed_workout_types: z.array(z.string()).optional(),
+    // Solo challenge flag (migration 035)
+    is_solo: z.boolean().default(false),
   })
   .refine(
     (d) =>

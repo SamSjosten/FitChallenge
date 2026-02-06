@@ -27,6 +27,12 @@ export interface LogActivityResult {
   queued: boolean;
 }
 
+/** Result of logWorkout — includes calculated points from server */
+export interface LogWorkoutResult {
+  queued: boolean;
+  points?: number;
+}
+
 // Re-export generateClientEventId for backward compatibility
 // (callers can import from '@/services/activities' or '@/lib/uuid')
 export { generateClientEventId } from "@/lib/uuid";
@@ -138,6 +144,83 @@ export const activityService = {
               activity_type: validated.activity_type,
               value: validated.value,
               client_event_id: validated.client_event_id,
+            },
+          });
+
+          return { queued: true };
+        }
+
+        throw error;
+      }
+    });
+  },
+
+  /**
+   * Log a workout for a challenge (workout points system)
+   * CONTRACT: Uses atomic log_workout database function
+   * CONTRACT: Server calculates points (duration × multiplier)
+   * CONTRACT: Returns calculated points on success
+   */
+  async logWorkout(input: {
+    challenge_id: string;
+    workout_type: string;
+    duration_minutes: number;
+    client_event_id: string;
+  }): Promise<LogWorkoutResult> {
+    // Check network before attempting
+    const isOnline = await checkNetworkStatus();
+
+    if (!isOnline) {
+      // Queue for later — store as LOG_ACTIVITY with workout-derived values
+      useOfflineStore.getState().addToQueue({
+        type: "LOG_ACTIVITY",
+        payload: {
+          challenge_id: input.challenge_id,
+          activity_type: "workouts",
+          value: input.duration_minutes, // Rough estimate; server recalculates
+          client_event_id: input.client_event_id,
+        },
+      });
+
+      return { queued: true };
+    }
+
+    // Online: call atomic RPC
+    return withAuth(async () => {
+      try {
+        const { data, error } = await (getSupabaseClient().rpc as Function)(
+          "log_workout",
+          {
+            p_challenge_id: input.challenge_id,
+            p_workout_type: input.workout_type,
+            p_duration_minutes: input.duration_minutes,
+            p_recorded_at: new Date().toISOString(),
+            p_source: "manual",
+            p_client_event_id: input.client_event_id,
+          },
+        );
+
+        if (error) {
+          // Idempotency: duplicate key errors are safe to ignore
+          if (error.message?.includes("duplicate") || error.code === "23505") {
+            console.log("Workout already logged (idempotent)");
+            return { queued: false, points: 0 };
+          }
+          throw error;
+        }
+
+        // log_workout returns integer (calculated points)
+        return { queued: false, points: typeof data === "number" ? data : 0 };
+      } catch (error) {
+        // Network error during request - queue it
+        if (isNetworkError(error)) {
+          useOfflineStore.getState().addToQueue({
+            type: "LOG_ACTIVITY",
+            payload: {
+              challenge_id: input.challenge_id,
+              activity_type: "workouts",
+              value: input.duration_minutes,
+              client_event_id: input.client_event_id,
             },
           });
 
