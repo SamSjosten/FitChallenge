@@ -2,6 +2,7 @@
 export { CreateChallengeOrchestrator } from "./CreateChallengeOrchestrator";
 export { StepMode } from "./StepMode";
 export { StepType } from "./StepType";
+export { StepWorkoutPicker } from "./StepWorkoutPicker";
 export { StepDetails } from "./StepDetails";
 export { StepInvite } from "./StepInvite";
 export { StepReview } from "./StepReview";
@@ -13,6 +14,7 @@ export type {
   CreateFormData,
   StepModeProps,
   StepTypeProps,
+  StepWorkoutPickerProps,
   StepDetailsProps,
   StepInviteProps,
   StepReviewProps,

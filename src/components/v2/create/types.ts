@@ -33,6 +33,7 @@ export interface CreateFormData {
   goal: string;
   customActivityName: string;
   customUnit: string;
+  selectedWorkoutTypes: string[];
   durationPreset: DurationPresetId;
   customDurationDays: string;
   winCondition: WinConditionId;
@@ -47,6 +48,7 @@ export const INITIAL_FORM_DATA: CreateFormData = {
   goal: "",
   customActivityName: "",
   customUnit: "",
+  selectedWorkoutTypes: [],
   durationPreset: "1week",
   customDurationDays: "7",
   winCondition: "highest_total",
@@ -182,6 +184,13 @@ export interface StepDetailsProps {
   challengeType: ChallengeType;
   formData: CreateFormData;
   setFormData: (data: CreateFormData) => void;
+  onNext: () => void;
+  onBack: () => void;
+}
+
+export interface StepWorkoutPickerProps {
+  selectedWorkoutTypes: string[];
+  setSelectedWorkoutTypes: (types: string[]) => void;
   onNext: () => void;
   onBack: () => void;
 }

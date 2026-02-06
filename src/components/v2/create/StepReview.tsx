@@ -20,6 +20,7 @@ import {
   CHALLENGE_TYPES,
   DURATION_PRESETS,
   WIN_CONDITIONS,
+  WORKOUT_TYPE_CATALOG,
   type StepReviewProps,
 } from "./types";
 
@@ -109,6 +110,24 @@ export function StepReview({
     });
   }
 
+  // Resolve workout type names for display
+  const selectedWorkoutNames =
+    challengeType === "workouts" && formData.selectedWorkoutTypes.length > 0
+      ? (formData.selectedWorkoutTypes
+          .map((id) => WORKOUT_TYPE_CATALOG.find((w) => w.id === id)?.name)
+          .filter(Boolean) as string[])
+      : [];
+
+  if (challengeType === "workouts") {
+    summaryRows.push({
+      label: "Workout Types",
+      value:
+        formData.selectedWorkoutTypes.length === 0
+          ? "All types"
+          : `${selectedWorkoutNames.length} selected`,
+    });
+  }
+
   return (
     <View style={styles.container}>
       {/* Challenge Summary Card */}
@@ -165,6 +184,46 @@ export function StepReview({
           </View>
         ))}
       </View>
+
+      {/* Selected Workout Types (workouts challenges only) */}
+      {challengeType === "workouts" && selectedWorkoutNames.length > 0 && (
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor: colors.surface,
+              borderRadius: radius["2xl"],
+            },
+          ]}
+        >
+          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
+            Included Exercises
+          </Text>
+          <View style={styles.workoutChips}>
+            {selectedWorkoutNames.map((name) => (
+              <View
+                key={name}
+                style={[
+                  styles.workoutChip,
+                  {
+                    backgroundColor: colors.background,
+                    borderRadius: radius.lg,
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.workoutChipText,
+                    { color: colors.textPrimary },
+                  ]}
+                >
+                  {name}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      )}
 
       {/* Invited Friends (social only) */}
       {mode === "social" && invitedFriends.length > 0 && (
@@ -349,6 +408,19 @@ const styles = StyleSheet.create({
   friendUsername: {
     fontSize: 12,
     marginTop: 1,
+  },
+  workoutChips: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  workoutChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  workoutChipText: {
+    fontSize: 13,
+    fontWeight: "500",
   },
   milestonesRow: {
     flexDirection: "row",

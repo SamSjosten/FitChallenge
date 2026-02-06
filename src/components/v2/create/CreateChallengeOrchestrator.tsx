@@ -2,7 +2,7 @@
 // Orchestrates the multi-step challenge creation flow.
 //
 // Navigation:  mode → type → [workoutPicker] → details → [invite] → review → success
-// Conditional: workoutPicker only for 'workouts' type (gated, schema not ready yet)
+// Conditional: workoutPicker only for 'workouts' type (uses migration 034 workout_type_catalog)
 //              invite only for 'social' mode
 
 import React, { useState, useCallback } from "react";
@@ -29,6 +29,7 @@ import type { ChallengeType } from "@/types/database";
 import { StepProgress } from "./StepProgress";
 import { StepMode } from "./StepMode";
 import { StepType } from "./StepType";
+import { StepWorkoutPicker } from "./StepWorkoutPicker";
 import { StepDetails } from "./StepDetails";
 import { StepInvite } from "./StepInvite";
 import { StepReview } from "./StepReview";
@@ -42,11 +43,20 @@ import {
   CHALLENGE_TYPES,
 } from "./types";
 
-function getVisibleSteps(mode: ChallengeMode | null): CreateStep[] {
-  if (mode === "solo") {
-    return ["mode", "type", "details", "review"];
+function getVisibleSteps(
+  mode: ChallengeMode | null,
+  challengeType: ChallengeType | null,
+): CreateStep[] {
+  const steps: CreateStep[] = ["mode", "type"];
+  if (challengeType === "workouts") {
+    steps.push("workoutPicker");
   }
-  return ["mode", "type", "details", "invite", "review"];
+  steps.push("details");
+  if (mode === "social") {
+    steps.push("invite");
+  }
+  steps.push("review");
+  return steps;
 }
 
 // Header titles per step
@@ -56,6 +66,8 @@ function getStepTitle(step: CreateStep, mode: ChallengeMode | null): string {
       return "New Challenge";
     case "type":
       return "Activity Type";
+    case "workoutPicker":
+      return "Workout Types";
     case "details":
       return mode === "solo" ? "Goal Details" : "Challenge Details";
     case "invite":
@@ -76,6 +88,8 @@ function getCtaLabel(
   selectedCount: number,
 ): string | null {
   switch (step) {
+    case "workoutPicker":
+      return "Continue";
     case "details":
       return "Continue";
     case "invite":
@@ -130,8 +144,11 @@ export function CreateChallengeOrchestrator() {
       case "type":
         setCurrentStep("mode");
         break;
-      case "details":
+      case "workoutPicker":
         setCurrentStep("type");
+        break;
+      case "details":
+        setCurrentStep(challengeType === "workouts" ? "workoutPicker" : "type");
         break;
       case "invite":
         setCurrentStep("details");
@@ -142,7 +159,7 @@ export function CreateChallengeOrchestrator() {
       default:
         setCurrentStep("mode");
     }
-  }, [currentStep, mode]);
+  }, [currentStep, mode, challengeType]);
 
   const handleModeSelect = useCallback((m: ChallengeMode) => {
     setMode(m);
@@ -151,8 +168,14 @@ export function CreateChallengeOrchestrator() {
 
   const handleTypeSelect = useCallback((t: ChallengeType) => {
     setChallengeType(t);
-    // NOTE: workoutPicker step is gated until migration 034 lands.
-    // When ready, add:  if (t === 'workouts') setCurrentStep('workoutPicker');
+    if (t === "workouts") {
+      setCurrentStep("workoutPicker");
+    } else {
+      setCurrentStep("details");
+    }
+  }, []);
+
+  const handleWorkoutPickerNext = useCallback(() => {
     setCurrentStep("details");
   }, []);
 
@@ -228,6 +251,11 @@ export function CreateChallengeOrchestrator() {
         end_date: endDate.toISOString(),
         win_condition: formData.winCondition,
         ...(dailyTarget > 0 ? { daily_target: dailyTarget } : {}),
+        // For workout challenges: pass selected types (empty = all allowed)
+        ...(challengeType === "workouts" &&
+        formData.selectedWorkoutTypes.length > 0
+          ? { allowed_workout_types: formData.selectedWorkoutTypes }
+          : {}),
       });
 
       // Send invites (best-effort, don't block success)
@@ -294,6 +322,9 @@ export function CreateChallengeOrchestrator() {
 
   const handleCtaPress = useCallback(() => {
     switch (currentStep) {
+      case "workoutPicker":
+        handleWorkoutPickerNext();
+        break;
       case "details":
         handleDetailsNext();
         break;
@@ -304,7 +335,13 @@ export function CreateChallengeOrchestrator() {
         handleCreate();
         break;
     }
-  }, [currentStep, handleDetailsNext, handleInviteNext, handleCreate]);
+  }, [
+    currentStep,
+    handleWorkoutPickerNext,
+    handleDetailsNext,
+    handleInviteNext,
+    handleCreate,
+  ]);
 
   // ─── Render ───
 
@@ -324,7 +361,7 @@ export function CreateChallengeOrchestrator() {
     );
   }
 
-  const visibleSteps = getVisibleSteps(mode);
+  const visibleSteps = getVisibleSteps(mode, challengeType);
   const stepIndex = visibleSteps.indexOf(currentStep);
   const title = getStepTitle(currentStep, mode);
   const ctaLabel = getCtaLabel(currentStep, mode, selectedFriendIds.length);
@@ -384,6 +421,16 @@ export function CreateChallengeOrchestrator() {
             <StepType
               mode={mode}
               onSelect={handleTypeSelect}
+              onBack={handleBack}
+            />
+          )}
+          {currentStep === "workoutPicker" && (
+            <StepWorkoutPicker
+              selectedWorkoutTypes={formData.selectedWorkoutTypes}
+              setSelectedWorkoutTypes={(types) =>
+                setFormData({ ...formData, selectedWorkoutTypes: types })
+              }
+              onNext={handleWorkoutPickerNext}
               onBack={handleBack}
             />
           )}
