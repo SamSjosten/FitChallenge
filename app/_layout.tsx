@@ -449,6 +449,14 @@ function useProtectedRoute(
     // Check if we're in the correct tabs
     const inCorrectTabs = uiVersion === "v2" ? inV2Tabs : inV1Tabs;
     if (inCorrectTabs) {
+      // Even in correct tabs, new social auth users may need onboarding
+      if (needsV2Onboarding) {
+        console.log(
+          `${LOG}   → In correct tabs but needs onboarding, redirecting`,
+        );
+        navigateTo("/(auth-v2)/onboarding");
+        return;
+      }
       console.log(`${LOG}   → Already in correct tabs`);
       // At destination, clear tracking
       navigationInProgress.current = false;

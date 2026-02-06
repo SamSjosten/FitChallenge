@@ -12,7 +12,7 @@ import React, {
 } from "react";
 import { Session, User, AuthError } from "@supabase/supabase-js";
 import { getSupabaseClient } from "@/lib/supabase";
-import { authService } from "@/services/auth";
+import { authService, configureGoogleSignIn } from "@/services/auth";
 import { pushTokenService } from "@/services/pushTokens";
 import { syncServerTime, RESYNC_INTERVAL_MS } from "@/lib/serverTime";
 import type { Profile } from "@/types/database";
@@ -54,6 +54,8 @@ interface AuthState {
 interface AuthContextValue extends AuthState {
   signUp: (email: string, password: string, username: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
+  signInWithApple: () => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   clearError: () => void;
@@ -181,6 +183,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
   useEffect(() => {
     // Reset mounted ref on mount
     mountedRef.current = true;
+
+    // Configure Google Sign-In SDK (no-op if env vars not set)
+    configureGoogleSignIn();
 
     // Track if we've processed the initial session
     let initialSessionProcessed = false;
@@ -421,6 +426,156 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   }, []);
 
+  /**
+   * Sign in with Apple (native iOS)
+   * Similar flow to signIn but uses Apple identity token instead of email/password.
+   */
+  /**
+   * Detect if a social auth session belongs to a brand-new user and ensure
+   * onboarding_completed is set to false so useProtectedRoute redirects them.
+   *
+   * Social auth users don't go through signUp(), so the metadata flag isn't
+   * set automatically. We detect "new" by checking:
+   *   - onboarding_completed is undefined (never set)
+   *   - created_at is within the last 2 minutes (just provisioned by Supabase)
+   */
+  const ensureNewUserOnboarding = useCallback(async (session: Session) => {
+    const metadata = session.user.user_metadata;
+    if (metadata?.onboarding_completed !== undefined) {
+      // Already set (true or false) — nothing to do
+      return session;
+    }
+
+    const createdAt = new Date(session.user.created_at).getTime();
+    const isNew = Date.now() - createdAt < 2 * 60 * 1000; // within 2 minutes
+
+    if (!isNew) {
+      // Existing / grandfathered user — skip onboarding
+      console.log(
+        `[AuthProvider] Social user is existing (created ${session.user.created_at}), skipping onboarding`,
+      );
+      return session;
+    }
+
+    console.log(
+      `[AuthProvider] 🆕 New social auth user detected, setting onboarding_completed=false`,
+    );
+    const { data, error } = await getSupabaseClient().auth.updateUser({
+      data: { onboarding_completed: false },
+    });
+
+    if (error) {
+      console.warn(
+        `[AuthProvider] Failed to set onboarding metadata:`,
+        error.message,
+      );
+      return session;
+    }
+
+    // Return the refreshed session with updated metadata
+    const {
+      data: { session: refreshedSession },
+    } = await getSupabaseClient().auth.getSession();
+    return refreshedSession ?? session;
+  }, []);
+
+  const signInWithApple = useCallback(async () => {
+    console.log(`[AuthProvider] 🍎 signInWithApple() called`);
+    setState((prev) => ({ ...prev, loading: true, error: null }));
+    try {
+      await authService.signInWithApple();
+
+      // Explicitly fetch session
+      let {
+        data: { session },
+        error: sessionError,
+      } = await getSupabaseClient().auth.getSession();
+
+      if (sessionError) {
+        throw new Error(`Failed to verify session: ${sessionError.message}`);
+      }
+      if (!session) {
+        throw new Error(
+          "Apple sign-in succeeded but no session was created. Please try again.",
+        );
+      }
+
+      // Ensure new social users get routed through onboarding
+      session = await ensureNewUserOnboarding(session);
+
+      // Mark as handled so listener doesn't duplicate work
+      console.log(`[AuthProvider] 🏷️ Setting authActionHandledRef = true`);
+      authActionHandledRef.current = true;
+
+      // Load profile and set state
+      await loadProfileAndSetState(session);
+      console.log(`[AuthProvider] ✅ signInWithApple() complete`);
+    } catch (err: any) {
+      // Apple Sign-In cancellation (user tapped Cancel) - not an error
+      if (
+        err?.code === "ERR_REQUEST_CANCELED" ||
+        err?.code === "ERR_CANCELED"
+      ) {
+        console.log(`[AuthProvider] 🍎 Apple Sign-In cancelled by user`);
+        setState((prev) => ({ ...prev, loading: false }));
+        return;
+      }
+      setState((prev) => ({ ...prev, loading: false, error: err as Error }));
+      throw err;
+    }
+  }, [loadProfileAndSetState, ensureNewUserOnboarding]);
+
+  /**
+   * Sign in with Google (native)
+   * Similar flow to signIn but uses Google ID token instead of email/password.
+   */
+  const signInWithGoogle = useCallback(async () => {
+    console.log(`[AuthProvider] 🔵 signInWithGoogle() called`);
+    setState((prev) => ({ ...prev, loading: true, error: null }));
+    try {
+      await authService.signInWithGoogle();
+
+      // Explicitly fetch session
+      let {
+        data: { session },
+        error: sessionError,
+      } = await getSupabaseClient().auth.getSession();
+
+      if (sessionError) {
+        throw new Error(`Failed to verify session: ${sessionError.message}`);
+      }
+      if (!session) {
+        throw new Error(
+          "Google sign-in succeeded but no session was created. Please try again.",
+        );
+      }
+
+      // Ensure new social users get routed through onboarding
+      session = await ensureNewUserOnboarding(session);
+
+      // Mark as handled so listener doesn't duplicate work
+      console.log(`[AuthProvider] 🏷️ Setting authActionHandledRef = true`);
+      authActionHandledRef.current = true;
+
+      // Load profile and set state
+      await loadProfileAndSetState(session);
+      console.log(`[AuthProvider] ✅ signInWithGoogle() complete`);
+    } catch (err: any) {
+      // Google Sign-In cancellation - not an error
+      const isCancelled =
+        err?.code === "SIGN_IN_CANCELLED" ||
+        err?.code === "12501" ||
+        err?.message?.includes("SIGN_IN_CANCELLED");
+      if (isCancelled) {
+        console.log(`[AuthProvider] 🔵 Google Sign-In cancelled by user`);
+        setState((prev) => ({ ...prev, loading: false }));
+        return;
+      }
+      setState((prev) => ({ ...prev, loading: false, error: err as Error }));
+      throw err;
+    }
+  }, [loadProfileAndSetState, ensureNewUserOnboarding]);
+
   const refreshProfile = useCallback(async () => {
     if (!state.user) return;
 
@@ -461,11 +616,22 @@ export function AuthProvider({ children }: AuthProviderProps) {
       ...state,
       signUp,
       signIn,
+      signInWithApple,
+      signInWithGoogle,
       signOut,
       refreshProfile,
       clearError,
     }),
-    [state, signUp, signIn, signOut, refreshProfile, clearError],
+    [
+      state,
+      signUp,
+      signIn,
+      signInWithApple,
+      signInWithGoogle,
+      signOut,
+      refreshProfile,
+      clearError,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -2,6 +2,10 @@
 // Authentication and profile management service
 
 import { AuthError } from "@supabase/supabase-js";
+import { Platform } from "react-native";
+import * as AppleAuthentication from "expo-apple-authentication";
+import * as Crypto from "expo-crypto";
+import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import { getSupabaseClient, requireUserId, withAuth } from "@/lib/supabase";
 import {
   validate,
@@ -277,4 +281,133 @@ export const authService = {
     if (error) throw error;
     return data || [];
   },
+
+  /**
+   * Sign in with Apple (native iOS)
+   * Uses nonce-based replay protection and exchanges identity token with Supabase.
+   * Profile is auto-created by database trigger for new users.
+   *
+   * NOTE: Only available on iOS. Caller should check platform before invoking.
+   */
+  async signInWithApple(): Promise<void> {
+    if (Platform.OS !== "ios") {
+      throw new Error("Apple Sign-In is only available on iOS");
+    }
+
+    // Check if Apple Sign-In is available on this device
+    const isAvailable = await AppleAuthentication.isAvailableAsync();
+    if (!isAvailable) {
+      throw new Error("Apple Sign-In is not available on this device");
+    }
+
+    // Generate nonce for replay protection
+    const rawNonce = Crypto.randomUUID();
+    const hashedNonce = await Crypto.digestStringAsync(
+      Crypto.CryptoDigestAlgorithm.SHA256,
+      rawNonce,
+    );
+
+    // Present native Apple Sign-In dialog
+    const credential = await AppleAuthentication.signInAsync({
+      requestedScopes: [
+        AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+      ],
+      nonce: hashedNonce,
+    });
+
+    if (!credential.identityToken) {
+      throw new Error("No identity token received from Apple");
+    }
+
+    // Exchange Apple identity token with Supabase
+    const { error } = await getSupabaseClient().auth.signInWithIdToken({
+      provider: "apple",
+      token: credential.identityToken,
+      nonce: rawNonce,
+    });
+
+    if (error) throw error;
+
+    // If Apple provided a full name (first sign-in only), update the profile
+    if (credential.fullName) {
+      const displayName = [
+        credential.fullName.givenName,
+        credential.fullName.familyName,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .trim();
+
+      if (displayName) {
+        try {
+          const userId = await requireUserId();
+          await getSupabaseClient()
+            .from("profiles")
+            .update({ display_name: displayName })
+            .eq("id", userId);
+        } catch (profileErr) {
+          // Non-fatal: profile update can fail without breaking sign-in
+          console.warn(
+            "Failed to update display name from Apple credential:",
+            profileErr,
+          );
+        }
+      }
+    }
+  },
+
+  /**
+   * Sign in with Google (native)
+   * Uses Google Sign-In SDK to get ID token, then exchanges with Supabase.
+   * Profile is auto-created by database trigger for new users.
+   *
+   * PREREQUISITE: configureGoogleSignIn() must be called at app startup.
+   */
+  async signInWithGoogle(): Promise<void> {
+    // Check if Google Play Services are available (Android only, always true on iOS)
+    await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+
+    // Present native Google Sign-In dialog
+    const response = await GoogleSignin.signIn();
+
+    if (!response.data?.idToken) {
+      throw new Error("No ID token received from Google");
+    }
+
+    // Exchange Google ID token with Supabase
+    const { error } = await getSupabaseClient().auth.signInWithIdToken({
+      provider: "google",
+      token: response.data.idToken,
+    });
+
+    if (error) throw error;
+  },
 };
+
+// =============================================================================
+// GOOGLE SIGN-IN CONFIGURATION
+// =============================================================================
+
+/**
+ * Configure Google Sign-In SDK.
+ * Must be called once at app startup before any Google sign-in attempt.
+ * Uses the Web Client ID for Supabase token exchange.
+ */
+export function configureGoogleSignIn(): void {
+  const webClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
+  const iosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID;
+
+  if (!webClientId) {
+    console.warn(
+      "[Auth] EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID not set — Google Sign-In disabled",
+    );
+    return;
+  }
+
+  GoogleSignin.configure({
+    webClientId,
+    iosClientId: iosClientId || undefined,
+    scopes: ["email", "profile"],
+  });
+}
