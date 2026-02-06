@@ -7,7 +7,7 @@
 
 import React from "react";
 import { render, screen, waitFor } from "@testing-library/react-native";
-import CreateChallengeScreen from "../../../app/challenge/create";
+import CreateChallengeScreen from "../../../app/challenge/create-v1-backup";
 import { mockSupabaseClient, TestWrapper } from "./jest.setup";
 import { seedAuthenticatedUser } from "./mockSupabaseClient";
 

@@ -169,6 +169,7 @@ export function useCreateChallenge() {
       goal_unit: string;
       start_date: string;
       end_date: string;
+      daily_target?: number;
       win_condition?:
         | "highest_total"
         | "first_to_goal"

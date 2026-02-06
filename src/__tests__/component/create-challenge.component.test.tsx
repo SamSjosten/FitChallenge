@@ -8,7 +8,7 @@ import {
   fireEvent,
   waitFor,
 } from "@testing-library/react-native";
-import CreateChallengeScreen from "@/app/challenge/create";
+import CreateChallengeScreen from "@/app/challenge/create-v1-backup";
 import { mockChallengesState, mockRouter } from "./jest.setup";
 import { Alert } from "react-native";
 
