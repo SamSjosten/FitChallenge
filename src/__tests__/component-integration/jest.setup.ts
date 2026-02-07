@@ -106,6 +106,59 @@ jest.mock("@/lib/storageProbe", () => ({
   subscribeToStorageStatus: jest.fn(() => () => {}),
 }));
 
+// =============================================================================
+// GOOGLE SIGN-IN MOCK
+// =============================================================================
+
+jest.mock(
+  "@react-native-google-signin/google-signin",
+  () => ({
+    GoogleSignin: {
+      configure: jest.fn(),
+      hasPlayServices: jest.fn().mockResolvedValue(true),
+      signIn: jest.fn().mockResolvedValue({
+        data: { idToken: "mock-google-id-token" },
+      }),
+      signOut: jest.fn().mockResolvedValue(null),
+      isSignedIn: jest.fn().mockResolvedValue(false),
+      getCurrentUser: jest.fn().mockResolvedValue(null),
+    },
+  }),
+  { virtual: true },
+);
+
+// =============================================================================
+// EXPO APPLE AUTHENTICATION MOCK
+// =============================================================================
+
+jest.mock("expo-apple-authentication", () => ({
+  isAvailableAsync: jest.fn().mockResolvedValue(true),
+  signInAsync: jest.fn().mockResolvedValue({
+    identityToken: "mock-apple-identity-token",
+    fullName: { givenName: "Test", familyName: "User" },
+  }),
+  AppleAuthenticationScope: {
+    EMAIL: 0,
+    FULL_NAME: 1,
+  },
+}));
+
+// =============================================================================
+// EXPO CRYPTO MOCK
+// =============================================================================
+
+jest.mock("expo-crypto", () => ({
+  randomUUID: jest.fn(() => "00000000-0000-0000-0000-000000000000"),
+  digestStringAsync: jest
+    .fn()
+    .mockResolvedValue(
+      "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ),
+  CryptoDigestAlgorithm: {
+    SHA256: "SHA-256",
+  },
+}));
+
 import "@testing-library/jest-native/extend-expect";
 
 // =============================================================================

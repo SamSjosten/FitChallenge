@@ -6,7 +6,7 @@ import { Platform } from "react-native";
 import * as AppleAuthentication from "expo-apple-authentication";
 import * as Crypto from "expo-crypto";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
-import { getSupabaseClient, requireUserId, withAuth } from "@/lib/supabase";
+import { getSupabaseClient, withAuth } from "@/lib/supabase";
 import {
   validate,
   signUpSchema,
@@ -180,29 +180,110 @@ export const authService = {
    * CALLER RESPONSIBILITY: Only call this after INITIAL_SESSION event has fired.
    * Calling before auth is fully initialized may result in RLS evaluation failures.
    *
-   * TIMEOUT: 3 seconds. A primary key lookup should complete in <1s.
-   * If this times out, something is wrong (network, Supabase, or auth context).
+   * RETRY: For new social-auth users, the profile may not exist yet because
+   * the handle_new_user trigger hasn't completed. We retry up to MAX_RETRIES
+   * times with a delay between attempts.
+   *
+   * TIMEOUT: 5 seconds per attempt. A primary key lookup should complete in <1s.
+   * If all retries fail, something is wrong (network, Supabase, or auth context).
    */
   async getMyProfileWithUserId(userId: string): Promise<Profile> {
-    const TIMEOUT_MS = 3000;
+    const TIMEOUT_MS = 5000;
+    const MAX_RETRIES = 3;
+    const RETRY_DELAY_MS = 1000;
+    const shortId = userId.substring(0, 8);
 
-    const queryPromise = getSupabaseClient()
-      .from("profiles")
-      .select("*")
-      .eq("id", userId)
-      .single();
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      console.log(
+        `[AuthService] 📂 getMyProfileWithUserId attempt ${attempt}/${MAX_RETRIES} for ${shortId}`,
+      );
+      const startTime = Date.now();
 
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => {
-        reject(new Error(`Profile query timed out after ${TIMEOUT_MS}ms`));
-      }, TIMEOUT_MS);
-    });
+      try {
+        const queryPromise = getSupabaseClient()
+          .from("profiles")
+          .select("*")
+          .eq("id", userId)
+          .single();
 
-    const { data, error } = await Promise.race([queryPromise, timeoutPromise]);
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          setTimeout(() => {
+            reject(new Error(`Profile query timed out after ${TIMEOUT_MS}ms`));
+          }, TIMEOUT_MS);
+        });
 
-    if (error) throw error;
-    if (!data) throw new Error("Profile not found");
-    return data;
+        const { data, error } = await Promise.race([
+          queryPromise,
+          timeoutPromise,
+        ]);
+        const elapsed = Date.now() - startTime;
+
+        if (error) {
+          // PGRST116 = "JSON object requested, multiple (or no) rows returned"
+          // This means the profile row doesn't exist yet (new user trigger lag)
+          const isNotFound =
+            error.code === "PGRST116" ||
+            error.message?.includes("not found") ||
+            error.message?.includes("no rows");
+
+          if (isNotFound && attempt < MAX_RETRIES) {
+            console.log(
+              `[AuthService] ⏳ Profile not found for ${shortId} (${elapsed}ms), ` +
+                `retrying in ${RETRY_DELAY_MS}ms (trigger may still be running)...`,
+            );
+            await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
+            continue;
+          }
+
+          console.error(
+            `[AuthService] ❌ Profile query failed for ${shortId} after ${elapsed}ms:`,
+            error.code,
+            error.message,
+          );
+          throw error;
+        }
+
+        if (!data) {
+          if (attempt < MAX_RETRIES) {
+            console.log(
+              `[AuthService] ⏳ Profile null for ${shortId} (${elapsed}ms), ` +
+                `retrying in ${RETRY_DELAY_MS}ms...`,
+            );
+            await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
+            continue;
+          }
+          throw new Error("Profile not found after all retries");
+        }
+
+        console.log(
+          `[AuthService] ✅ Profile loaded for ${shortId} in ${elapsed}ms` +
+            (attempt > 1 ? ` (attempt ${attempt})` : ""),
+        );
+        return data;
+      } catch (err: any) {
+        const elapsed = Date.now() - startTime;
+        const isTimeout = err?.message?.includes("timed out");
+
+        if (isTimeout && attempt < MAX_RETRIES) {
+          console.warn(
+            `[AuthService] ⏱️ Profile query timed out for ${shortId} (${elapsed}ms), ` +
+              `retrying in ${RETRY_DELAY_MS}ms...`,
+          );
+          await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
+          continue;
+        }
+
+        console.error(
+          `[AuthService] ❌ Profile query failed for ${shortId} after ${elapsed}ms ` +
+            `(attempt ${attempt}/${MAX_RETRIES}):`,
+          err?.message || err,
+        );
+        throw err;
+      }
+    }
+
+    // Should never reach here, but TypeScript needs it
+    throw new Error("Profile not found after all retries");
   },
 
   /**
@@ -287,9 +368,13 @@ export const authService = {
    * Uses nonce-based replay protection and exchanges identity token with Supabase.
    * Profile is auto-created by database trigger for new users.
    *
+   * Returns the Apple-provided display name (if any) so the caller can apply it
+   * AFTER the profile is confirmed to exist. This avoids racing with the
+   * handle_new_user trigger that creates the profile row.
+   *
    * NOTE: Only available on iOS. Caller should check platform before invoking.
    */
-  async signInWithApple(): Promise<void> {
+  async signInWithApple(): Promise<{ appleDisplayName: string | null }> {
     if (Platform.OS !== "ios") {
       throw new Error("Apple Sign-In is only available on iOS");
     }
@@ -329,9 +414,12 @@ export const authService = {
 
     if (error) throw error;
 
-    // If Apple provided a full name (first sign-in only), update the profile
+    // Extract display name from Apple credential (only provided on first sign-in).
+    // Return it to caller instead of updating profile directly — the profile row
+    // may not exist yet if handle_new_user trigger hasn't completed.
+    let appleDisplayName: string | null = null;
     if (credential.fullName) {
-      const displayName = [
+      const name = [
         credential.fullName.givenName,
         credential.fullName.familyName,
       ]
@@ -339,22 +427,12 @@ export const authService = {
         .join(" ")
         .trim();
 
-      if (displayName) {
-        try {
-          const userId = await requireUserId();
-          await getSupabaseClient()
-            .from("profiles")
-            .update({ display_name: displayName })
-            .eq("id", userId);
-        } catch (profileErr) {
-          // Non-fatal: profile update can fail without breaking sign-in
-          console.warn(
-            "Failed to update display name from Apple credential:",
-            profileErr,
-          );
-        }
+      if (name) {
+        appleDisplayName = name;
       }
     }
+
+    return { appleDisplayName };
   },
 
   /**

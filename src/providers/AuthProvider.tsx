@@ -1,5 +1,28 @@
 // src/providers/AuthProvider.tsx
 // Centralized auth state provider - SINGLE source of truth for authentication
+//
+// =============================================================================
+// ARCHITECTURE: Clean Ownership Model
+// =============================================================================
+//
+// Two paths set auth state. Their responsibilities never overlap:
+//
+// 1. LISTENER (passive/external events only):
+//    - INITIAL_SESSION → bootstrap on app launch (load profile)
+//    - SIGNED_OUT      → clear all state
+//    - TOKEN_REFRESHED → update session reference silently (no profile reload)
+//    - Everything else → IGNORED (calling methods own those flows)
+//
+// 2. CALLING METHODS (own their full flow):
+//    - signIn / signUp / signInWithApple / signInWithGoogle each:
+//      (a) Call the auth service
+//      (b) Fetch the resulting session
+//      (c) Load the profile
+//      (d) Set state
+//
+// Because the listener ignores SIGNED_IN / USER_UPDATED, there is no
+// coordination flag needed. No race conditions. No skip logic.
+// =============================================================================
 
 import React, {
   createContext,
@@ -90,10 +113,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // Track mounted state for async operations
   const mountedRef = useRef(true);
 
-  // Track if signIn/signUp has explicitly handled the auth event
-  // Prevents listener from redundantly processing the same event
-  const authActionHandledRef = useRef(false);
-
   // Guard against concurrent profile loading
   const profileLoadingRef = useRef(false);
 
@@ -103,14 +122,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   /**
    * Load user profile and set authenticated state.
-   * Used by initialization, signIn, signUp, and auth listener.
    *
    * IMPORTANT: Sets session immediately, then loads profile.
    * This ensures ProtectedRoute sees the session even if profile loading is slow.
    * Profile errors are stored separately so they don't block auth state.
    */
   const loadProfileAndSetState = useCallback(async (session: Session) => {
-    // Guard against concurrent calls - check and set atomically
+    // Guard against concurrent calls
     if (profileLoadingRef.current) {
       console.log(
         `[AuthProvider] ⏭️ loadProfileAndSetState skipped - already loading`,
@@ -118,19 +136,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
       return;
     }
     profileLoadingRef.current = true;
+    const startTime = Date.now();
+    const shortId = session.user.id.substring(0, 8);
     console.log(
-      `[AuthProvider] 📂 loadProfileAndSetState starting for user ${session.user.id.substring(0, 8)}...`,
+      `[AuthProvider] 📂 loadProfileAndSetState starting for ${shortId}`,
     );
 
     // Set session IMMEDIATELY so ProtectedRoute knows user is authenticated
-    // This prevents timeout-induced redirects while profile is loading
     setState((prev) => ({
       ...prev,
       session,
       user: session.user,
-      loading: false, // Auth is complete - we have a session
-      profileError: null, // Clear any previous profile errors
-      // profile stays null until it loads
+      loading: false,
+      profileError: null,
     }));
 
     // Sync server time (non-blocking)
@@ -139,13 +157,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
     );
 
     try {
-      // Use getMyProfileWithUserId to avoid redundant getUser() call during initialization
-      // We already have the userId from the session
       const profile = await authService.getMyProfileWithUserId(session.user.id);
 
       if (mountedRef.current) {
+        const elapsed = Date.now() - startTime;
         console.log(
-          `[AuthProvider] ✅ Profile loaded, setting complete auth state`,
+          `[AuthProvider] ✅ Profile loaded for ${shortId} in ${elapsed}ms`,
         );
         setState((prev) => ({
           ...prev,
@@ -159,16 +176,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
           .registerToken()
           .catch((err) => console.warn("Push token registration failed:", err));
       } else {
-        console.log(`[AuthProvider] ⚠️ Component unmounted before setState`);
+        console.log(
+          `[AuthProvider] ⚠️ Unmounted before setState (${Date.now() - startTime}ms)`,
+        );
       }
     } catch (err) {
-      console.error("[AuthProvider] Error fetching profile:", err);
+      console.error(
+        `[AuthProvider] ❌ Profile load failed for ${shortId} (${Date.now() - startTime}ms):`,
+        err,
+      );
       if (mountedRef.current) {
         setState((prev) => ({
           ...prev,
           profile: null,
           profileError: err as Error,
-          // Keep session and user - user is still authenticated, just profile failed
         }));
       }
     } finally {
@@ -177,80 +198,52 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, []);
 
   // ==========================================================================
-  // AUTH INITIALIZATION & SUBSCRIPTION
+  // AUTH LISTENER (passive/external events ONLY)
   // ==========================================================================
 
   useEffect(() => {
-    // Reset mounted ref on mount
     mountedRef.current = true;
 
     // Configure Google Sign-In SDK (no-op if env vars not set)
     configureGoogleSignIn();
 
-    // Track if we've processed the initial session
-    let initialSessionProcessed = false;
+    // Gate TOKEN_REFRESHED until bootstrap completes.
+    // Before INITIAL_SESSION, Supabase's auth context may not be ready for RLS.
+    let bootstrapComplete = false;
 
-    // ==========================================================================
-    // AUTH EVENT CONTRACT
-    // ==========================================================================
-    // INITIAL_SESSION: Auth is fully initialized - safe to make database queries
-    // TOKEN_REFRESHED: Token refreshed - only process AFTER INITIAL_SESSION
-    // SIGNED_IN: User signed in - only process AFTER INITIAL_SESSION
-    // SIGNED_OUT: User signed out - always process
-    //
-    // RULE: Only make authenticated database queries after INITIAL_SESSION.
-    // Before that, the Supabase client's auth context may not be ready for RLS.
-    // ==========================================================================
     const {
       data: { subscription },
     } = getSupabaseClient().auth.onAuthStateChange(async (event, session) => {
-      // DIAGNOSTIC: Log every auth event
       console.log(
-        `[AuthProvider] 📡 onAuthStateChange: event=${event}, session=${session ? "YES" : "NO"}, initialProcessed=${initialSessionProcessed}, actionHandled=${authActionHandledRef.current}`,
+        `[AuthProvider] 📡 onAuthStateChange: event=${event}, session=${session ? "YES" : "NO"}, bootstrap=${bootstrapComplete}`,
       );
 
-      if (!mountedRef.current) {
-        console.log(`[AuthProvider] ⚠️ Ignoring event - component unmounted`);
+      if (!mountedRef.current) return;
+
+      // =================================================================
+      // INITIAL_SESSION: App launch/restore — the ONLY bootstrap path
+      // =================================================================
+      if (event === "INITIAL_SESSION") {
+        bootstrapComplete = true;
+
+        if (session?.user) {
+          console.log(
+            `[AuthProvider] 🎬 Bootstrap: loading profile for ${session.user.id.substring(0, 8)}`,
+          );
+          await loadProfileAndSetState(session);
+        } else {
+          console.log(`[AuthProvider] 🎬 Bootstrap: no session`);
+          setState((prev) => ({ ...prev, loading: false }));
+        }
         return;
       }
 
-      // During initial startup, SIGNED_IN often fires before INITIAL_SESSION
-      // Skip SIGNED_IN if we haven't processed INITIAL_SESSION yet - it will handle auth
-      if (event === "SIGNED_IN" && !initialSessionProcessed) {
-        console.log(
-          `[AuthProvider] ⏭️ Skipping SIGNED_IN - initial session not yet processed`,
-        );
-        return;
-      }
-
-      // Skip SIGNED_IN if signIn/signUp already handled it explicitly
-      if (event === "SIGNED_IN" && authActionHandledRef.current) {
-        console.log(
-          `[AuthProvider] ⏭️ Skipping SIGNED_IN - already handled by signIn/signUp`,
-        );
-        authActionHandledRef.current = false; // Reset for future auth actions
-        return;
-      }
-
-      // TOKEN_REFRESHED before INITIAL_SESSION: Skip entirely
-      // During startup, Supabase fires TOKEN_REFRESHED for cached tokens.
-      // Don't start profile queries here - INITIAL_SESSION will handle it.
-      // This avoids a race where the first query hangs (Supabase client not fully ready)
-      // while INITIAL_SESSION's query succeeds.
-      if (event === "TOKEN_REFRESHED" && !initialSessionProcessed) {
-        console.log(
-          `[AuthProvider] ⏭️ Skipping TOKEN_REFRESHED - waiting for INITIAL_SESSION`,
-        );
-        return;
-      }
-
+      // =================================================================
+      // SIGNED_OUT: Always process — clear all state
+      // =================================================================
       if (event === "SIGNED_OUT" || !session) {
-        console.log(
-          `[AuthProvider] 🚪 Processing sign out (event=${event}, session=${session ? "YES" : "NO"})`,
-        );
-        initialSessionProcessed = true; // Mark as processed even for signed out
-        authActionHandledRef.current = false; // Reset for next sign-in (fixes biometric sign-in after sign-out)
-        console.log(`[AuthProvider] 🔄 Reset authActionHandledRef = false`);
+        console.log(`[AuthProvider] 🚪 Signed out (event=${event})`);
+        bootstrapComplete = true;
         setState({
           session: null,
           user: null,
@@ -264,27 +257,42 @@ export function AuthProvider({ children }: AuthProviderProps) {
         return;
       }
 
-      // Mark INITIAL_SESSION as processed
-      if (event === "INITIAL_SESSION") {
-        console.log(`[AuthProvider] 🎬 Processing INITIAL_SESSION`);
-        initialSessionProcessed = true;
+      // =================================================================
+      // TOKEN_REFRESHED: Update session silently (no profile reload)
+      // =================================================================
+      if (event === "TOKEN_REFRESHED") {
+        if (!bootstrapComplete) {
+          console.log(
+            `[AuthProvider] ⏭️ Skipping TOKEN_REFRESHED before bootstrap`,
+          );
+          return;
+        }
+        console.log(`[AuthProvider] 🔄 Token refreshed — updating session`);
+        setState((prev) => ({
+          ...prev,
+          session,
+          user: session.user,
+        }));
+        return;
       }
 
-      // INITIAL_SESSION, SIGNED_IN (after initial), TOKEN_REFRESHED (after initial) - load profile
-      if (session.user) {
-        console.log(`[AuthProvider] 👤 Loading profile for event=${event}`);
-        await loadProfileAndSetState(session);
-      }
+      // =================================================================
+      // ALL OTHER EVENTS: Ignored.
+      // SIGNED_IN, USER_UPDATED, etc. are side effects of actions that
+      // calling methods already handle end-to-end.
+      // =================================================================
+      console.log(
+        `[AuthProvider] ⏭️ Ignoring ${event} — caller owns this flow`,
+      );
     });
 
-    // Safety timeout: if INITIAL_SESSION never fires (corrupted storage, etc)
-    // This catches the case where Supabase auth is completely stuck
+    // Safety timeout: if INITIAL_SESSION never fires (corrupted storage, etc.)
     const safetyTimeout = setTimeout(() => {
       if (mountedRef.current) {
         setState((prev) => {
           if (prev.loading) {
             console.warn(
-              "[AuthProvider] Auth initialization timed out - INITIAL_SESSION never fired",
+              "[AuthProvider] ⏱️ Auth init timed out — INITIAL_SESSION never fired",
             );
             return {
               ...prev,
@@ -321,11 +329,73 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, [state.session]);
 
   // ==========================================================================
-  // AUTH ACTIONS
+  // SOCIAL AUTH HELPER
+  // ==========================================================================
+
+  /**
+   * Detect if a social auth session belongs to a brand-new user and ensure
+   * onboarding_completed is set to false so useProtectedRoute redirects them.
+   *
+   * Social auth users don't go through signUp(), so the metadata flag isn't
+   * set automatically. We detect "new" by checking:
+   *   - onboarding_completed is undefined (never set)
+   *   - created_at is within the last 2 minutes (just provisioned by Supabase)
+   *
+   * NOTE: Calling updateUser() triggers a USER_UPDATED event in the listener,
+   * which is safely ignored by our clean ownership model.
+   */
+  const ensureNewUserOnboarding = useCallback(async (session: Session) => {
+    const metadata = session.user.user_metadata;
+    const shortId = session.user.id.substring(0, 8);
+
+    if (metadata?.onboarding_completed !== undefined) {
+      console.log(
+        `[AuthProvider] 🔍 Onboarding flag already set (${metadata.onboarding_completed}) for ${shortId}`,
+      );
+      return session;
+    }
+
+    const createdAt = new Date(session.user.created_at).getTime();
+    const ageMs = Date.now() - createdAt;
+    const isNew = ageMs < 2 * 60 * 1000;
+
+    if (!isNew) {
+      console.log(
+        `[AuthProvider] 🔍 Existing social user ${shortId} (age=${Math.round(ageMs / 1000)}s)`,
+      );
+      return session;
+    }
+
+    console.log(
+      `[AuthProvider] 🆕 New social user ${shortId} (age=${Math.round(ageMs / 1000)}s), setting onboarding flag`,
+    );
+
+    const { error } = await getSupabaseClient().auth.updateUser({
+      data: { onboarding_completed: false },
+    });
+
+    if (error) {
+      console.warn(
+        `[AuthProvider] Failed to set onboarding metadata:`,
+        error.message,
+      );
+      return session;
+    }
+
+    // Return refreshed session with updated metadata
+    const {
+      data: { session: refreshedSession },
+    } = await getSupabaseClient().auth.getSession();
+    return refreshedSession ?? session;
+  }, []);
+
+  // ==========================================================================
+  // AUTH ACTIONS (each method owns its full flow)
   // ==========================================================================
 
   const signUp = useCallback(
     async (email: string, password: string, username: string) => {
+      console.log(`[AuthProvider] 📝 signUp() called`);
       setState((prev) => ({ ...prev, loading: true, error: null }));
       try {
         const { session: returnedSession } = await authService.signUp({
@@ -335,7 +405,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         });
 
         if (returnedSession) {
-          // Auto-confirm enabled - explicitly verify session
+          // Auto-confirm enabled — verify and load
           const {
             data: { session },
             error: sessionError,
@@ -346,20 +416,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
               `Failed to verify session: ${sessionError.message}`,
             );
           }
-
           if (!session) {
             throw new Error(
               "Sign up succeeded but no session was created. Please try again.",
             );
           }
 
-          // Mark as handled so listener doesn't duplicate work
-          authActionHandledRef.current = true;
-
-          // Explicitly load profile and set state
           await loadProfileAndSetState(session);
+          console.log(`[AuthProvider] ✅ signUp() complete`);
         } else {
           // Email confirmation required
+          console.log(
+            `[AuthProvider] 📧 signUp() complete — pending email confirmation`,
+          );
           setState((prev) => ({
             ...prev,
             loading: false,
@@ -381,7 +450,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
       try {
         await authService.signIn({ email, password });
 
-        // Explicitly fetch session - don't rely on listener
         const {
           data: { session },
           error: sessionError,
@@ -390,18 +458,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
         if (sessionError) {
           throw new Error(`Failed to verify session: ${sessionError.message}`);
         }
-
         if (!session) {
           throw new Error(
             "Sign in succeeded but no session was created. Please try again.",
           );
         }
 
-        // Mark as handled so listener doesn't duplicate work
-        console.log(`[AuthProvider] 🏷️ Setting authActionHandledRef = true`);
-        authActionHandledRef.current = true;
-
-        // Explicitly load profile and set state
         await loadProfileAndSetState(session);
         console.log(`[AuthProvider] ✅ signIn() complete`);
       } catch (err) {
@@ -419,83 +481,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
       await pushTokenService.disableCurrentToken();
       await authService.signOut();
       console.log(`[AuthProvider] ✅ signOut() complete`);
-      // Auth state change listener will handle the rest
+      // Listener handles SIGNED_OUT → clears state
     } catch (err) {
       setState((prev) => ({ ...prev, error: err as Error }));
       throw err;
     }
   }, []);
 
-  /**
-   * Sign in with Apple (native iOS)
-   * Similar flow to signIn but uses Apple identity token instead of email/password.
-   */
-  /**
-   * Detect if a social auth session belongs to a brand-new user and ensure
-   * onboarding_completed is set to false so useProtectedRoute redirects them.
-   *
-   * Social auth users don't go through signUp(), so the metadata flag isn't
-   * set automatically. We detect "new" by checking:
-   *   - onboarding_completed is undefined (never set)
-   *   - created_at is within the last 2 minutes (just provisioned by Supabase)
-   */
-  const ensureNewUserOnboarding = useCallback(async (session: Session) => {
-    const metadata = session.user.user_metadata;
-    if (metadata?.onboarding_completed !== undefined) {
-      // Already set (true or false) — nothing to do
-      return session;
-    }
-
-    const createdAt = new Date(session.user.created_at).getTime();
-    const isNew = Date.now() - createdAt < 2 * 60 * 1000; // within 2 minutes
-
-    if (!isNew) {
-      // Existing / grandfathered user — skip onboarding
-      console.log(
-        `[AuthProvider] Social user is existing (created ${session.user.created_at}), skipping onboarding`,
-      );
-      return session;
-    }
-
-    console.log(
-      `[AuthProvider] 🆕 New social auth user detected, setting onboarding_completed=false`,
-    );
-    const { data, error } = await getSupabaseClient().auth.updateUser({
-      data: { onboarding_completed: false },
-    });
-
-    if (error) {
-      console.warn(
-        `[AuthProvider] Failed to set onboarding metadata:`,
-        error.message,
-      );
-      return session;
-    }
-
-    // Return the refreshed session with updated metadata
-    const {
-      data: { session: refreshedSession },
-    } = await getSupabaseClient().auth.getSession();
-    return refreshedSession ?? session;
-  }, []);
-
   const signInWithApple = useCallback(async () => {
     console.log(`[AuthProvider] 🍎 signInWithApple() called`);
     setState((prev) => ({ ...prev, loading: true, error: null }));
 
-    // Set flag BEFORE the service call so the listener skips the SIGNED_IN
-    // event that fires during signInWithIdToken(). Without this, the listener
-    // processes SIGNED_IN before ensureNewUserOnboarding sets metadata,
-    // causing new social users to skip onboarding.
-    console.log(
-      `[AuthProvider] 🏷️ Setting authActionHandledRef = true (pre-call)`,
-    );
-    authActionHandledRef.current = true;
-
     try {
-      await authService.signInWithApple();
+      const { appleDisplayName } = await authService.signInWithApple();
 
-      // Explicitly fetch session
       let {
         data: { session },
         error: sessionError,
@@ -510,18 +509,39 @@ export function AuthProvider({ children }: AuthProviderProps) {
         );
       }
 
-      // Ensure new social users get routed through onboarding
       session = await ensureNewUserOnboarding(session);
-
-      // Load profile and set state
       await loadProfileAndSetState(session);
+
+      // Apply Apple display name AFTER profile is confirmed to exist.
+      // Apple only provides the name on first authorization, so we must
+      // capture it now — subsequent sign-ins won't include it.
+      if (appleDisplayName) {
+        try {
+          await getSupabaseClient()
+            .from("profiles")
+            .update({ display_name: appleDisplayName })
+            .eq("id", session.user.id);
+          console.log(
+            `[AuthProvider] 🍎 Applied Apple display name: "${appleDisplayName}"`,
+          );
+          // Refresh profile state to reflect the name change
+          const updatedProfile = await authService.getMyProfileWithUserId(
+            session.user.id,
+          );
+          if (mountedRef.current) {
+            setState((prev) => ({ ...prev, profile: updatedProfile }));
+          }
+        } catch (nameErr) {
+          // Non-fatal: sign-in succeeded, name can be set later in settings
+          console.warn(
+            `[AuthProvider] ⚠️ Failed to apply Apple display name:`,
+            nameErr,
+          );
+        }
+      }
+
       console.log(`[AuthProvider] ✅ signInWithApple() complete`);
     } catch (err: any) {
-      // Reset flag on any error so it doesn't stay stuck
-      // (e.g. cancellation before signInWithIdToken fires SIGNED_IN)
-      authActionHandledRef.current = false;
-
-      // Apple Sign-In cancellation (user tapped Cancel) - not an error
       if (
         err?.code === "ERR_REQUEST_CANCELED" ||
         err?.code === "ERR_CANCELED"
@@ -535,24 +555,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   }, [loadProfileAndSetState, ensureNewUserOnboarding]);
 
-  /**
-   * Sign in with Google (native)
-   * Similar flow to signIn but uses Google ID token instead of email/password.
-   */
   const signInWithGoogle = useCallback(async () => {
     console.log(`[AuthProvider] 🔵 signInWithGoogle() called`);
     setState((prev) => ({ ...prev, loading: true, error: null }));
 
-    // Set flag BEFORE the service call — same reasoning as signInWithApple.
-    console.log(
-      `[AuthProvider] 🏷️ Setting authActionHandledRef = true (pre-call)`,
-    );
-    authActionHandledRef.current = true;
-
     try {
       await authService.signInWithGoogle();
 
-      // Explicitly fetch session
       let {
         data: { session },
         error: sessionError,
@@ -567,17 +576,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
         );
       }
 
-      // Ensure new social users get routed through onboarding
       session = await ensureNewUserOnboarding(session);
-
-      // Load profile and set state
       await loadProfileAndSetState(session);
       console.log(`[AuthProvider] ✅ signInWithGoogle() complete`);
     } catch (err: any) {
-      // Reset flag on any error
-      authActionHandledRef.current = false;
-
-      // Google Sign-In cancellation - not an error
       const isCancelled =
         err?.code === "SIGN_IN_CANCELLED" ||
         err?.code === "12501" ||
@@ -595,7 +597,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const refreshProfile = useCallback(async () => {
     if (!state.user) return;
 
-    // Set refreshing state for UI feedback
     setState((prev) => ({
       ...prev,
       isRefreshingProfile: true,

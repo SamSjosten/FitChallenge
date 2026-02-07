@@ -46,7 +46,7 @@ const LOCK_TIMEOUT_MS = 10_000; // 10 seconds
 
 export default function AuthScreenV2() {
   const { colors, spacing, radius } = useAppTheme();
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, signInWithApple, signInWithGoogle } = useAuth();
   const params = useLocalSearchParams<{ mode?: string }>();
   const insets = useSafeAreaInsets();
 
@@ -469,7 +469,32 @@ export default function AuthScreenV2() {
   };
 
   const handleSocialLogin = async (provider: "apple" | "google") => {
-    Alert.alert("Coming Soon", `${provider} sign-in will be available soon!`);
+    if (isLoading) return;
+    setIsLoading(true);
+    setErrors({});
+
+    try {
+      if (provider === "apple") {
+        await signInWithApple();
+      } else {
+        await signInWithGoogle();
+      }
+      // Auth state change will trigger navigation via AuthProvider
+    } catch (error: unknown) {
+      // User cancelled is not an error
+      const message = error instanceof Error ? error.message : "Sign-in failed";
+      const isCancelled =
+        message.includes("canceled") ||
+        message.includes("cancelled") ||
+        message.includes("ERR_REQUEST_CANCELED") ||
+        message.includes("SIGN_IN_CANCELLED");
+
+      if (!isCancelled) {
+        Alert.alert("Sign In Failed", message);
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleUsernameChange = (text: string) => {
