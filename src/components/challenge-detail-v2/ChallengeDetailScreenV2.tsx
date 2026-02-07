@@ -32,7 +32,6 @@ import {
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/hooks/useAuth";
-import { useFeatureFlags } from "@/lib/featureFlags";
 import {
   useChallenge,
   useLeaderboard,
@@ -92,7 +91,6 @@ export function ChallengeDetailScreenV2({
   const { colors, spacing } = useAppTheme();
   const insets = useSafeAreaInsets();
   const { profile } = useAuth();
-  const { uiVersion } = useFeatureFlags();
 
   // Data fetching
   const {
@@ -130,7 +128,7 @@ export function ChallengeDetailScreenV2({
   const [showAllLeaderboard, setShowAllLeaderboard] = useState(false);
 
   // Navigation
-  const homeFallback = uiVersion === "v2" ? "/(tabs-v2)" : "/(tabs)";
+  const homeFallback = "/(tabs-v2)";
   const handleBack = () => {
     if (router.canGoBack()) router.back();
     else router.replace(homeFallback);

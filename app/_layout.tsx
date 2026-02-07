@@ -10,7 +10,7 @@
 // It provides the global crypto.getRandomValues for React Native
 import "react-native-get-random-values";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef } from "react";
 import {
   Stack,
   useRouter,
@@ -27,7 +27,6 @@ import {
   StyleSheet,
   Platform,
   Text,
-  AppState,
 } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -41,7 +40,6 @@ import { ToastProvider } from "@/providers/ToastProvider";
 import { ServerTimeBanner, OfflineIndicator } from "@/components/ui";
 import {
   supabaseConfigError,
-  getStorageStatus,
   storageProbePromise,
   subscribeToStorageStatus,
 } from "@/lib/supabase";
@@ -57,7 +55,6 @@ import { useToast } from "@/providers/ToastProvider";
 import type { Session } from "@supabase/supabase-js";
 
 import * as Sentry from "@sentry/react-native";
-import { useFeatureFlags } from "@/lib/featureFlags";
 
 Sentry.init({
   dsn: "https://5355753a2ebdf238435764f54c6b1f57@o4510739478478848.ingest.us.sentry.io/4510739480576000",
@@ -87,22 +84,6 @@ Sentry.init({
 
 // Initialize error reporting (does nothing if no DSN configured)
 initSentry();
-
-// =============================================================================
-// TAB NAVIGATION CONSTANTS
-// =============================================================================
-
-/**
- * Valid tab names that exist in both (tabs) and (tabs-v2) groups.
- * Used to preserve tab intent when redirecting between UI versions.
- */
-const VALID_TAB_NAMES = new Set([
-  "index",
-  "challenges",
-  "friends",
-  "profile",
-  "create",
-]);
 
 // =============================================================================
 // NOTIFICATION SETUP
@@ -142,7 +123,6 @@ async function setupNotificationChannel() {
  */
 function useNotificationResponseHandler() {
   const router = useRouter();
-  const { uiVersion } = useFeatureFlags();
   const responseListener = useRef<Notifications.Subscription | null>(null);
 
   useEffect(() => {
@@ -159,12 +139,7 @@ function useNotificationResponseHandler() {
             params: { id: data.challenge_id as string },
           });
         } else if (data?.notification_type === "friend_request_received") {
-          // Navigate to version-appropriate friends tab
-          if (uiVersion === "v2") {
-            router.push("/(tabs-v2)/friends");
-          } else {
-            router.push("/(tabs)/friends");
-          }
+          router.push("/(tabs-v2)/friends");
         }
       });
 
@@ -179,12 +154,7 @@ function useNotificationResponseHandler() {
             params: { id: data.challenge_id as string },
           });
         } else if (data?.notification_type === "friend_request_received") {
-          // Navigate to version-appropriate friends tab
-          if (uiVersion === "v2") {
-            router.push("/(tabs-v2)/friends");
-          } else {
-            router.push("/(tabs)/friends");
-          }
+          router.push("/(tabs-v2)/friends");
         }
       }
     });
@@ -194,7 +164,7 @@ function useNotificationResponseHandler() {
         responseListener.current.remove();
       }
     };
-  }, [router, uiVersion]);
+  }, [router]);
 }
 
 // =============================================================================
@@ -294,11 +264,7 @@ const queryClient = new QueryClient({
 });
 
 // Auth context to manage routing based on auth state
-function useProtectedRoute(
-  session: Session | null,
-  isLoading: boolean,
-  uiVersion: "v1" | "v2" | null,
-) {
+function useProtectedRoute(session: Session | null, isLoading: boolean) {
   const segments = useSegments() as string[];
   const router = useRouter();
   const navigationState = useRootNavigationState();
@@ -318,10 +284,8 @@ function useProtectedRoute(
     const currentPath = "/" + segments.join("/");
 
     // Wait for all required data to be ready
-    if (isLoading || uiVersion === null) {
-      console.log(
-        `${LOG} Waiting... isLoading=${isLoading}, uiVersion=${uiVersion}`,
-      );
+    if (isLoading) {
+      console.log(`${LOG} Waiting... isLoading=${isLoading}`);
       return;
     }
 
@@ -343,46 +307,25 @@ function useProtectedRoute(
     }
 
     const firstSegment = segments[0];
+    const secondSegment = segments[1] as string | undefined;
 
     // Determine where we are
     const atRoot = !firstSegment;
-    const inV1Auth = firstSegment === "(auth)";
-    const inV2Auth = firstSegment === "(auth-v2)";
-    const inAnyAuth = inV1Auth || inV2Auth;
+    const inAuth = firstSegment === "(auth-v2)";
+    const inTabs = firstSegment === "(tabs-v2)";
+    const inOnboarding = inAuth && secondSegment === "onboarding";
 
-    const inV1Tabs = firstSegment === "(tabs)";
-    const inV2Tabs = firstSegment === "(tabs-v2)";
+    // Route targets
+    const targetAuth = "/(auth-v2)/welcome";
+    const targetTabs = "/(tabs-v2)";
 
-    // Check if already in V2 onboarding (don't redirect away from it)
-    const secondSegment = segments[1] as string | undefined;
-    const inV2Onboarding =
-      firstSegment === "(auth-v2)" && secondSegment === "onboarding";
-
-    // Determine targets based on UI version
-    const targetAuth =
-      uiVersion === "v2" ? "/(auth-v2)/welcome" : "/(auth)/welcome";
-    const targetTabs = uiVersion === "v2" ? "/(tabs-v2)" : "/(tabs)";
-
-    // Check for tabs version mismatch
-    const inWrongTabs =
-      (uiVersion === "v2" && inV1Tabs) || (uiVersion === "v1" && inV2Tabs);
-
-    // Check if user needs V2 onboarding
+    // Check if user needs onboarding
     // Uses user_metadata to avoid waiting for profile query
-    //
-    // Logic:
-    // - onboarding_completed === true: User completed onboarding → skip
-    // - onboarding_completed === false: New user, explicitly needs onboarding → show
-    // - onboarding_completed === undefined: Existing user (grandfathered) → skip
-    //
-    // New signups will have onboarding_completed set to false, then true after completion
-    const needsV2Onboarding =
-      uiVersion === "v2" &&
-      session &&
-      session.user.user_metadata?.onboarding_completed === false;
+    const needsOnboarding =
+      session && session.user.user_metadata?.onboarding_completed === false;
 
     console.log(
-      `${LOG} State: atRoot=${atRoot}, inAnyAuth=${inAnyAuth}, inV2Tabs=${inV2Tabs}, needsOnboarding=${needsV2Onboarding}`,
+      `${LOG} State: atRoot=${atRoot}, inAuth=${inAuth}, inTabs=${inTabs}, needsOnboarding=${needsOnboarding}`,
     );
 
     // Helper to navigate only if not already navigating to same target
@@ -421,12 +364,11 @@ function useProtectedRoute(
     // =========================================================================
     if (!session) {
       console.log(`${LOG} CASE 1: No session`);
-      if (!inAnyAuth) {
+      if (!inAuth) {
         console.log(`${LOG}   → Redirect to auth`);
         navigateTo(targetAuth);
       } else {
         console.log(`${LOG}   → Already in auth, staying`);
-        // At destination, clear tracking
         navigationInProgress.current = false;
         lastNavigationTarget.current = null;
       }
@@ -439,62 +381,44 @@ function useProtectedRoute(
     console.log(`${LOG} CASE 2: Has session`);
 
     // Skip if in onboarding flow
-    if (inV2Onboarding) {
+    if (inOnboarding) {
       console.log(`${LOG}   → In onboarding, staying`);
       navigationInProgress.current = false;
       lastNavigationTarget.current = null;
       return;
     }
 
-    // Check if we're in the correct tabs
-    const inCorrectTabs = uiVersion === "v2" ? inV2Tabs : inV1Tabs;
-    if (inCorrectTabs) {
-      // Even in correct tabs, new social auth users may need onboarding
-      if (needsV2Onboarding) {
-        console.log(
-          `${LOG}   → In correct tabs but needs onboarding, redirecting`,
-        );
+    // Already in tabs
+    if (inTabs) {
+      // New social auth users may still need onboarding
+      if (needsOnboarding) {
+        console.log(`${LOG}   → In tabs but needs onboarding, redirecting`);
         navigateTo("/(auth-v2)/onboarding");
         return;
       }
-      console.log(`${LOG}   → Already in correct tabs`);
-      // At destination, clear tracking
+      console.log(`${LOG}   → Already in tabs`);
       navigationInProgress.current = false;
       lastNavigationTarget.current = null;
       return;
     }
 
-    // At root (initial app load with session), in wrong tabs, or need onboarding
-    if (atRoot || inWrongTabs) {
-      console.log(
-        `${LOG}   → Need to redirect (atRoot=${atRoot}, inWrongTabs=${inWrongTabs})`,
-      );
-      if (needsV2Onboarding) {
+    // At root (initial app load with session)
+    if (atRoot) {
+      console.log(`${LOG}   → At root, need to redirect`);
+      if (needsOnboarding) {
         console.log(`${LOG}   → To onboarding`);
         navigateTo("/(auth-v2)/onboarding");
       } else {
-        // Preserve the specific tab when redirecting between versions
-        // e.g., /(tabs)/friends → /(tabs-v2)/friends
-        let targetPath = targetTabs;
-        if (
-          inWrongTabs &&
-          secondSegment &&
-          VALID_TAB_NAMES.has(secondSegment)
-        ) {
-          targetPath = `${targetTabs}/${secondSegment}`;
-          console.log(`${LOG}   → To tabs (preserving tab: ${secondSegment})`);
-        } else {
-          console.log(`${LOG}   → To tabs (home)`);
-        }
-        navigateTo(targetPath);
+        console.log(`${LOG}   → To tabs (home)`);
+        navigateTo(targetTabs);
       }
       return;
     }
 
     // In auth screens with valid session
     // This handles: app restored from background with existing session
-    if (inAnyAuth) {
-      if (needsV2Onboarding) {
+    if (inAuth) {
+      if (needsOnboarding) {
         navigateTo("/(auth-v2)/onboarding");
       } else {
         navigateTo(targetTabs);
@@ -504,7 +428,6 @@ function useProtectedRoute(
     session,
     segments,
     isLoading,
-    uiVersion,
     router,
     navigationState?.key,
     isNavigationLocked,
@@ -524,7 +447,6 @@ function RootLayoutNav() {
     refreshProfile,
     signOut,
   } = useAuth();
-  const { uiVersion, isLoading: flagsLoading } = useFeatureFlags();
   // Track if we've shown storage warning for this session
   const storageWarningShown = useRef(false);
 
@@ -536,7 +458,7 @@ function RootLayoutNav() {
   const queueLength = useOfflineStore((s) => s.queue.length);
 
   // Protected route logic - uses only session, not profile
-  useProtectedRoute(session, isLoading || flagsLoading, uiVersion);
+  useProtectedRoute(session, isLoading);
 
   // Initialize navigation store recovery listener (for stale lock cleanup)
   useEffect(() => {
@@ -641,7 +563,7 @@ function RootLayoutNav() {
   // Show loading spinner ONLY if not navigation-locked
   // When locked, auth screen is handling sign-in and needs to stay mounted
   // to show the biometric setup modal
-  if ((isLoading || flagsLoading) && !isNavigationLocked()) {
+  if (isLoading && !isNavigationLocked()) {
     return (
       <View style={[styles.loading, { backgroundColor: colors.background }]}>
         <ActivityIndicator size="large" color={colors.primary.main} />
@@ -684,18 +606,6 @@ function RootLayoutNav() {
         >
           <Stack.Screen
             name="index"
-            options={{
-              headerShown: false,
-            }}
-          />
-          <Stack.Screen
-            name="(auth)"
-            options={{
-              headerShown: false,
-            }}
-          />
-          <Stack.Screen
-            name="(tabs)"
             options={{
               headerShown: false,
             }}

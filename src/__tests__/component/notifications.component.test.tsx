@@ -1,12 +1,10 @@
 // src/__tests__/component/notifications.component.test.tsx
 // ============================================
-// Notifications Screen Component Tests
-// Tests both V1 and V2 implementations
+// Notifications Screen Component Tests (V2)
 // ============================================
 
 import React from "react";
 import { render, fireEvent, waitFor } from "@testing-library/react-native";
-import { V1NotificationsScreen } from "@/components/NotificationsScreen";
 import { V2NotificationsScreen } from "@/components/v2/NotificationsScreen";
 
 // =============================================================================
@@ -34,16 +32,6 @@ jest.mock("expo-router", () => ({
 // Mock safe-area-context
 jest.mock("react-native-safe-area-context", () => ({
   SafeAreaView: ({ children }: any) => children,
-}));
-
-// Mock feature flags
-const mockUiVersion = jest.fn().mockReturnValue("v1");
-jest.mock("@/lib/featureFlags", () => ({
-  useFeatureFlags: () => ({
-    uiVersion: mockUiVersion(),
-    isLoading: false,
-    isV2: mockUiVersion() === "v2",
-  }),
 }));
 
 // Mock theme provider
@@ -171,88 +159,9 @@ jest.mock("@/components/ui", () => ({
 // TESTS
 // =============================================================================
 
-describe("V1NotificationsScreen", () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-    mockUiVersion.mockReturnValue("v1");
-  });
-
-  describe("rendering", () => {
-    it("renders notifications list", () => {
-      const { getByText } = render(<V1NotificationsScreen />);
-
-      expect(getByText("New Challenge Invite")).toBeTruthy();
-      expect(getByText("Friend Request")).toBeTruthy();
-    });
-
-    it("shows unread count", () => {
-      const { getByText } = render(<V1NotificationsScreen />);
-
-      expect(getByText("1 unread")).toBeTruthy();
-    });
-
-    it("renders mark all read button when unread exist", () => {
-      const { getByText } = render(<V1NotificationsScreen />);
-
-      expect(getByText("Mark all read")).toBeTruthy();
-    });
-  });
-
-  describe("navigation", () => {
-    it("navigates to challenge when challenge notification pressed", async () => {
-      const { getByText } = render(<V1NotificationsScreen />);
-
-      fireEvent.press(getByText("New Challenge Invite"));
-
-      await waitFor(() => {
-        expect(mockMarkAsRead).toHaveBeenCalledWith("notif-1");
-        expect(mockPush).toHaveBeenCalledWith("/challenge/challenge-123");
-      });
-    });
-
-    it("V1 screen always navigates to V1 friends tab", async () => {
-      // V1 component navigates to V1 routes - router fix handles version mismatches
-      mockUiVersion.mockReturnValue("v1");
-      const { getByText } = render(<V1NotificationsScreen />);
-
-      fireEvent.press(getByText("Friend Request"));
-
-      await waitFor(() => {
-        expect(mockPush).toHaveBeenCalledWith("/(tabs)/friends");
-      });
-    });
-
-    it("V1 screen navigates to V1 friends even when uiVersion is v2", async () => {
-      // The router fix in _layout.tsx handles redirecting to correct version
-      mockUiVersion.mockReturnValue("v2");
-      const { getByText } = render(<V1NotificationsScreen />);
-
-      fireEvent.press(getByText("Friend Request"));
-
-      await waitFor(() => {
-        // V1 component always uses V1 route - router handles version redirect
-        expect(mockPush).toHaveBeenCalledWith("/(tabs)/friends");
-      });
-    });
-  });
-
-  describe("actions", () => {
-    it("calls mark all as read when button pressed", async () => {
-      const { getByText } = render(<V1NotificationsScreen />);
-
-      fireEvent.press(getByText("Mark all read"));
-
-      await waitFor(() => {
-        expect(mockMarkAllAsRead).toHaveBeenCalled();
-      });
-    });
-  });
-});
-
 describe("V2NotificationsScreen", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockUiVersion.mockReturnValue("v2");
   });
 
   describe("rendering", () => {
