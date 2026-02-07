@@ -3,7 +3,7 @@
 // V1 backup: app/challenge/create-v1-backup.tsx
 
 import React from "react";
-import { CreateChallengeOrchestrator } from "@/components/v2/create";
+import { CreateChallengeOrchestrator } from "@/components/create-challenge";
 
 export default function CreateChallengeScreen() {
   return <CreateChallengeOrchestrator />;

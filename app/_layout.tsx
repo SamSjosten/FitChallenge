@@ -37,7 +37,8 @@ import { ThemeProvider, useAppTheme } from "@/providers/ThemeProvider";
 import { AuthProvider, useAuth } from "@/providers/AuthProvider";
 import { ProfileErrorBoundary } from "@/components/ProfileErrorBoundary";
 import { ToastProvider } from "@/providers/ToastProvider";
-import { ServerTimeBanner, OfflineIndicator } from "@/components/ui";
+import { ServerTimeBanner } from "@/components/ServerTimeBanner";
+import { OfflineIndicator } from "@/components/OfflineIndicator";
 import {
   supabaseConfigError,
   storageProbePromise,
@@ -139,7 +140,7 @@ function useNotificationResponseHandler() {
             params: { id: data.challenge_id as string },
           });
         } else if (data?.notification_type === "friend_request_received") {
-          router.push("/(tabs-v2)/friends");
+          router.push("/(tabs)/friends");
         }
       });
 
@@ -154,7 +155,7 @@ function useNotificationResponseHandler() {
             params: { id: data.challenge_id as string },
           });
         } else if (data?.notification_type === "friend_request_received") {
-          router.push("/(tabs-v2)/friends");
+          router.push("/(tabs)/friends");
         }
       }
     });
@@ -311,13 +312,13 @@ function useProtectedRoute(session: Session | null, isLoading: boolean) {
 
     // Determine where we are
     const atRoot = !firstSegment;
-    const inAuth = firstSegment === "(auth-v2)";
-    const inTabs = firstSegment === "(tabs-v2)";
+    const inAuth = firstSegment === "(auth)";
+    const inTabs = firstSegment === "(tabs)";
     const inOnboarding = inAuth && secondSegment === "onboarding";
 
     // Route targets
-    const targetAuth = "/(auth-v2)/welcome";
-    const targetTabs = "/(tabs-v2)";
+    const targetAuth = "/(auth)/welcome";
+    const targetTabs = "/(tabs)";
 
     // Check if user needs onboarding
     // Uses user_metadata to avoid waiting for profile query
@@ -393,7 +394,7 @@ function useProtectedRoute(session: Session | null, isLoading: boolean) {
       // New social auth users may still need onboarding
       if (needsOnboarding) {
         console.log(`${LOG}   → In tabs but needs onboarding, redirecting`);
-        navigateTo("/(auth-v2)/onboarding");
+        navigateTo("/(auth)/onboarding");
         return;
       }
       console.log(`${LOG}   → Already in tabs`);
@@ -407,7 +408,7 @@ function useProtectedRoute(session: Session | null, isLoading: boolean) {
       console.log(`${LOG}   → At root, need to redirect`);
       if (needsOnboarding) {
         console.log(`${LOG}   → To onboarding`);
-        navigateTo("/(auth-v2)/onboarding");
+        navigateTo("/(auth)/onboarding");
       } else {
         console.log(`${LOG}   → To tabs (home)`);
         navigateTo(targetTabs);
@@ -419,7 +420,7 @@ function useProtectedRoute(session: Session | null, isLoading: boolean) {
     // This handles: app restored from background with existing session
     if (inAuth) {
       if (needsOnboarding) {
-        navigateTo("/(auth-v2)/onboarding");
+        navigateTo("/(auth)/onboarding");
       } else {
         navigateTo(targetTabs);
       }
@@ -611,13 +612,13 @@ function RootLayoutNav() {
             }}
           />
           <Stack.Screen
-            name="(auth-v2)"
+            name="(auth)"
             options={{
               headerShown: false,
             }}
           />
           <Stack.Screen
-            name="(tabs-v2)"
+            name="(tabs)"
             options={{
               headerShown: false,
             }}

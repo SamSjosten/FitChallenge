@@ -5,7 +5,7 @@
 
 import React from "react";
 import { render, fireEvent, waitFor } from "@testing-library/react-native";
-import { V2NotificationsScreen } from "@/components/v2/NotificationsScreen";
+import { NotificationsScreen } from "@/components/notifications";
 
 // =============================================================================
 // MOCKS
@@ -166,7 +166,7 @@ describe("V2NotificationsScreen", () => {
 
   describe("rendering", () => {
     it("renders notifications with filters", () => {
-      const { getByText } = render(<V2NotificationsScreen />);
+      const { getByText } = render(<NotificationsScreen />);
 
       expect(getByText("Notifications")).toBeTruthy();
       expect(getByText("All")).toBeTruthy();
@@ -174,7 +174,7 @@ describe("V2NotificationsScreen", () => {
     });
 
     it("renders notification content", () => {
-      const { getByText } = render(<V2NotificationsScreen />);
+      const { getByText } = render(<NotificationsScreen />);
 
       expect(getByText("New Challenge Invite")).toBeTruthy();
       expect(getByText("John invited you to Steps Challenge")).toBeTruthy();
@@ -183,7 +183,7 @@ describe("V2NotificationsScreen", () => {
 
   describe("navigation", () => {
     it("navigates to challenge when challenge notification pressed", async () => {
-      const { getByText } = render(<V2NotificationsScreen />);
+      const { getByText } = render(<NotificationsScreen />);
 
       fireEvent.press(getByText("New Challenge Invite"));
 
@@ -194,18 +194,18 @@ describe("V2NotificationsScreen", () => {
     });
 
     it("V2 screen always navigates to V2 friends tab", async () => {
-      const { getByText } = render(<V2NotificationsScreen />);
+      const { getByText } = render(<NotificationsScreen />);
 
       fireEvent.press(getByText("Friend Request"));
 
       await waitFor(() => {
         // V2 component always uses V2 route
-        expect(mockPush).toHaveBeenCalledWith("/(tabs-v2)/friends");
+        expect(mockPush).toHaveBeenCalledWith("/(tabs)/friends");
       });
     });
 
     it("goes back when back button pressed", () => {
-      const { UNSAFE_getByType } = render(<V2NotificationsScreen />);
+      const { UNSAFE_getByType } = render(<NotificationsScreen />);
 
       // Find the back button by its TouchableOpacity containing ChevronLeftIcon
       // This is a simplified test - in real tests you'd use testID

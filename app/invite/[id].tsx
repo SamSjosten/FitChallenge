@@ -17,7 +17,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAppTheme } from "@/providers/ThemeProvider";
 import { usePendingInvites, useRespondToInvite } from "@/hooks/useChallenges";
-import { LoadingState } from "@/components/v2";
+import { LoadingState } from "@/components/shared";
 import {
   ChevronLeftIcon,
   CalendarIcon,

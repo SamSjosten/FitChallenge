@@ -14,7 +14,7 @@ import { router, useLocalSearchParams, Stack } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAppTheme } from "@/providers/ThemeProvider";
 import { useChallengeActivities } from "@/hooks/useActivities";
-import { LoadingState } from "@/components/v2";
+import { LoadingState } from "@/components/shared";
 import {
   ChevronLeftIcon,
   ClockIcon,

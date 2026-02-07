@@ -15,8 +15,8 @@ import { router, useFocusEffect, Stack } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAppTheme } from "@/providers/ThemeProvider";
 import { useRecentActivities, toDisplayActivity } from "@/hooks/useActivities";
-import { LoadingState, EmptyState } from "@/components/v2";
-import { ActivityListItem } from "@/components/v2/ActivityCard";
+import { LoadingState, EmptyState } from "@/components/shared";
+import { ActivityListItem } from "@/components/shared/ActivityCard";
 import { ChevronLeftIcon } from "react-native-heroicons/outline";
 import type { ActivityType } from "@/components/icons/ActivityIcons";
 

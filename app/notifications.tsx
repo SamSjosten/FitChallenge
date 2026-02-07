@@ -2,8 +2,8 @@
 // Notifications inbox screen
 
 import React from "react";
-import { V2NotificationsScreen } from "@/components/v2";
+import { NotificationsScreen } from "@/components/notifications";
 
-export default function NotificationsScreen() {
-  return <V2NotificationsScreen />;
+export default function NotificationsRoute() {
+  return <NotificationsScreen />;
 }
