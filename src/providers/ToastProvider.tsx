@@ -3,12 +3,23 @@
 //
 // Provides showToast() function via context for displaying toast messages
 // anywhere in the app. Renders the Toast component at the root level.
+//
+// API: showToast(message, options?)
+//   options.variant     - "info" | "warning" | "error" | "success" (default: "info")
+//   options.duration    - auto-dismiss ms, 0 = sticky (default: 4000)
+//   options.actionLabel - optional action button text
+//   options.onAction    - optional action button callback
+//
+// NOTE: onAction is stored in a ref, not state — closures must never be
+// serialized into React state. This also prevents silent overwrite if a
+// second showToast fires while an action toast is still visible.
 
 import React, {
   createContext,
   useContext,
   useState,
   useCallback,
+  useRef,
   useMemo,
 } from "react";
 import { Toast, ToastVariant } from "@/components/Toast";
@@ -17,19 +28,23 @@ import { Toast, ToastVariant } from "@/components/Toast";
 // TYPES
 // =============================================================================
 
+export interface ToastOptions {
+  variant?: ToastVariant;
+  duration?: number;
+  actionLabel?: string;
+  onAction?: () => void;
+}
+
 interface ToastState {
   visible: boolean;
   message: string;
   variant: ToastVariant;
   duration: number;
+  actionLabel?: string;
 }
 
 interface ToastContextValue {
-  showToast: (
-    message: string,
-    variant?: ToastVariant,
-    duration?: number,
-  ) => void;
+  showToast: (message: string, options?: ToastOptions) => void;
   hideToast: () => void;
 }
 
@@ -55,24 +70,29 @@ export function ToastProvider({ children }: ToastProviderProps) {
     duration: 4000,
   });
 
-  const showToast = useCallback(
-    (
-      message: string,
-      variant: ToastVariant = "info",
-      duration: number = 4000,
-    ) => {
-      setToast({
-        visible: true,
-        message,
-        variant,
-        duration,
-      });
-    },
-    [],
-  );
+  // Callback stored in ref — never in state.
+  // Refs hold references; state serializes values.
+  const onActionRef = useRef<(() => void) | undefined>(undefined);
+
+  const showToast = useCallback((message: string, options?: ToastOptions) => {
+    onActionRef.current = options?.onAction;
+    setToast({
+      visible: true,
+      message,
+      variant: options?.variant ?? "info",
+      duration: options?.duration ?? 4000,
+      actionLabel: options?.actionLabel,
+    });
+  }, []);
 
   const hideToast = useCallback(() => {
+    onActionRef.current = undefined;
     setToast((prev) => ({ ...prev, visible: false }));
+  }, []);
+
+  const handleAction = useCallback(() => {
+    onActionRef.current?.();
+    // Don't clear ref here — hideToast will clear it
   }, []);
 
   const value = useMemo<ToastContextValue>(
@@ -92,6 +112,8 @@ export function ToastProvider({ children }: ToastProviderProps) {
         visible={toast.visible}
         onDismiss={hideToast}
         duration={toast.duration}
+        actionLabel={toast.actionLabel}
+        onAction={toast.actionLabel ? handleAction : undefined}
       />
     </ToastContext.Provider>
   );
