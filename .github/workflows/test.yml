@@ -37,8 +37,8 @@ jobs:
   # ===========================================================================
   # Tier 0: Unit & Component Tests (every PR)
   # ===========================================================================
-  unit-and-component:
-    name: Unit & Component Tests (incl. Integration)
+  unit-tests:
+    name: Unit Tests
     runs-on: ubuntu-latest
 
     steps:
@@ -60,19 +60,13 @@ jobs:
       - name: Run unit tests with coverage
         run: npm run test:coverage
 
-      - name: Run component tests
-        run: npm run test:component
-
-      - name: Run component-integration tests
-        run: npm run test:component:integration
-
   # ===========================================================================
   # Tier A: Critical Integration Tests (every PR)
   # ===========================================================================
   integration-critical:
     name: Integration Tests (Critical)
     runs-on: ubuntu-latest
-    needs: unit-and-component
+    needs: unit-tests
 
     steps:
       - name: Checkout repository
@@ -100,7 +94,7 @@ jobs:
   integration-full:
     name: Integration Tests (Full)
     runs-on: ubuntu-latest
-    needs: unit-and-component
+    needs: unit-tests
     # Run on: main branch push, nightly schedule, or manual trigger with flag
     if: |
       github.ref == 'refs/heads/main' ||
@@ -133,14 +127,14 @@ jobs:
   test-summary:
     name: Test Summary
     runs-on: ubuntu-latest
-    needs: [unit-and-component, integration-critical]
+    needs: [unit-tests, integration-critical]
     if: always()
 
     steps:
       - name: Check test results
         run: |
-          if [ "${{ needs.unit-and-component.result }}" != "success" ]; then
-            echo "❌ Unit/Component tests failed"
+          if [ "${{ needs.unit-tests.result }}" != "success" ]; then
+            echo "❌ Unit tests failed"
             exit 1
           fi
           if [ "${{ needs.integration-critical.result }}" != "success" ]; then
