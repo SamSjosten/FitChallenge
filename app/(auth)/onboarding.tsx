@@ -304,14 +304,11 @@ const PlatformSelector = ({
 export default function OnboardingScreen() {
   const { profile, refreshProfile } = useAuth();
   const [phase, setPhase] = useState<ScreenPhase>("connect");
-  const [selectedPlatform, setSelectedPlatform] =
-    useState<HealthPlatform>(null);
+  const [selectedPlatform, setSelectedPlatform] = useState<HealthPlatform>(null);
   const [isUpdating, setIsUpdating] = useState(false);
 
   // Navigation lock - prevents ProtectedRoute from interfering during transition
-  const setAuthHandlingNavigation = useNavigationStore(
-    (state) => state.setAuthHandlingNavigation,
-  );
+  const setAuthHandlingNavigation = useNavigationStore((state) => state.setAuthHandlingNavigation);
 
   // Breathing animation for icons
   const breatheAnim = useRef(new Animated.Value(0)).current;
@@ -399,11 +396,9 @@ export default function OnboardingScreen() {
       if (!success) {
         // Release lock and show error - don't navigate
         setAuthHandlingNavigation(false);
-        Alert.alert(
-          "Something went wrong",
-          "We couldn't save your progress. Please try again.",
-          [{ text: "OK" }],
-        );
+        Alert.alert("Something went wrong", "We couldn't save your progress. Please try again.", [
+          { text: "OK" },
+        ]);
         return;
       }
 
@@ -413,11 +408,9 @@ export default function OnboardingScreen() {
       // Release lock on unexpected error
       setAuthHandlingNavigation(false);
       console.error("[Onboarding] handleComplete error:", err);
-      Alert.alert(
-        "Something went wrong",
-        "We couldn't save your progress. Please try again.",
-        [{ text: "OK" }],
-      );
+      Alert.alert("Something went wrong", "We couldn't save your progress. Please try again.", [
+        { text: "OK" },
+      ]);
     }
   };
 
@@ -430,11 +423,9 @@ export default function OnboardingScreen() {
       if (!success) {
         // Release lock and show error - don't navigate
         setAuthHandlingNavigation(false);
-        Alert.alert(
-          "Something went wrong",
-          "We couldn't save your progress. Please try again.",
-          [{ text: "OK" }],
-        );
+        Alert.alert("Something went wrong", "We couldn't save your progress. Please try again.", [
+          { text: "OK" },
+        ]);
         return;
       }
 
@@ -444,11 +435,9 @@ export default function OnboardingScreen() {
       // Release lock on unexpected error
       setAuthHandlingNavigation(false);
       console.error("[Onboarding] handleSkip error:", err);
-      Alert.alert(
-        "Something went wrong",
-        "We couldn't save your progress. Please try again.",
-        [{ text: "OK" }],
-      );
+      Alert.alert("Something went wrong", "We couldn't save your progress. Please try again.", [
+        { text: "OK" },
+      ]);
     }
   };
 
@@ -462,7 +451,7 @@ export default function OnboardingScreen() {
           <View style={styles.successContent}>
             <SuccessCheckmark />
 
-            <Text style={styles.successTitle}>You're Connected!</Text>
+            <Text style={styles.successTitle}>You{"'"}re Connected!</Text>
             <Text style={styles.successSubtitle}>
               Your workouts and activity will sync automatically
             </Text>
@@ -477,7 +466,7 @@ export default function OnboardingScreen() {
               {isUpdating ? (
                 <ActivityIndicator color="#FFFFFF" />
               ) : (
-                <Text style={styles.letsGoButtonText}>Let's Go!</Text>
+                <Text style={styles.letsGoButtonText}>Let{"'"}s Go!</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -541,10 +530,7 @@ export default function OnboardingScreen() {
 
           {/* Platform Selector */}
           <View style={styles.platformSelectorContainer}>
-            <PlatformSelector
-              selectedPlatform={selectedPlatform}
-              onSelect={setSelectedPlatform}
-            />
+            <PlatformSelector selectedPlatform={selectedPlatform} onSelect={setSelectedPlatform} />
           </View>
 
           {/* Connect Button */}
@@ -569,15 +555,13 @@ export default function OnboardingScreen() {
 
           {/* Manual Option */}
           <TouchableOpacity onPress={handleSkip} style={styles.manualButton}>
-            <Text style={styles.manualText}>I'll track manually</Text>
+            <Text style={styles.manualText}>I{"'"}ll track manually</Text>
           </TouchableOpacity>
         </View>
 
         {/* Privacy Note */}
         <View style={styles.footer}>
-          <Text style={styles.privacyText}>
-            🔒 Your health data stays private and secure
-          </Text>
+          <Text style={styles.privacyText}>🔒 Your health data stays private and secure</Text>
         </View>
       </SafeAreaView>
     </LinearGradient>

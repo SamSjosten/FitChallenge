@@ -4,18 +4,9 @@
 // Tests the invite button visibility and modal interactions on ChallengeDetailScreen.
 
 import React from "react";
-import {
-  render,
-  screen,
-  waitFor,
-  fireEvent,
-} from "@testing-library/react-native";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react-native";
 import ChallengeDetailScreen from "../../../app/challenge/[id]";
-import {
-  mockSupabaseClient,
-  TestWrapper,
-  mockSearchParams,
-} from "./jest.setup";
+import { mockSupabaseClient, TestWrapper, mockSearchParams } from "./jest.setup";
 import {
   seedAuthenticatedUser,
   seedChallenge,
@@ -147,9 +138,7 @@ describe("Invite Flow Integration", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockSupabaseClient.__reset();
-    Object.keys(mockSearchParams).forEach(
-      (key) => delete mockSearchParams[key],
-    );
+    Object.keys(mockSearchParams).forEach((key) => delete mockSearchParams[key]);
   });
 
   describe("Invite Button Visibility", () => {
@@ -169,8 +158,7 @@ describe("Invite Flow Integration", () => {
       await waitFor(
         () => {
           const inviteButton =
-            screen.queryByText("Invite Friends") ||
-            screen.queryByText("+ Invite Friends");
+            screen.queryByText("Invite Friends") || screen.queryByText("+ Invite Friends");
           expect(inviteButton).toBeTruthy();
         },
         { timeout: 3000 },

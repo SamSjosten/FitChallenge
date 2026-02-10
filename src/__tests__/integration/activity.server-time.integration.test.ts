@@ -93,9 +93,7 @@ describe("Activity logging - server time enforcement", () => {
 
       // "Malicious" timestamp. Keep it within challenge bounds to avoid bounds failures.
       // We choose 30 minutes ago (still inside active window), but the server should override to now().
-      const maliciousRecordedAt = new Date(
-        Date.now() - 30 * 60 * 1000
-      ).toISOString();
+      const maliciousRecordedAt = new Date(Date.now() - 30 * 60 * 1000).toISOString();
 
       const beforeMs = Date.now();
 

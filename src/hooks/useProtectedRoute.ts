@@ -5,12 +5,7 @@
 // No logic changes — identical to the inline version.
 
 import { useEffect, useRef } from "react";
-import {
-  useRouter,
-  useSegments,
-  useRootNavigationState,
-  Href,
-} from "expo-router";
+import { useRouter, useSegments, useRootNavigationState, Href } from "expo-router";
 import { useNavigationStore } from "@/stores/navigationStore";
 import type { Session } from "@supabase/supabase-js";
 
@@ -27,9 +22,7 @@ export function useProtectedRoute(session: Session | null, isLoading: boolean) {
 
   // Check if auth screen is handling navigation (sign-in flow)
   // Uses isNavigationLocked() to auto-clear stale locks
-  const isNavigationLocked = useNavigationStore(
-    (state) => state.isNavigationLocked,
-  );
+  const isNavigationLocked = useNavigationStore((state) => state.isNavigationLocked);
 
   // Track navigation attempts to prevent duplicates
   const lastNavigationTarget = useRef<string | null>(null);
@@ -54,9 +47,7 @@ export function useProtectedRoute(session: Session | null, isLoading: boolean) {
     // If auth screen is handling sign-in flow, don't interfere
     // isNavigationLocked() will auto-clear stale locks (>30s)
     const locked = isNavigationLocked();
-    console.log(
-      `${LOG} Check: session=${!!session}, locked=${locked}, path=${currentPath}`,
-    );
+    console.log(`${LOG} Check: session=${!!session}, locked=${locked}, path=${currentPath}`);
     if (locked) {
       console.log(`${LOG} ⏸Navigation locked, deferring redirect decision`);
       return;
@@ -77,8 +68,7 @@ export function useProtectedRoute(session: Session | null, isLoading: boolean) {
 
     // Check if user needs onboarding
     // Uses user_metadata to avoid waiting for profile query
-    const needsOnboarding =
-      session && session.user.user_metadata?.onboarding_completed === false;
+    const needsOnboarding = session && session.user.user_metadata?.onboarding_completed === false;
 
     console.log(
       `${LOG} State: atRoot=${atRoot}, inAuth=${inAuth}, inTabs=${inTabs}, needsOnboarding=${needsOnboarding}`,
@@ -88,10 +78,7 @@ export function useProtectedRoute(session: Session | null, isLoading: boolean) {
     // Uses ref to prevent duplicate navigation attempts within same render cycle
     const navigateTo = (target: string) => {
       // Skip if we just navigated to this target
-      if (
-        lastNavigationTarget.current === target &&
-        navigationInProgress.current
-      ) {
+      if (lastNavigationTarget.current === target && navigationInProgress.current) {
         console.log(`${LOG} Skip duplicate navigation to ${target}`);
         return;
       }
@@ -180,12 +167,5 @@ export function useProtectedRoute(session: Session | null, isLoading: boolean) {
         navigateTo(targetTabs);
       }
     }
-  }, [
-    session,
-    segments,
-    isLoading,
-    router,
-    navigationState?.key,
-    isNavigationLocked,
-  ]);
+  }, [session, segments, isLoading, router, navigationState?.key, isNavigationLocked]);
 }

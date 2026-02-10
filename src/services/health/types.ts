@@ -18,12 +18,7 @@ export type SyncType = "background" | "manual" | "initial";
 
 export type SyncStatus = "in_progress" | "completed" | "failed" | "partial";
 
-export type ConnectionStatus =
-  | "connected"
-  | "disconnected"
-  | "syncing"
-  | "error"
-  | "partial";
+export type ConnectionStatus = "connected" | "disconnected" | "syncing" | "error" | "partial";
 
 export type ChallengeType = Database["public"]["Enums"]["challenge_type"];
 
@@ -215,16 +210,10 @@ export interface IHealthProvider {
   getAuthorizationStatus(): Promise<PermissionResult>;
 
   /** Request authorization for health data access */
-  requestAuthorization(
-    permissions: HealthPermission[],
-  ): Promise<PermissionResult>;
+  requestAuthorization(permissions: HealthPermission[]): Promise<PermissionResult>;
 
   /** Fetch health samples for a date range */
-  fetchSamples(
-    startDate: Date,
-    endDate: Date,
-    types: ChallengeType[],
-  ): Promise<HealthSample[]>;
+  fetchSamples(startDate: Date, endDate: Date, types: ChallengeType[]): Promise<HealthSample[]>;
 
   /** Subscribe to real-time updates (if supported) */
   subscribeToUpdates?(
@@ -265,8 +254,5 @@ export interface IHealthService {
   getSyncHistory(limit?: number): Promise<HealthSyncLog[]>;
 
   /** Get recent health activities */
-  getRecentActivities(
-    limit?: number,
-    offset?: number,
-  ): Promise<ProcessedActivity[]>;
+  getRecentActivities(limit?: number, offset?: number): Promise<ProcessedActivity[]>;
 }

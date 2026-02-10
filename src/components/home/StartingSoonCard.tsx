@@ -13,11 +13,7 @@ import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { router } from "expo-router";
 import { useAppTheme } from "@/providers/ThemeProvider";
-import {
-  ClockIcon,
-  UsersIcon,
-  UserPlusIcon,
-} from "react-native-heroicons/outline";
+import { ClockIcon, UsersIcon, UserPlusIcon } from "react-native-heroicons/outline";
 import { formatStartsIn } from "@/lib/serverTime";
 import type { ChallengeWithParticipation } from "@/services/challenges";
 
@@ -32,10 +28,7 @@ export interface StartingSoonCardProps {
 // ============================================================================
 // COMPONENT
 // ============================================================================
-export function StartingSoonCard({
-  challenge,
-  onInvite,
-}: StartingSoonCardProps) {
+export function StartingSoonCard({ challenge, onInvite }: StartingSoonCardProps) {
   const { colors, spacing, radius } = useAppTheme();
 
   const participantCount = challenge.participant_count || 1;
@@ -92,10 +85,7 @@ export function StartingSoonCard({
           </View>
 
           <View style={styles.textContainer}>
-            <Text
-              style={[styles.title, { color: colors.textPrimary }]}
-              numberOfLines={1}
-            >
+            <Text style={[styles.title, { color: colors.textPrimary }]} numberOfLines={1}>
               {challenge.title}
             </Text>
             <Text style={[styles.meta, { color: colors.warning }]}>
@@ -126,9 +116,7 @@ export function StartingSoonCard({
             onPress={handleInvite}
             activeOpacity={0.7}
           >
-            <Text style={[styles.inviteButtonText, { color: colors.warning }]}>
-              Invite
-            </Text>
+            <Text style={[styles.inviteButtonText, { color: colors.warning }]}>Invite</Text>
           </TouchableOpacity>
         ) : (
           <View
@@ -143,9 +131,7 @@ export function StartingSoonCard({
             ]}
           >
             <UsersIcon size={12} color={colors.warning} />
-            <Text
-              style={[styles.participantBadgeText, { color: colors.warning }]}
-            >
+            <Text style={[styles.participantBadgeText, { color: colors.warning }]}>
               {participantCount}
             </Text>
           </View>

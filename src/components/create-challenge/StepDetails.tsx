@@ -2,22 +2,10 @@
 // Step 2: Challenge details - name, goal, duration, start time, win condition
 
 import React, { useState } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TextInput,
-  TouchableOpacity,
-  Platform,
-} from "react-native";
-import DateTimePicker, {
-  DateTimePickerEvent,
-} from "@react-native-community/datetimepicker";
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, Platform } from "react-native";
+import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { useAppTheme } from "@/providers/ThemeProvider";
-import {
-  TrophyIcon,
-  InformationCircleIcon,
-} from "react-native-heroicons/outline";
+import { TrophyIcon, InformationCircleIcon } from "react-native-heroicons/outline";
 import {
   CHALLENGE_TYPES,
   DURATION_PRESETS,
@@ -42,13 +30,9 @@ export function StepDetails({
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
 
-  const update = (partial: Partial<CreateFormData>) =>
-    setFormData({ ...formData, ...partial });
+  const update = (partial: Partial<CreateFormData>) => setFormData({ ...formData, ...partial });
 
-  const handleDateChange = (
-    event: DateTimePickerEvent,
-    selectedDate?: Date,
-  ) => {
+  const handleDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
     if (Platform.OS === "android") {
       setShowDatePicker(false);
     }
@@ -65,10 +49,7 @@ export function StepDetails({
     }
   };
 
-  const handleTimeChange = (
-    event: DateTimePickerEvent,
-    selectedTime?: Date,
-  ) => {
+  const handleTimeChange = (event: DateTimePickerEvent, selectedTime?: Date) => {
     if (Platform.OS === "android") {
       setShowTimePicker(false);
     }
@@ -100,9 +81,7 @@ export function StepDetails({
             value={formData.name}
             onChangeText={(v) => update({ name: v })}
             placeholder={
-              mode === "solo"
-                ? "e.g., 10K Steps Daily"
-                : "e.g., Weekly Workout Warriors"
+              mode === "solo" ? "e.g., 10K Steps Daily" : "e.g., Weekly Workout Warriors"
             }
             placeholderTextColor={colors.textMuted}
             style={[
@@ -121,9 +100,7 @@ export function StepDetails({
         <View style={styles.field}>
           <Text style={[styles.label, { color: colors.textSecondary }]}>
             Description{" "}
-            <Text style={{ color: colors.textMuted, fontWeight: "400" }}>
-              (optional)
-            </Text>
+            <Text style={{ color: colors.textMuted, fontWeight: "400" }}>(optional)</Text>
           </Text>
           <TextInput
             value={formData.description}
@@ -171,9 +148,7 @@ export function StepDetails({
 
         {/* Goal */}
         <View style={styles.field}>
-          <Text style={[styles.label, { color: colors.textSecondary }]}>
-            Goal
-          </Text>
+          <Text style={[styles.label, { color: colors.textSecondary }]}>Goal</Text>
           <View style={styles.goalRow}>
             <TextInput
               value={formData.goal}
@@ -219,16 +194,12 @@ export function StepDetails({
         <View style={styles.field}>
           <Text style={[styles.label, { color: colors.textSecondary }]}>
             Daily Target{" "}
-            <Text style={{ color: colors.textMuted, fontWeight: "400" }}>
-              (optional)
-            </Text>
+            <Text style={{ color: colors.textMuted, fontWeight: "400" }}>(optional)</Text>
           </Text>
           <View style={styles.goalRow}>
             <TextInput
               value={formData.dailyTarget}
-              onChangeText={(v) =>
-                update({ dailyTarget: v.replace(/[^0-9]/g, "") })
-              }
+              onChangeText={(v) => update({ dailyTarget: v.replace(/[^0-9]/g, "") })}
               placeholder="e.g., 10000"
               placeholderTextColor={colors.textMuted}
               keyboardType="number-pad"
@@ -251,9 +222,7 @@ export function StepDetails({
                 },
               ]}
             >
-              <Text style={[styles.unitText, { color: colors.textSecondary }]}>
-                per day
-              </Text>
+              <Text style={[styles.unitText, { color: colors.textSecondary }]}>per day</Text>
             </View>
           </View>
           <View style={styles.hintRow}>
@@ -266,9 +235,7 @@ export function StepDetails({
 
         {/* Duration */}
         <View style={styles.field}>
-          <Text style={[styles.label, { color: colors.textSecondary }]}>
-            Duration
-          </Text>
+          <Text style={[styles.label, { color: colors.textSecondary }]}>Duration</Text>
           <View style={styles.durationGrid}>
             {DURATION_PRESETS.map((d) => {
               const selected = formData.durationPreset === d.id;
@@ -281,12 +248,8 @@ export function StepDetails({
                     styles.durationChip,
                     {
                       borderRadius: radius.xl,
-                      borderColor: selected
-                        ? colors.primary.main
-                        : colors.border,
-                      backgroundColor: selected
-                        ? colors.primary.subtle
-                        : "transparent",
+                      borderColor: selected ? colors.primary.main : colors.border,
+                      backgroundColor: selected ? colors.primary.subtle : "transparent",
                     },
                   ]}
                 >
@@ -294,9 +257,7 @@ export function StepDetails({
                     style={[
                       styles.durationText,
                       {
-                        color: selected
-                          ? colors.primary.dark
-                          : colors.textSecondary,
+                        color: selected ? colors.primary.dark : colors.textSecondary,
                         fontWeight: selected ? "600" : "500",
                       },
                     ]}
@@ -310,9 +271,7 @@ export function StepDetails({
           {formData.durationPreset === "custom" && (
             <TextInput
               value={formData.customDurationDays}
-              onChangeText={(v) =>
-                update({ customDurationDays: v.replace(/[^0-9]/g, "") })
-              }
+              onChangeText={(v) => update({ customDurationDays: v.replace(/[^0-9]/g, "") })}
               placeholder="Number of days"
               placeholderTextColor={colors.textMuted}
               keyboardType="number-pad"
@@ -333,9 +292,7 @@ export function StepDetails({
 
         {/* Start Time */}
         <View style={styles.field}>
-          <Text style={[styles.label, { color: colors.textSecondary }]}>
-            Start Time
-          </Text>
+          <Text style={[styles.label, { color: colors.textSecondary }]}>Start Time</Text>
           <View
             style={[
               styles.startToggle,
@@ -351,9 +308,7 @@ export function StepDetails({
                 {
                   borderRadius: radius.xl - 4,
                   backgroundColor:
-                    formData.startMode === "now"
-                      ? colors.primary.main
-                      : "transparent",
+                    formData.startMode === "now" ? colors.primary.main : "transparent",
                 },
               ]}
               onPress={() => update({ startMode: "now" })}
@@ -362,10 +317,7 @@ export function StepDetails({
                 style={[
                   styles.startOptionText,
                   {
-                    color:
-                      formData.startMode === "now"
-                        ? "#FFFFFF"
-                        : colors.textSecondary,
+                    color: formData.startMode === "now" ? "#FFFFFF" : colors.textSecondary,
                   },
                 ]}
               >
@@ -378,9 +330,7 @@ export function StepDetails({
                 {
                   borderRadius: radius.xl - 4,
                   backgroundColor:
-                    formData.startMode === "scheduled"
-                      ? colors.primary.main
-                      : "transparent",
+                    formData.startMode === "scheduled" ? colors.primary.main : "transparent",
                 },
               ]}
               onPress={() => {
@@ -395,10 +345,7 @@ export function StepDetails({
                 style={[
                   styles.startOptionText,
                   {
-                    color:
-                      formData.startMode === "scheduled"
-                        ? "#FFFFFF"
-                        : colors.textSecondary,
+                    color: formData.startMode === "scheduled" ? "#FFFFFF" : colors.textSecondary,
                   },
                 ]}
               >
@@ -429,9 +376,7 @@ export function StepDetails({
                 onPress={() => setShowDatePicker(true)}
               >
                 <Text style={{ fontSize: 16 }}>📅</Text>
-                <Text
-                  style={[styles.dateTimeText, { color: colors.textPrimary }]}
-                >
+                <Text style={[styles.dateTimeText, { color: colors.textPrimary }]}>
                   {formData.scheduledStart.toLocaleDateString()}
                 </Text>
               </TouchableOpacity>
@@ -447,9 +392,7 @@ export function StepDetails({
                 onPress={() => setShowTimePicker(true)}
               >
                 <Text style={{ fontSize: 16 }}>🕐</Text>
-                <Text
-                  style={[styles.dateTimeText, { color: colors.textPrimary }]}
-                >
+                <Text style={[styles.dateTimeText, { color: colors.textPrimary }]}>
                   {formData.scheduledStart.toLocaleTimeString([], {
                     hour: "2-digit",
                     minute: "2-digit",
@@ -530,9 +473,7 @@ export function StepDetails({
         {/* Win Condition (social only) */}
         {mode === "social" && (
           <View style={styles.field}>
-            <Text style={[styles.label, { color: colors.textSecondary }]}>
-              Win Condition
-            </Text>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>Win Condition</Text>
             <View style={styles.winList}>
               {WIN_CONDITIONS.map((w) => {
                 const selected = formData.winCondition === w.id;
@@ -545,12 +486,8 @@ export function StepDetails({
                       styles.winOption,
                       {
                         borderRadius: radius.xl,
-                        borderColor: selected
-                          ? colors.primary.main
-                          : colors.border,
-                        backgroundColor: selected
-                          ? colors.primary.subtle
-                          : "transparent",
+                        borderColor: selected ? colors.primary.main : colors.border,
+                        backgroundColor: selected ? colors.primary.subtle : "transparent",
                       },
                     ]}
                   >
@@ -559,17 +496,10 @@ export function StepDetails({
                       color={selected ? colors.primary.main : colors.textMuted}
                     />
                     <View style={styles.winText}>
-                      <Text
-                        style={[styles.winLabel, { color: colors.textPrimary }]}
-                      >
+                      <Text style={[styles.winLabel, { color: colors.textPrimary }]}>
                         {w.label}
                       </Text>
-                      <Text
-                        style={[
-                          styles.winDesc,
-                          { color: colors.textSecondary },
-                        ]}
-                      >
+                      <Text style={[styles.winDesc, { color: colors.textSecondary }]}>
                         {w.desc}
                       </Text>
                     </View>

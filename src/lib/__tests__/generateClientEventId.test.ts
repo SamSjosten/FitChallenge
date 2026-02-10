@@ -12,8 +12,7 @@ import { generateClientEventId } from "../uuid";
 describe("generateClientEventId", () => {
   // UUID v4 format: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
   // where x is any hex digit and y is one of 8, 9, a, or b
-  const UUID_V4_REGEX =
-    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  const UUID_V4_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
   describe("format validation", () => {
     test("returns a string", () => {
@@ -110,7 +109,7 @@ describe("generateClientEventId", () => {
           (id) =>
             id.replace(/-/g, "").slice(0, 12) + // First 12 random
             id.replace(/-/g, "").slice(13, 16) + // Skip version, next 3
-            id.replace(/-/g, "").slice(17) // Skip variant, rest
+            id.replace(/-/g, "").slice(17), // Skip variant, rest
         )
         .join("");
 

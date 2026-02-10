@@ -39,12 +39,8 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
     const currentState = get();
     if (value) {
       if (currentState.authHandlingNavigation) {
-        const age = currentState.lockSetAt
-          ? Date.now() - currentState.lockSetAt
-          : 0;
-        console.log(
-          `${LOG} Lock already held (${age}ms), ignoring duplicate SET`,
-        );
+        const age = currentState.lockSetAt ? Date.now() - currentState.lockSetAt : 0;
+        console.log(`${LOG} Lock already held (${age}ms), ignoring duplicate SET`);
         return;
       }
       console.log(`${LOG} 🟢 LOCK ACQUIRED`);
@@ -83,8 +79,7 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 }));
 
 // AppState listener management
-let appStateSubscription: ReturnType<typeof AppState.addEventListener> | null =
-  null;
+let appStateSubscription: ReturnType<typeof AppState.addEventListener> | null = null;
 
 /**
  * Initialize app state listener for stale lock recovery.
@@ -96,20 +91,17 @@ export function initNavigationStoreRecovery() {
     return;
   }
 
-  appStateSubscription = AppState.addEventListener(
-    "change",
-    (nextState: AppStateStatus) => {
-      console.log(`${LOG} AppState → ${nextState}`);
-      if (nextState === "active") {
-        const store = useNavigationStore.getState();
-        if (store.authHandlingNavigation) {
-          console.log(`${LOG} Foregrounded with lock held, validating...`);
-          const isValid = store.isNavigationLocked();
-          console.log(`${LOG} Lock still valid: ${isValid}`);
-        }
+  appStateSubscription = AppState.addEventListener("change", (nextState: AppStateStatus) => {
+    console.log(`${LOG} AppState → ${nextState}`);
+    if (nextState === "active") {
+      const store = useNavigationStore.getState();
+      if (store.authHandlingNavigation) {
+        console.log(`${LOG} Foregrounded with lock held, validating...`);
+        const isValid = store.isNavigationLocked();
+        console.log(`${LOG} Lock still valid: ${isValid}`);
       }
-    },
-  );
+    }
+  });
 
   console.log(`${LOG} ✅ Recovery listener initialized`);
 }

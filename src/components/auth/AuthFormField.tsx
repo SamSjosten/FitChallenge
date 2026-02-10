@@ -57,18 +57,8 @@ export function AuthFormField({
 }: AuthFormFieldProps) {
   return (
     <View style={fieldStyles.wrapper}>
-      <View
-        style={[
-          fieldStyles.container,
-          error ? fieldStyles.containerError : undefined,
-        ]}
-      >
-        <Ionicons
-          name={icon}
-          size={18}
-          color="#9CA3AF"
-          style={fieldStyles.icon}
-        />
+      <View style={[fieldStyles.container, error ? fieldStyles.containerError : undefined]}>
+        <Ionicons name={icon} size={18} color="#9CA3AF" style={fieldStyles.icon} />
         <TextInput
           style={fieldStyles.input}
           placeholder={placeholder}
@@ -81,10 +71,7 @@ export function AuthFormField({
           autoCorrect={autoCorrect}
         />
         {showPasswordToggle && onTogglePassword && (
-          <TouchableOpacity
-            onPress={onTogglePassword}
-            style={fieldStyles.eyeButton}
-          >
+          <TouchableOpacity onPress={onTogglePassword} style={fieldStyles.eyeButton}>
             <Ionicons
               name={passwordVisible ? "eye-off-outline" : "eye-outline"}
               size={18}

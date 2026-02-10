@@ -21,11 +21,7 @@ import {
   Text,
   TouchableOpacity,
 } from "react-native";
-import {
-  useSafeAreaInsets,
-  Edge,
-  SafeAreaView,
-} from "react-native-safe-area-context";
+import { useSafeAreaInsets, Edge, SafeAreaView } from "react-native-safe-area-context";
 import { useAppTheme } from "@/providers/ThemeProvider";
 import { componentSize, spacing } from "@/constants/theme";
 import { BellIcon } from "react-native-heroicons/outline";
@@ -198,13 +194,7 @@ export function ScreenContainer({
     }
 
     return (
-      <View
-        style={[
-          styles.staticContent,
-          { paddingBottom: bottomPadding },
-          contentStyle,
-        ]}
-      >
+      <View style={[styles.staticContent, { paddingBottom: bottomPadding }, contentStyle]}>
         {children}
       </View>
     );
@@ -217,9 +207,7 @@ export function ScreenContainer({
       style={[styles.container, { backgroundColor: colors.background }, style]}
     >
       <StatusBar
-        barStyle={
-          colors.textPrimary === "#FAFAFA" ? "light-content" : "dark-content"
-        }
+        barStyle={colors.textPrimary === "#FAFAFA" ? "light-content" : "dark-content"}
         backgroundColor={colors.background}
       />
       {header}
@@ -334,12 +322,7 @@ export function ScreenHeader({
           >
             <BellIcon size={iconSize.md} color={colors.textSecondary} />
             {unreadCount !== undefined && unreadCount > 0 && (
-              <View
-                style={[
-                  styles.notificationBadge,
-                  { backgroundColor: colors.error },
-                ]}
-              >
+              <View style={[styles.notificationBadge, { backgroundColor: colors.error }]}>
                 <Text style={styles.notificationBadgeText}>
                   {unreadCount > 9 ? "9+" : unreadCount}
                 </Text>

@@ -75,9 +75,7 @@ export function ActivityRow({
 
       {/* Points & Time */}
       <View style={styles.statsContainer}>
-        <Text style={[styles.points, { color: colors.primary.main }]}>
-          {points} pts
-        </Text>
+        <Text style={[styles.points, { color: colors.primary.main }]}>{points} pts</Text>
         <Text style={[styles.time, { color: colors.textMuted }]}>{time}</Text>
       </View>
     </TouchableOpacity>
@@ -139,9 +137,7 @@ export function ActivityRowCompact({
 
       {/* Info */}
       <View style={styles.compactInfoContainer}>
-        <Text style={[styles.compactName, { color: colors.textPrimary }]}>
-          {name}
-        </Text>
+        <Text style={[styles.compactName, { color: colors.textPrimary }]}>{name}</Text>
         <Text style={[styles.compactMeta, { color: colors.textSecondary }]}>
           {getDayLabel(timestamp)} • {formatTime(timestamp)}
         </Text>
@@ -152,9 +148,7 @@ export function ActivityRowCompact({
         <Text style={[styles.compactValue, { color: colors.textPrimary }]}>
           {value.toLocaleString()}
         </Text>
-        <Text style={[styles.compactUnit, { color: colors.textSecondary }]}>
-          {unit}
-        </Text>
+        <Text style={[styles.compactUnit, { color: colors.textSecondary }]}>{unit}</Text>
       </View>
     </TouchableOpacity>
   );
@@ -170,14 +164,10 @@ export function RecentActivityHeader({ onSeeAll }: RecentActivityHeaderProps) {
 
   return (
     <View style={[styles.headerContainer, { marginBottom: spacing.sm }]}>
-      <Text style={[styles.headerTitle, { color: colors.textSecondary }]}>
-        RECENT ACTIVITY
-      </Text>
+      <Text style={[styles.headerTitle, { color: colors.textSecondary }]}>RECENT ACTIVITY</Text>
       {onSeeAll && (
         <TouchableOpacity onPress={onSeeAll}>
-          <Text style={[styles.seeAllText, { color: colors.primary.main }]}>
-            See All
-          </Text>
+          <Text style={[styles.seeAllText, { color: colors.primary.main }]}>See All</Text>
         </TouchableOpacity>
       )}
     </View>
@@ -199,9 +189,7 @@ export function NoRecentActivity() {
         },
       ]}
     >
-      <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>
-        No Recent Activity
-      </Text>
+      <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>No Recent Activity</Text>
       <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
         Your workout history will appear here
       </Text>

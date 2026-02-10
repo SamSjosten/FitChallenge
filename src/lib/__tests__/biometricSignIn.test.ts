@@ -53,9 +53,7 @@ import {
 // =============================================================================
 
 const mockSecureStore = SecureStore as jest.Mocked<typeof SecureStore>;
-const mockLocalAuth = LocalAuthentication as jest.Mocked<
-  typeof LocalAuthentication
->;
+const mockLocalAuth = LocalAuthentication as jest.Mocked<typeof LocalAuthentication>;
 
 const mockSignIn: SignInFunction = jest.fn();
 
@@ -127,9 +125,7 @@ describe("checkBiometricCapability", () => {
   });
 
   it("handles errors gracefully", async () => {
-    mockLocalAuth.hasHardwareAsync.mockRejectedValue(
-      new Error("Hardware check failed"),
-    );
+    mockLocalAuth.hasHardwareAsync.mockRejectedValue(new Error("Hardware check failed"));
 
     const result = await checkBiometricCapability();
 
@@ -367,9 +363,7 @@ describe("performBiometricSignIn", () => {
     mockSecureStore.getItemAsync
       .mockResolvedValueOnce("true")
       .mockResolvedValueOnce(validCredentials);
-    (mockSignIn as jest.Mock).mockRejectedValue(
-      new Error("Invalid login credentials"),
-    );
+    (mockSignIn as jest.Mock).mockRejectedValue(new Error("Invalid login credentials"));
     mockSecureStore.deleteItemAsync.mockResolvedValue(undefined);
 
     const result = await performBiometricSignIn(mockSignIn);
@@ -381,9 +375,7 @@ describe("performBiometricSignIn", () => {
 
   it("handles user cancellation", async () => {
     mockSecureStore.getItemAsync.mockResolvedValueOnce("true");
-    mockSecureStore.getItemAsync.mockRejectedValueOnce(
-      new Error("User canceled"),
-    );
+    mockSecureStore.getItemAsync.mockRejectedValueOnce(new Error("User canceled"));
 
     const result = await performBiometricSignIn(mockSignIn);
 
@@ -435,9 +427,7 @@ describe("performBiometricSignIn", () => {
 
   it("handles LAErrorUserCancel from iOS", async () => {
     mockSecureStore.getItemAsync.mockResolvedValueOnce("true");
-    mockSecureStore.getItemAsync.mockRejectedValueOnce(
-      new Error("LAErrorUserCancel"),
-    );
+    mockSecureStore.getItemAsync.mockRejectedValueOnce(new Error("LAErrorUserCancel"));
 
     const result = await performBiometricSignIn(mockSignIn);
 
@@ -450,9 +440,7 @@ describe("performBiometricSignIn", () => {
 
   it("handles LAErrorBiometryLockout from iOS", async () => {
     mockSecureStore.getItemAsync.mockResolvedValueOnce("true");
-    mockSecureStore.getItemAsync.mockRejectedValueOnce(
-      new Error("LAErrorBiometryLockout"),
-    );
+    mockSecureStore.getItemAsync.mockRejectedValueOnce(new Error("LAErrorBiometryLockout"));
 
     const result = await performBiometricSignIn(mockSignIn);
 

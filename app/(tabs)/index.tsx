@@ -48,19 +48,12 @@ import {
 import { useToast } from "@/providers/ToastProvider";
 import { BiometricSetupModal } from "@/components/BiometricSetupModal";
 import { TestIDs } from "@/constants/testIDs";
-import {
-  ChevronDownIcon,
-  ChevronUpIcon,
-  BellIcon,
-} from "react-native-heroicons/outline";
+import { ChevronDownIcon, ChevronUpIcon, BellIcon } from "react-native-heroicons/outline";
 import { FireIcon } from "react-native-heroicons/solid";
 import type { ActivityType } from "@/components/icons/ActivityIcons";
 
 // Enable LayoutAnimation on Android
-if (
-  Platform.OS === "android" &&
-  UIManager.setLayoutAnimationEnabledExperimental
-) {
+if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
@@ -117,9 +110,7 @@ export default function HomeScreenV2() {
   useEffect(() => {
     const checkStreakBannerDismissed = async () => {
       try {
-        const dismissedDate = await AsyncStorage.getItem(
-          STREAK_BANNER_STORAGE_KEY,
-        );
+        const dismissedDate = await AsyncStorage.getItem(STREAK_BANNER_STORAGE_KEY);
         const today = new Date().toDateString();
         if (dismissedDate === today) {
           setStreakBannerDismissed(true);
@@ -135,9 +126,7 @@ export default function HomeScreenV2() {
   useEffect(() => {
     const checkPendingBiometricSetup = async () => {
       try {
-        const stored = await AsyncStorage.getItem(
-          "fitchallenge_pending_biometric_setup",
-        );
+        const stored = await AsyncStorage.getItem("fitchallenge_pending_biometric_setup");
         if (stored) {
           const credentials = JSON.parse(stored);
           setPendingCredentials(credentials);
@@ -221,9 +210,7 @@ export default function HomeScreenV2() {
         property: LayoutAnimation.Properties.opacity,
       },
     });
-    setExpandedCardId((prevId) =>
-      prevId === challengeId ? null : challengeId,
-    );
+    setExpandedCardId((prevId) => (prevId === challengeId ? null : challengeId));
   }, []);
 
   // Loading state
@@ -266,12 +253,7 @@ export default function HomeScreenV2() {
           <View style={styles.headerRight}>
             {/* Streak badge - shown when banner is dismissed */}
             {streakBannerDismissed && currentStreak > 0 && (
-              <View
-                style={[
-                  styles.streakBadge,
-                  { backgroundColor: "rgba(255, 150, 50, 0.15)" },
-                ]}
-              >
+              <View style={[styles.streakBadge, { backgroundColor: "rgba(255, 150, 50, 0.15)" }]}>
                 <FireIcon size={14} color="#FF9632" />
                 <Text style={styles.streakBadgeText}>{currentStreak}</Text>
               </View>
@@ -284,12 +266,7 @@ export default function HomeScreenV2() {
             >
               <BellIcon size={20} color={colors.textSecondary} />
               {unreadCount !== undefined && unreadCount > 0 && (
-                <View
-                  style={[
-                    styles.notificationBadge,
-                    { backgroundColor: colors.error },
-                  ]}
-                >
+                <View style={[styles.notificationBadge, { backgroundColor: colors.error }]}>
                   <Text style={styles.notificationBadgeText}>
                     {unreadCount > 9 ? "9+" : unreadCount}
                   </Text>
@@ -304,10 +281,7 @@ export default function HomeScreenV2() {
         {/* ================================================================ */}
         {!streakBannerDismissed && currentStreak > 0 && (
           <View style={{ marginTop: spacing.lg }}>
-            <StreakBanner
-              streak={currentStreak}
-              onDismiss={handleStreakDismiss}
-            />
+            <StreakBanner streak={currentStreak} onDismiss={handleStreakDismiss} />
           </View>
         )}
 
@@ -317,20 +291,10 @@ export default function HomeScreenV2() {
         {pendingInvites && pendingInvites.length > 0 && (
           <View style={[styles.section, { marginTop: spacing.xl }]}>
             <View style={styles.sectionHeaderSimple}>
-              <Text
-                style={[
-                  styles.sectionTitleUppercase,
-                  { color: colors.textSecondary },
-                ]}
-              >
+              <Text style={[styles.sectionTitleUppercase, { color: colors.textSecondary }]}>
                 PENDING INVITES
               </Text>
-              <View
-                style={[
-                  styles.countBadge,
-                  { backgroundColor: colors.energy.subtle },
-                ]}
-              >
+              <View style={[styles.countBadge, { backgroundColor: colors.energy.subtle }]}>
                 <Text style={[styles.countText, { color: colors.energy.dark }]}>
                   {pendingInvites.length}
                 </Text>
@@ -360,10 +324,7 @@ export default function HomeScreenV2() {
             count={activeChallenges?.length || 0}
             variant="primary"
           >
-            <ChallengeFilter
-              activeFilter={activeFilter}
-              onFilterChange={handleFilterChange}
-            />
+            <ChallengeFilter activeFilter={activeFilter} onFilterChange={handleFilterChange} />
           </SectionHeader>
 
           {/* Active Filter Badge */}
@@ -390,32 +351,27 @@ export default function HomeScreenV2() {
                 },
               ]}
             >
-              <Text
-                style={[styles.noMatchText, { color: colors.textSecondary }]}
-              >
+              <Text style={[styles.noMatchText, { color: colors.textSecondary }]}>
                 No challenges match this filter
               </Text>
               <TouchableOpacity onPress={handleClearFilter}>
-                <Text
-                  style={[styles.showAllText, { color: colors.primary.main }]}
-                >
+                <Text style={[styles.showAllText, { color: colors.primary.main }]}>
                   Show all challenges
                 </Text>
               </TouchableOpacity>
             </View>
           ) : (
             <View style={{ gap: spacing.sm }}>
-              {(activeFilter !== "all"
-                ? filteredChallenges
-                : filteredChallenges.slice(0, 5)
-              ).map((challenge) => (
-                <ExpandableChallengeCard
-                  key={challenge.id}
-                  challenge={challenge}
-                  isExpanded={expandedCardId === challenge.id}
-                  onToggleExpand={() => handleToggleCardExpand(challenge.id)}
-                />
-              ))}
+              {(activeFilter !== "all" ? filteredChallenges : filteredChallenges.slice(0, 5)).map(
+                (challenge) => (
+                  <ExpandableChallengeCard
+                    key={challenge.id}
+                    challenge={challenge}
+                    isExpanded={expandedCardId === challenge.id}
+                    onToggleExpand={() => handleToggleCardExpand(challenge.id)}
+                  />
+                ),
+              )}
             </View>
           )}
         </View>
@@ -488,26 +444,13 @@ export default function HomeScreenV2() {
               activeOpacity={0.7}
             >
               <View style={styles.completedHeaderLeft}>
-                <Text
-                  style={[
-                    styles.completedTitle,
-                    { color: colors.textSecondary },
-                  ]}
-                >
+                <Text style={[styles.completedTitle, { color: colors.textSecondary }]}>
                   Completed
                 </Text>
                 <View
-                  style={[
-                    styles.completedCountBadge,
-                    { backgroundColor: `${colors.textMuted}15` },
-                  ]}
+                  style={[styles.completedCountBadge, { backgroundColor: `${colors.textMuted}15` }]}
                 >
-                  <Text
-                    style={[
-                      styles.completedCountText,
-                      { color: colors.textSecondary },
-                    ]}
-                  >
+                  <Text style={[styles.completedCountText, { color: colors.textSecondary }]}>
                     {completedChallenges.length}
                   </Text>
                 </View>
@@ -517,9 +460,7 @@ export default function HomeScreenV2() {
                   styles.chevronText,
                   {
                     color: colors.textMuted,
-                    transform: [
-                      { rotate: completedExpanded ? "180deg" : "0deg" },
-                    ],
+                    transform: [{ rotate: completedExpanded ? "180deg" : "0deg" }],
                   },
                 ]}
               >
@@ -547,25 +488,15 @@ export default function HomeScreenV2() {
                     activeOpacity={0.7}
                   >
                     <View style={styles.completedRowLeft}>
-                      <Text style={{ fontSize: 14 }}>
-                        {challenge.my_rank === 1 ? "🏆" : "✓"}
-                      </Text>
+                      <Text style={{ fontSize: 14 }}>{challenge.my_rank === 1 ? "🏆" : "✓"}</Text>
                       <Text
-                        style={[
-                          styles.completedRowTitle,
-                          { color: colors.textSecondary },
-                        ]}
+                        style={[styles.completedRowTitle, { color: colors.textSecondary }]}
                         numberOfLines={1}
                       >
                         {challenge.title}
                       </Text>
                     </View>
-                    <Text
-                      style={[
-                        styles.completedRowRank,
-                        { color: colors.textMuted },
-                      ]}
-                    >
+                    <Text style={[styles.completedRowRank, { color: colors.textMuted }]}>
                       #{challenge.my_rank || "-"}
                     </Text>
                   </TouchableOpacity>
@@ -575,12 +506,7 @@ export default function HomeScreenV2() {
                     style={[styles.viewAllCompleted, { marginTop: spacing.sm }]}
                     onPress={() => router.push("/(tabs)/challenges")}
                   >
-                    <Text
-                      style={[
-                        styles.viewAllCompletedText,
-                        { color: colors.primary.main },
-                      ]}
-                    >
+                    <Text style={[styles.viewAllCompletedText, { color: colors.primary.main }]}>
                       View All Completed →
                     </Text>
                   </TouchableOpacity>

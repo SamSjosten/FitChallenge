@@ -36,17 +36,11 @@ function FriendRow({ friend, isSelected, onToggle }: FriendRowProps) {
     <TouchableOpacity
       onPress={onToggle}
       activeOpacity={0.7}
-      style={[
-        styles.friendRow,
-        isSelected && { backgroundColor: colors.primary.subtle },
-      ]}
+      style={[styles.friendRow, isSelected && { backgroundColor: colors.primary.subtle }]}
     >
       {/* Avatar */}
       <View
-        style={[
-          styles.avatar,
-          { backgroundColor: colors.background, borderRadius: radius.full },
-        ]}
+        style={[styles.avatar, { backgroundColor: colors.background, borderRadius: radius.full }]}
       >
         <UserIcon size={20} color={colors.textMuted} />
       </View>
@@ -95,8 +89,7 @@ export function StepInvite({
     return friends.filter((f) => {
       const p = f.friend_profile;
       return (
-        p.username.toLowerCase().includes(q) ||
-        (p.display_name?.toLowerCase().includes(q) ?? false)
+        p.username.toLowerCase().includes(q) || (p.display_name?.toLowerCase().includes(q) ?? false)
       );
     });
   }, [friends, search]);
@@ -185,16 +178,10 @@ export function StepInvite({
           ) : (
             filtered.map((friend, idx) => (
               <React.Fragment key={friend.id}>
-                {idx > 0 && (
-                  <View
-                    style={[styles.divider, { backgroundColor: colors.border }]}
-                  />
-                )}
+                {idx > 0 && <View style={[styles.divider, { backgroundColor: colors.border }]} />}
                 <FriendRow
                   friend={friend}
-                  isSelected={selectedFriendIds.includes(
-                    friend.friend_profile.id,
-                  )}
+                  isSelected={selectedFriendIds.includes(friend.friend_profile.id)}
                   onToggle={() => toggleFriend(friend.friend_profile.id)}
                 />
               </React.Fragment>

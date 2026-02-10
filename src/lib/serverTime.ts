@@ -65,8 +65,7 @@ const DRIFT_WARNING_THRESHOLD_MS = 60 * 1000;
  */
 export function getSyncStatus(): ServerTimeSyncStatus {
   const now = Date.now();
-  const isStale =
-    !hasSynced || lastSyncAt === null || now - lastSyncAt > RESYNC_INTERVAL_MS;
+  const isStale = !hasSynced || lastSyncAt === null || now - lastSyncAt > RESYNC_INTERVAL_MS;
 
   return {
     hasSynced,
@@ -80,9 +79,7 @@ export function getSyncStatus(): ServerTimeSyncStatus {
  * Subscribe to sync status changes
  * @returns Unsubscribe function
  */
-export function subscribeToSyncStatus(
-  listener: SyncStatusListener,
-): () => void {
+export function subscribeToSyncStatus(listener: SyncStatusListener): () => void {
   statusListeners.add(listener);
   return () => {
     statusListeners.delete(listener);
@@ -113,9 +110,7 @@ function notifyStatusListeners(): void {
  * @param opts.force - If true, sync even if cache is fresh. Default: false
  * @returns true if sync succeeded (or skipped due to fresh cache), false if failed
  */
-export async function syncServerTime(opts?: {
-  force?: boolean;
-}): Promise<boolean> {
+export async function syncServerTime(opts?: { force?: boolean }): Promise<boolean> {
   const force = opts?.force ?? false;
   if (!force && !needsResync()) return true;
 
@@ -174,9 +169,7 @@ export async function syncServerTime(opts?: {
 
     // Log significant drift for debugging
     if (Math.abs(cachedOffsetMs) > DRIFT_WARNING_THRESHOLD_MS) {
-      console.warn(
-        `Device clock drift detected: ${Math.round(cachedOffsetMs / 1000)}s`,
-      );
+      console.warn(`Device clock drift detected: ${Math.round(cachedOffsetMs / 1000)}s`);
     }
 
     notifyStatusListeners();
@@ -303,8 +296,7 @@ export function formatTimeUntil(
     nowThresholdMs?: number;
   },
 ): string {
-  const target =
-    typeof targetDate === "string" ? new Date(targetDate) : targetDate;
+  const target = typeof targetDate === "string" ? new Date(targetDate) : targetDate;
   const now = getServerNow();
   const diffMs = target.getTime() - now.getTime();
 
@@ -496,9 +488,7 @@ export function getDayLabel(date: string | Date): string {
  * ```
  */
 export function useServerTimeSyncStatus(): ServerTimeSyncStatus {
-  const [status, setStatus] = useState<ServerTimeSyncStatus>(() =>
-    getSyncStatus(),
-  );
+  const [status, setStatus] = useState<ServerTimeSyncStatus>(() => getSyncStatus());
 
   useEffect(() => {
     // Update immediately in case status changed since initial render

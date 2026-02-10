@@ -70,9 +70,7 @@ export class MockHealthProvider extends HealthProvider {
     };
   }
 
-  async requestAuthorization(
-    permissions: HealthPermission[],
-  ): Promise<PermissionResult> {
+  async requestAuthorization(permissions: HealthPermission[]): Promise<PermissionResult> {
     await this.delay();
 
     if (this.config.authorizationFails) {
@@ -83,10 +81,7 @@ export class MockHealthProvider extends HealthProvider {
       };
     }
 
-    const newGranted = [
-      ...(this.config.grantedPermissions ?? []),
-      ...permissions,
-    ];
+    const newGranted = [...(this.config.grantedPermissions ?? []), ...permissions];
     this.config.grantedPermissions = [...new Set(newGranted)];
 
     return {
@@ -110,9 +105,7 @@ export class MockHealthProvider extends HealthProvider {
 
     if (this.config.samples) {
       return this.filterSamplesByType(
-        this.config.samples.filter(
-          (s) => s.startDate >= startDate && s.endDate <= endDate,
-        ),
+        this.config.samples.filter((s) => s.startDate >= startDate && s.endDate <= endDate),
         types,
       );
     }
@@ -169,11 +162,7 @@ export class MockHealthProvider extends HealthProvider {
     return this.sortSamplesByDate(samples);
   }
 
-  private generateSampleForType(
-    type: ChallengeType,
-    date: Date,
-    dayIndex: number,
-  ): HealthSample {
+  private generateSampleForType(type: ChallengeType, date: Date, dayIndex: number): HealthSample {
     const id = `mock-${type}-${date.toISOString()}-${dayIndex}`;
 
     const valueRanges: Record<ChallengeType, { min: number; max: number }> = {
@@ -186,9 +175,7 @@ export class MockHealthProvider extends HealthProvider {
     };
 
     const range = valueRanges[type];
-    const value = Math.floor(
-      Math.random() * (range.max - range.min + 1) + range.min,
-    );
+    const value = Math.floor(Math.random() * (range.max - range.min + 1) + range.min);
 
     const units: Record<ChallengeType, string> = {
       steps: "count",
@@ -215,28 +202,18 @@ export class MockHealthProvider extends HealthProvider {
 export function createFullyGrantedMockProvider(): MockHealthProvider {
   return new MockHealthProvider({
     isAvailable: true,
-    grantedPermissions: [
-      "steps",
-      "activeMinutes",
-      "workouts",
-      "distance",
-      "calories",
-    ],
+    grantedPermissions: ["steps", "activeMinutes", "workouts", "distance", "calories"],
   });
 }
 
-export function createFailingMockProvider(
-  errorMessage = "Mock error",
-): MockHealthProvider {
+export function createFailingMockProvider(errorMessage = "Mock error"): MockHealthProvider {
   return new MockHealthProvider({
     fetchFails: true,
     errorMessage,
   });
 }
 
-export function createMockProviderWithSamples(
-  samples: HealthSample[],
-): MockHealthProvider {
+export function createMockProviderWithSamples(samples: HealthSample[]): MockHealthProvider {
   return new MockHealthProvider({
     samples,
   });

@@ -3,40 +3,18 @@
 // Design System - Based on prototype
 
 import React, { useState, useRef } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Modal,
-  Pressable,
-  Animated,
-} from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, Modal, Pressable, Animated } from "react-native";
 import { useAppTheme } from "@/providers/ThemeProvider";
-import {
-  FunnelIcon,
-  TrophyIcon,
-  ClockIcon,
-  CheckIcon,
-} from "react-native-heroicons/outline";
-import {
-  FootprintsIcon,
-  DumbbellIcon,
-  RunningIcon,
-} from "@/components/icons/ActivityIcons";
+import { FunnelIcon, TrophyIcon, ClockIcon, CheckIcon } from "react-native-heroicons/outline";
+import { FootprintsIcon, DumbbellIcon, RunningIcon } from "@/components/icons/ActivityIcons";
 
 // Activity icons mapping
-const FilterIcons: Record<
-  string,
-  React.ComponentType<{ size: number; color: string }>
-> = {
+const FilterIcons: Record<string, React.ComponentType<{ size: number; color: string }>> = {
   all: TrophyIcon,
   ending: ClockIcon,
   steps: ({ size, color }) => <FootprintsIcon size={size} color={color} />,
   workouts: ({ size, color }) => <DumbbellIcon size={size} color={color} />,
-  workout_points: ({ size, color }) => (
-    <DumbbellIcon size={size} color={color} />
-  ),
+  workout_points: ({ size, color }) => <DumbbellIcon size={size} color={color} />,
   distance: ({ size, color }) => <RunningIcon size={size} color={color} />,
   active_minutes: ClockIcon,
 };
@@ -78,8 +56,7 @@ export function ChallengeFilter({
   const [isOpen, setIsOpen] = useState(false);
   const scaleAnim = useRef(new Animated.Value(0)).current;
 
-  const currentFilter =
-    filters.find((f) => f.id === activeFilter) || filters[0];
+  const currentFilter = filters.find((f) => f.id === activeFilter) || filters[0];
   const isFiltered = activeFilter !== "all";
 
   const openDropdown = () => {
@@ -125,19 +102,11 @@ export function ChallengeFilter({
         ]}
         activeOpacity={0.7}
       >
-        <FunnelIcon
-          size={14}
-          color={isFiltered ? colors.primary.main : colors.textMuted}
-        />
+        <FunnelIcon size={14} color={isFiltered ? colors.primary.main : colors.textMuted} />
       </TouchableOpacity>
 
       {/* Dropdown Modal */}
-      <Modal
-        visible={isOpen}
-        transparent
-        animationType="none"
-        onRequestClose={closeDropdown}
-      >
+      <Modal visible={isOpen} transparent animationType="none" onRequestClose={closeDropdown}>
         <Pressable style={styles.backdrop} onPress={closeDropdown}>
           <Animated.View
             style={[
@@ -179,9 +148,7 @@ export function ChallengeFilter({
                   style={[
                     styles.filterOption,
                     {
-                      backgroundColor: isActive
-                        ? colors.primary.subtle
-                        : "transparent",
+                      backgroundColor: isActive ? colors.primary.subtle : "transparent",
                       borderRadius: radius.md,
                       paddingVertical: spacing.sm + 2,
                       paddingHorizontal: spacing.md,
@@ -192,26 +159,20 @@ export function ChallengeFilter({
                   <View style={styles.filterOptionContent}>
                     <IconComponent
                       size={18}
-                      color={
-                        isActive ? colors.primary.main : colors.textSecondary
-                      }
+                      color={isActive ? colors.primary.main : colors.textSecondary}
                     />
                     <Text
                       style={[
                         styles.filterLabel,
                         {
-                          color: isActive
-                            ? colors.primary.main
-                            : colors.textPrimary,
+                          color: isActive ? colors.primary.main : colors.textPrimary,
                         },
                       ]}
                     >
                       {filter.label}
                     </Text>
                   </View>
-                  {isActive && (
-                    <CheckIcon size={16} color={colors.primary.main} />
-                  )}
+                  {isActive && <CheckIcon size={16} color={colors.primary.main} />}
                 </TouchableOpacity>
               );
             })}
@@ -229,20 +190,14 @@ export interface ActiveFilterBadgeProps {
   onClear: () => void;
 }
 
-export function ActiveFilterBadge({
-  filter,
-  label,
-  onClear,
-}: ActiveFilterBadgeProps) {
+export function ActiveFilterBadge({ filter, label, onClear }: ActiveFilterBadgeProps) {
   const { colors, spacing, radius } = useAppTheme();
 
   if (filter === "all") return null;
 
   return (
     <View style={[styles.badgeContainer, { marginBottom: spacing.sm }]}>
-      <Text style={[styles.badgePrefix, { color: colors.textSecondary }]}>
-        Showing:
-      </Text>
+      <Text style={[styles.badgePrefix, { color: colors.textSecondary }]}>Showing:</Text>
       <View
         style={[
           styles.badge,
@@ -254,14 +209,10 @@ export function ActiveFilterBadge({
           },
         ]}
       >
-        <Text style={[styles.badgeText, { color: colors.primary.main }]}>
-          {label}
-        </Text>
+        <Text style={[styles.badgeText, { color: colors.primary.main }]}>{label}</Text>
       </View>
       <TouchableOpacity onPress={onClear}>
-        <Text style={[styles.clearText, { color: colors.textMuted }]}>
-          Clear
-        </Text>
+        <Text style={[styles.clearText, { color: colors.textMuted }]}>Clear</Text>
       </TouchableOpacity>
     </View>
   );

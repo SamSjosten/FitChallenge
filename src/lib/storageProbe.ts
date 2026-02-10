@@ -99,8 +99,7 @@ const legacyListeners = new Map<StorageStatusListener, () => void>();
 /**
  * Promise that resolves when storage probe completes
  */
-export const storageProbePromise: Promise<StorageStatus> =
-  hybridStorageReady.then(toStorageStatus);
+export const storageProbePromise: Promise<StorageStatus> = hybridStorageReady.then(toStorageStatus);
 
 /**
  * Get current storage status (sync)
@@ -122,9 +121,7 @@ export function isStorageProbeComplete(): boolean {
  * Subscribe to storage status changes (e.g., mid-session degradation)
  * Returns unsubscribe function
  */
-export function subscribeToStorageStatus(
-  listener: StorageStatusListener,
-): () => void {
+export function subscribeToStorageStatus(listener: StorageStatusListener): () => void {
   // Wrap the listener to convert hybrid status to legacy format
   const wrappedListener = (hybrid: HybridStorageStatus) => {
     listener(toStorageStatus(hybrid));

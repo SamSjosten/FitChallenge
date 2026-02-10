@@ -7,13 +7,7 @@
 // - If set up: Triggers biometric auth → auto sign-in
 
 import React, { useState, useEffect } from "react";
-import {
-  TouchableOpacity,
-  StyleSheet,
-  ActivityIndicator,
-  Platform,
-  View,
-} from "react-native";
+import { TouchableOpacity, StyleSheet, ActivityIndicator, Platform, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { FaceIDIcon } from "@/components/FaceIDIcon";
 import {
@@ -45,9 +39,7 @@ export function BiometricSignInButton({
   disabled = false,
 }: BiometricSignInButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
-  const [capability, setCapability] = useState<BiometricCapability | null>(
-    null,
-  );
+  const [capability, setCapability] = useState<BiometricCapability | null>(null);
   const [isEnabled, setIsEnabled] = useState(false);
 
   // Check capabilities on mount
@@ -92,9 +84,7 @@ export function BiometricSignInButton({
       const result = await performBiometricSignIn(signIn);
 
       if (result.success) {
-        console.log(
-          `🔘 [BiometricButton] Sign-in successful, calling onSignInSuccess callback`,
-        );
+        console.log(`🔘 [BiometricButton] Sign-in successful, calling onSignInSuccess callback`);
         onSignInSuccess();
       } else if (!result.cancelled) {
         onError(result.error || "Authentication failed");
@@ -131,16 +121,10 @@ export function BiometricSignInButton({
 
   return (
     <TouchableOpacity
-      style={[
-        styles.button,
-        isEnabled && styles.buttonEnabled,
-        disabled && styles.buttonDisabled,
-      ]}
+      style={[styles.button, isEnabled && styles.buttonEnabled, disabled && styles.buttonDisabled]}
       onPress={handlePress}
       disabled={disabled || isLoading}
-      accessibilityLabel={
-        isFaceId ? "Sign in with Face ID" : "Sign in with Touch ID"
-      }
+      accessibilityLabel={isFaceId ? "Sign in with Face ID" : "Sign in with Touch ID"}
       accessibilityHint={
         isEnabled
           ? "Double tap to sign in using biometrics"

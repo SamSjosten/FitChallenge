@@ -121,11 +121,7 @@ describe("Challenge Visibility Integration Tests", () => {
     it("creator can see their own challenge", async () => {
       const id = requireId(challengeId);
 
-      const { data } = await user1.client
-        .from("challenges")
-        .select()
-        .eq("id", id)
-        .single();
+      const { data } = await user1.client.from("challenges").select().eq("id", id).single();
 
       expect(data).toBeDefined();
       expect(data?.id).toBe(id);
@@ -134,11 +130,7 @@ describe("Challenge Visibility Integration Tests", () => {
     it("non-participant cannot see challenge", async () => {
       const id = requireId(challengeId);
 
-      const { data } = await user2.client
-        .from("challenges")
-        .select()
-        .eq("id", id)
-        .maybeSingle();
+      const { data } = await user2.client.from("challenges").select().eq("id", id).maybeSingle();
 
       // User2 is not a participant, should not see it
       expect(data).toBeNull();
@@ -150,11 +142,7 @@ describe("Challenge Visibility Integration Tests", () => {
       // Invite user2 (pending)
       await inviteToChallenge(user1.client, id, user2.id);
 
-      const { data } = await user2.client
-        .from("challenges")
-        .select()
-        .eq("id", id)
-        .single();
+      const { data } = await user2.client.from("challenges").select().eq("id", id).single();
 
       expect(data).toBeDefined();
       expect(data?.id).toBe(id);
@@ -166,11 +154,7 @@ describe("Challenge Visibility Integration Tests", () => {
       await inviteToChallenge(user1.client, id, user2.id);
       await acceptChallengeInvite(user2.client, id);
 
-      const { data } = await user2.client
-        .from("challenges")
-        .select()
-        .eq("id", id)
-        .single();
+      const { data } = await user2.client.from("challenges").select().eq("id", id).single();
 
       expect(data).toBeDefined();
       expect(data?.id).toBe(id);
@@ -242,9 +226,7 @@ describe("Challenge Visibility Integration Tests", () => {
         .eq("challenge_id", id);
 
       // Accepted user should see all accepted participants
-      const acceptedParticipants = data?.filter(
-        (p) => p.invite_status === "accepted",
-      );
+      const acceptedParticipants = data?.filter((p) => p.invite_status === "accepted");
       expect(acceptedParticipants?.length).toBe(2);
     });
   });
@@ -274,13 +256,11 @@ describe("Challenge Visibility Integration Tests", () => {
       const id = requireId(challengeId);
 
       // Creator invites
-      const { error: creatorError } = await user1.client
-        .from("challenge_participants")
-        .insert({
-          challenge_id: id,
-          user_id: user2.id,
-          invite_status: "pending",
-        });
+      const { error: creatorError } = await user1.client.from("challenge_participants").insert({
+        challenge_id: id,
+        user_id: user2.id,
+        invite_status: "pending",
+      });
 
       expect(creatorError).toBeNull();
     });
@@ -296,13 +276,11 @@ describe("Challenge Visibility Integration Tests", () => {
       // We'll use a dummy user ID since we only have 2 test users
       const dummyUserId = "00000000-0000-0000-0000-000000000000";
 
-      const { error } = await user2.client
-        .from("challenge_participants")
-        .insert({
-          challenge_id: id,
-          user_id: dummyUserId,
-          invite_status: "pending",
-        });
+      const { error } = await user2.client.from("challenge_participants").insert({
+        challenge_id: id,
+        user_id: dummyUserId,
+        invite_status: "pending",
+      });
 
       // Should fail - only creator can invite
       expect(error).not.toBeNull();
@@ -393,9 +371,7 @@ describe("Challenge Visibility Integration Tests", () => {
       const upcomingChallenge = await createTestChallenge(user1.client, {
         title: "Upcoming Challenge",
         start_date: new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString(),
-        end_date: new Date(
-          now.getTime() + 7 * 24 * 60 * 60 * 1000,
-        ).toISOString(),
+        end_date: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(),
       });
       upcomingChallengeId = requireId(upcomingChallenge.id);
 
@@ -403,28 +379,20 @@ describe("Challenge Visibility Integration Tests", () => {
       const activeChallenge = await createTestChallenge(user1.client, {
         title: "Active Challenge",
         start_date: new Date(now.getTime() - 60 * 60 * 1000).toISOString(),
-        end_date: new Date(
-          now.getTime() + 7 * 24 * 60 * 60 * 1000,
-        ).toISOString(),
+        end_date: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(),
       });
       activeChallengeId = requireId(activeChallenge.id);
 
       // Create ended challenge (ended 1 hour ago)
       const endedChallenge = await createTestChallenge(user1.client, {
         title: "Ended Challenge",
-        start_date: new Date(
-          now.getTime() - 7 * 24 * 60 * 60 * 1000,
-        ).toISOString(),
+        start_date: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString(),
         end_date: new Date(now.getTime() - 60 * 60 * 1000).toISOString(),
       });
       endedChallengeId = requireId(endedChallenge.id);
 
       // Add user1 as accepted participant in all challenges
-      for (const challengeId of [
-        upcomingChallengeId,
-        activeChallengeId,
-        endedChallengeId,
-      ]) {
+      for (const challengeId of [upcomingChallengeId, activeChallengeId, endedChallengeId]) {
         await user1.client.from("challenge_participants").insert({
           challenge_id: challengeId,
           user_id: user1.id,
@@ -435,11 +403,7 @@ describe("Challenge Visibility Integration Tests", () => {
 
     afterAll(async () => {
       // Cleanup all challenges
-      for (const challengeId of [
-        upcomingChallengeId,
-        activeChallengeId,
-        endedChallengeId,
-      ]) {
+      for (const challengeId of [upcomingChallengeId, activeChallengeId, endedChallengeId]) {
         if (challengeId) {
           await cleanupChallenge(challengeId);
         }

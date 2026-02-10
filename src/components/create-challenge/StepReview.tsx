@@ -2,13 +2,7 @@
 // Step 5: Review challenge details before submitting
 
 import React from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ActivityIndicator,
-} from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from "react-native";
 import { useAppTheme } from "@/providers/ThemeProvider";
 import { UserIcon } from "react-native-heroicons/outline";
 import {
@@ -39,18 +33,13 @@ export function StepReview({
 }: StepReviewProps) {
   const { colors, radius } = useAppTheme();
   const typeConfig = CHALLENGE_TYPES.find((t) => t.id === challengeType);
-  const duration = DURATION_PRESETS.find(
-    (d) => d.id === formData.durationPreset,
-  );
+  const duration = DURATION_PRESETS.find((d) => d.id === formData.durationPreset);
   const winConfig = WIN_CONDITIONS.find((w) => w.id === formData.winCondition);
   const goalNum = parseInt(formData.goal, 10) || 0;
   const Icon = getActivityIcon(challengeType as ActivityType);
-  const typeColors =
-    activityColors[challengeType as ActivityType] || activityColors.custom;
+  const typeColors = activityColors[challengeType as ActivityType] || activityColors.custom;
 
-  const invitedFriends = friends.filter((f) =>
-    selectedFriendIds.includes(f.friend_profile.id),
-  );
+  const invitedFriends = friends.filter((f) => selectedFriendIds.includes(f.friend_profile.id));
 
   // Milestones at 25/50/75/100%
   const milestones = [25, 50, 75, 100].map((pct) => ({
@@ -142,10 +131,7 @@ export function StepReview({
       >
         <View style={styles.headerRow}>
           <View
-            style={[
-              styles.iconWrap,
-              { backgroundColor: typeColors.bg, borderRadius: radius.xl },
-            ]}
+            style={[styles.iconWrap, { backgroundColor: typeColors.bg, borderRadius: radius.xl }]}
           >
             <Icon size={20} color={typeColors.text} />
           </View>
@@ -153,11 +139,8 @@ export function StepReview({
             <Text style={[styles.challengeName, { color: colors.textPrimary }]}>
               {formData.name || "Untitled"}
             </Text>
-            <Text
-              style={[styles.challengeMeta, { color: colors.textSecondary }]}
-            >
-              {typeConfig?.name} ·{" "}
-              {mode === "solo" ? "Personal Goal" : "Challenge"}
+            <Text style={[styles.challengeMeta, { color: colors.textSecondary }]}>
+              {typeConfig?.name} · {mode === "solo" ? "Personal Goal" : "Challenge"}
             </Text>
           </View>
         </View>
@@ -173,14 +156,8 @@ export function StepReview({
         {/* Summary Rows */}
         {summaryRows.map((row) => (
           <View key={row.label} style={styles.summaryRow}>
-            <Text
-              style={[styles.summaryLabel, { color: colors.textSecondary }]}
-            >
-              {row.label}
-            </Text>
-            <Text style={[styles.summaryValue, { color: colors.textPrimary }]}>
-              {row.value}
-            </Text>
+            <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>{row.label}</Text>
+            <Text style={[styles.summaryValue, { color: colors.textPrimary }]}>{row.value}</Text>
           </View>
         ))}
       </View>
@@ -211,14 +188,7 @@ export function StepReview({
                   },
                 ]}
               >
-                <Text
-                  style={[
-                    styles.workoutChipText,
-                    { color: colors.textPrimary },
-                  ]}
-                >
-                  {name}
-                </Text>
+                <Text style={[styles.workoutChipText, { color: colors.textPrimary }]}>{name}</Text>
               </View>
             ))}
           </View>
@@ -236,9 +206,7 @@ export function StepReview({
             },
           ]}
         >
-          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
-            Invited Friends
-          </Text>
+          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Invited Friends</Text>
           <View style={styles.friendsList}>
             {invitedFriends.map((friend) => (
               <View key={friend.id} style={styles.friendRow}>
@@ -254,18 +222,10 @@ export function StepReview({
                   <UserIcon size={16} color={colors.textMuted} />
                 </View>
                 <View>
-                  <Text
-                    style={[styles.friendName, { color: colors.textPrimary }]}
-                  >
-                    {friend.friend_profile.display_name ||
-                      friend.friend_profile.username}
+                  <Text style={[styles.friendName, { color: colors.textPrimary }]}>
+                    {friend.friend_profile.display_name || friend.friend_profile.username}
                   </Text>
-                  <Text
-                    style={[
-                      styles.friendUsername,
-                      { color: colors.textSecondary },
-                    ]}
-                  >
+                  <Text style={[styles.friendUsername, { color: colors.textSecondary }]}>
                     @{friend.friend_profile.username}
                   </Text>
                 </View>
@@ -286,45 +246,26 @@ export function StepReview({
             },
           ]}
         >
-          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
-            Milestones
-          </Text>
+          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Milestones</Text>
           <View style={styles.milestonesRow}>
             {milestones.map((m, idx) => (
               <React.Fragment key={m.pct}>
                 <View style={styles.milestone}>
-                  <View
-                    style={[
-                      styles.milestoneCircle,
-                      { backgroundColor: colors.background },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.milestonePct,
-                        { color: colors.textSecondary },
-                      ]}
-                    >
+                  <View style={[styles.milestoneCircle, { backgroundColor: colors.background }]}>
+                    <Text style={[styles.milestonePct, { color: colors.textSecondary }]}>
                       {m.pct}%
                     </Text>
                   </View>
-                  <Text
-                    style={[
-                      styles.milestoneValue,
-                      { color: colors.textSecondary },
-                    ]}
-                  >
+                  <Text style={[styles.milestoneValue, { color: colors.textSecondary }]}>
                     {m.value.toLocaleString()}
                   </Text>
                 </View>
-                {idx < milestones.length - 1 && (
-                  <MilestoneConnector color={colors.border} />
-                )}
+                {idx < milestones.length - 1 && <MilestoneConnector color={colors.border} />}
               </React.Fragment>
             ))}
           </View>
           <Text style={[styles.milestoneHint, { color: colors.textMuted }]}>
-            You'll be notified at each milestone
+            You{"'"}ll be notified at each milestone
           </Text>
         </View>
       )}

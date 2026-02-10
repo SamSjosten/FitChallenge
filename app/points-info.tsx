@@ -3,13 +3,7 @@
 // Design System v2.0
 
 import React from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-} from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from "react-native";
 import { router, Stack } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAppTheme } from "@/providers/ThemeProvider";
@@ -20,11 +14,7 @@ import {
   SparklesIcon,
   QuestionMarkCircleIcon,
 } from "react-native-heroicons/outline";
-import {
-  FootprintsIcon,
-  DumbbellIcon,
-  RunningIcon,
-} from "@/components/icons/ActivityIcons";
+import { FootprintsIcon, DumbbellIcon, RunningIcon } from "@/components/icons/ActivityIcons";
 
 interface PointsRuleProps {
   icon: React.ReactNode;
@@ -34,13 +24,7 @@ interface PointsRuleProps {
   points: string;
 }
 
-function PointsRule({
-  icon,
-  title,
-  description,
-  example,
-  points,
-}: PointsRuleProps) {
+function PointsRule({ icon, title, description, example, points }: PointsRuleProps) {
   const { colors, spacing, radius } = useAppTheme();
 
   return (
@@ -68,17 +52,11 @@ function PointsRule({
           {icon}
         </View>
         <View style={styles.ruleHeaderText}>
-          <Text style={[styles.ruleTitle, { color: colors.textPrimary }]}>
-            {title}
-          </Text>
-          <Text style={[styles.rulePoints, { color: colors.primary.main }]}>
-            {points}
-          </Text>
+          <Text style={[styles.ruleTitle, { color: colors.textPrimary }]}>{title}</Text>
+          <Text style={[styles.rulePoints, { color: colors.primary.main }]}>{points}</Text>
         </View>
       </View>
-      <Text style={[styles.ruleDescription, { color: colors.textSecondary }]}>
-        {description}
-      </Text>
+      <Text style={[styles.ruleDescription, { color: colors.textSecondary }]}>{description}</Text>
       <View
         style={[
           styles.exampleBox,
@@ -90,12 +68,8 @@ function PointsRule({
           },
         ]}
       >
-        <Text style={[styles.exampleLabel, { color: colors.textMuted }]}>
-          Example:
-        </Text>
-        <Text style={[styles.exampleText, { color: colors.textSecondary }]}>
-          {example}
-        </Text>
+        <Text style={[styles.exampleLabel, { color: colors.textMuted }]}>Example:</Text>
+        <Text style={[styles.exampleText, { color: colors.textSecondary }]}>{example}</Text>
       </View>
     </View>
   );
@@ -126,17 +100,10 @@ function FAQItem({ question, answer }: FAQItemProps) {
     >
       <View style={styles.faqHeader}>
         <QuestionMarkCircleIcon size={20} color={colors.primary.main} />
-        <Text style={[styles.faqQuestion, { color: colors.textPrimary }]}>
-          {question}
-        </Text>
+        <Text style={[styles.faqQuestion, { color: colors.textPrimary }]}>{question}</Text>
       </View>
       {expanded && (
-        <Text
-          style={[
-            styles.faqAnswer,
-            { color: colors.textSecondary, marginTop: spacing.sm },
-          ]}
-        >
+        <Text style={[styles.faqAnswer, { color: colors.textSecondary, marginTop: spacing.sm }]}>
           {answer}
         </Text>
       )}
@@ -166,15 +133,10 @@ export default function PointsExplainerScreen() {
           },
         ]}
       >
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={styles.backButton}
-        >
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <ChevronLeftIcon size={24} color={colors.textPrimary} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>
-          How Points Work
-        </Text>
+        <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>How Points Work</Text>
         <View style={styles.headerRight} />
       </View>
 
@@ -201,17 +163,14 @@ export default function PointsExplainerScreen() {
             Earn Points, Win Challenges
           </Text>
           <Text style={[styles.introText, { color: colors.textSecondary }]}>
-            Every activity you log earns points. The more you move, the more you
-            score! Points help you compete in challenges and build your streak.
+            Every activity you log earns points. The more you move, the more you score! Points help
+            you compete in challenges and build your streak.
           </Text>
         </View>
 
         {/* Activity Points Section */}
         <Text
-          style={[
-            styles.sectionTitle,
-            { color: colors.textSecondary, marginBottom: spacing.sm },
-          ]}
+          style={[styles.sectionTitle, { color: colors.textSecondary, marginBottom: spacing.sm }]}
         >
           ACTIVITY POINTS
         </Text>
@@ -279,48 +238,21 @@ export default function PointsExplainerScreen() {
               Streak Multiplier
             </Text>
           </View>
-          <Text
-            style={[styles.bonusDescription, { color: colors.textSecondary }]}
-          >
-            Keep your streak alive! After 7 days, you'll earn bonus points on
-            every activity.
+          <Text style={[styles.bonusDescription, { color: colors.textSecondary }]}>
+            Keep your streak alive! After 7 days, you{"'"}ll earn bonus points on every activity.
           </Text>
           <View style={[styles.bonusTiers, { marginTop: spacing.sm }]}>
             <View style={styles.bonusTier}>
-              <Text
-                style={[styles.bonusTierLabel, { color: colors.textMuted }]}
-              >
-                7+ days
-              </Text>
-              <Text
-                style={[styles.bonusTierValue, { color: colors.energy.dark }]}
-              >
-                +10%
-              </Text>
+              <Text style={[styles.bonusTierLabel, { color: colors.textMuted }]}>7+ days</Text>
+              <Text style={[styles.bonusTierValue, { color: colors.energy.dark }]}>+10%</Text>
             </View>
             <View style={styles.bonusTier}>
-              <Text
-                style={[styles.bonusTierLabel, { color: colors.textMuted }]}
-              >
-                30+ days
-              </Text>
-              <Text
-                style={[styles.bonusTierValue, { color: colors.energy.dark }]}
-              >
-                +25%
-              </Text>
+              <Text style={[styles.bonusTierLabel, { color: colors.textMuted }]}>30+ days</Text>
+              <Text style={[styles.bonusTierValue, { color: colors.energy.dark }]}>+25%</Text>
             </View>
             <View style={styles.bonusTier}>
-              <Text
-                style={[styles.bonusTierLabel, { color: colors.textMuted }]}
-              >
-                100+ days
-              </Text>
-              <Text
-                style={[styles.bonusTierValue, { color: colors.energy.dark }]}
-              >
-                +50%
-              </Text>
+              <Text style={[styles.bonusTierLabel, { color: colors.textMuted }]}>100+ days</Text>
+              <Text style={[styles.bonusTierValue, { color: colors.energy.dark }]}>+50%</Text>
             </View>
           </View>
         </View>

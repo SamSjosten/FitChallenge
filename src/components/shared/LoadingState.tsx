@@ -10,14 +10,7 @@
 // - leaderboard: Leaderboard skeleton
 
 import React, { useEffect, useRef } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  Animated,
-  ActivityIndicator,
-  ViewStyle,
-} from "react-native";
+import { View, Text, StyleSheet, Animated, ActivityIndicator, ViewStyle } from "react-native";
 import { useAppTheme } from "@/providers/ThemeProvider";
 
 // =============================================================================
@@ -135,13 +128,7 @@ function InlineLoading({ testID }: { testID?: string }) {
   );
 }
 
-function ContentLoading({
-  testID,
-  message,
-}: {
-  testID?: string;
-  message?: string;
-}) {
+function ContentLoading({ testID, message }: { testID?: string; message?: string }) {
   const { colors, spacing } = useAppTheme();
 
   return (
@@ -166,55 +153,31 @@ function CardSkeleton({ testID }: { testID?: string }) {
   const { colors } = useAppTheme();
 
   return (
-    <View
-      style={[styles.card, { backgroundColor: colors.surface }]}
-      testID={testID}
-    >
+    <View style={[styles.card, { backgroundColor: colors.surface }]} testID={testID}>
       <View style={styles.cardHeader}>
         <SkeletonBox width={40} height={40} borderRadius={20} />
         <View style={styles.cardHeaderText}>
           <SkeletonBox width={"60%" as `${number}%`} height={16} />
-          <SkeletonBox
-            width={"40%" as `${number}%`}
-            height={12}
-            style={{ marginTop: 8 }}
-          />
+          <SkeletonBox width={"40%" as `${number}%`} height={12} style={{ marginTop: 8 }} />
         </View>
       </View>
       <SkeletonBox height={8} style={{ marginTop: 16 }} />
-      <SkeletonBox
-        width={"30%" as `${number}%`}
-        height={12}
-        style={{ marginTop: 8 }}
-      />
+      <SkeletonBox width={"30%" as `${number}%`} height={12} style={{ marginTop: 8 }} />
     </View>
   );
 }
 
-function ListSkeleton({
-  count = 3,
-  testID,
-}: {
-  count?: number;
-  testID?: string;
-}) {
+function ListSkeleton({ count = 3, testID }: { count?: number; testID?: string }) {
   const { colors } = useAppTheme();
 
   return (
     <View testID={testID}>
       {Array.from({ length: count }).map((_, index) => (
-        <View
-          key={index}
-          style={[styles.listItem, { borderBottomColor: colors.border }]}
-        >
+        <View key={index} style={[styles.listItem, { borderBottomColor: colors.border }]}>
           <SkeletonBox width={48} height={48} borderRadius={24} />
           <View style={styles.listItemContent}>
             <SkeletonBox width={"70%" as `${number}%`} height={16} />
-            <SkeletonBox
-              width={"50%" as `${number}%`}
-              height={12}
-              style={{ marginTop: 8 }}
-            />
+            <SkeletonBox width={"50%" as `${number}%`} height={12} style={{ marginTop: 8 }} />
           </View>
         </View>
       ))}
@@ -226,20 +189,13 @@ function ChallengeCardSkeleton({ testID }: { testID?: string }) {
   const { colors } = useAppTheme();
 
   return (
-    <View
-      style={[styles.challengeCard, { backgroundColor: colors.surface }]}
-      testID={testID}
-    >
+    <View style={[styles.challengeCard, { backgroundColor: colors.surface }]} testID={testID}>
       {/* Header */}
       <View style={styles.challengeHeader}>
         <SkeletonBox width={32} height={32} borderRadius={8} />
         <View style={styles.challengeHeaderText}>
           <SkeletonBox width={"60%" as `${number}%`} height={18} />
-          <SkeletonBox
-            width={"40%" as `${number}%`}
-            height={14}
-            style={{ marginTop: 6 }}
-          />
+          <SkeletonBox width={"40%" as `${number}%`} height={14} style={{ marginTop: 6 }} />
         </View>
         <SkeletonBox width={48} height={24} borderRadius={12} />
       </View>
@@ -256,20 +212,11 @@ function ChallengeCardSkeleton({ testID }: { testID?: string }) {
   );
 }
 
-function LeaderboardSkeleton({
-  count = 5,
-  testID,
-}: {
-  count?: number;
-  testID?: string;
-}) {
+function LeaderboardSkeleton({ count = 5, testID }: { count?: number; testID?: string }) {
   const { colors } = useAppTheme();
 
   return (
-    <View
-      style={[styles.leaderboard, { backgroundColor: colors.surface }]}
-      testID={testID}
-    >
+    <View style={[styles.leaderboard, { backgroundColor: colors.surface }]} testID={testID}>
       {Array.from({ length: count }).map((_, index) => (
         <View
           key={index}
@@ -282,19 +229,10 @@ function LeaderboardSkeleton({
           ]}
         >
           <SkeletonBox width={24} height={24} borderRadius={12} />
-          <SkeletonBox
-            width={40}
-            height={40}
-            borderRadius={20}
-            style={{ marginLeft: 12 }}
-          />
+          <SkeletonBox width={40} height={40} borderRadius={20} style={{ marginLeft: 12 }} />
           <View style={styles.leaderboardContent}>
             <SkeletonBox width={"50%" as `${number}%`} height={14} />
-            <SkeletonBox
-              width={"30%" as `${number}%`}
-              height={12}
-              style={{ marginTop: 4 }}
-            />
+            <SkeletonBox width={"30%" as `${number}%`} height={12} style={{ marginTop: 4 }} />
           </View>
           <SkeletonBox width={60} height={20} borderRadius={4} />
         </View>

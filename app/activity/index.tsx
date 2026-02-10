@@ -3,14 +3,7 @@
 // Design System v2.0
 
 import React, { useState, useMemo, useCallback } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  RefreshControl,
-  TouchableOpacity,
-} from "react-native";
+import { View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity } from "react-native";
 import { router, useFocusEffect, Stack } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAppTheme } from "@/providers/ThemeProvider";
@@ -31,11 +24,7 @@ function groupActivitiesByDate<T extends { recorded_at: string }>(
 
   for (const activity of activities) {
     const date = new Date(activity.recorded_at);
-    const activityDate = new Date(
-      date.getFullYear(),
-      date.getMonth(),
-      date.getDate(),
-    );
+    const activityDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
 
     let group: string;
     if (activityDate.getTime() === today.getTime()) {
@@ -149,15 +138,10 @@ export default function ActivityHistoryScreen() {
           },
         ]}
       >
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={styles.backButton}
-        >
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <ChevronLeftIcon size={24} color={colors.textPrimary} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>
-          Activity History
-        </Text>
+        <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Activity History</Text>
         <View style={styles.headerRight} />
       </View>
 

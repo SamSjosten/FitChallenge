@@ -28,16 +28,12 @@ export const supabaseConfigError: string | null = configValidation.isValid
 
 // Fail-fast in development — immediate console feedback
 if (__DEV__ && !configValidation.isValid) {
-  throw new Error(
-    `[FitChallenge] Configuration Error: ${configValidation.message}`,
-  );
+  throw new Error(`[FitChallenge] Configuration Error: ${configValidation.message}`);
 }
 
 // Log in production for crash reporting diagnostics
 if (!__DEV__ && !configValidation.isValid) {
-  console.error(
-    `[FitChallenge] Configuration Error: ${configValidation.message}`,
-  );
+  console.error(`[FitChallenge] Configuration Error: ${configValidation.message}`);
 }
 
 // =============================================================================
@@ -78,25 +74,19 @@ let supabaseClient: SupabaseClient<Database> | null = null;
  */
 export function getSupabaseClient(): SupabaseClient<Database> {
   if (!configValidation.isValid) {
-    throw new Error(
-      `[FitChallenge] Supabase client unavailable: ${configValidation.message}`,
-    );
+    throw new Error(`[FitChallenge] Supabase client unavailable: ${configValidation.message}`);
   }
 
   if (!supabaseClient) {
-    supabaseClient = createClient<Database>(
-      Config.supabaseUrl,
-      Config.supabaseAnonKey,
-      {
-        auth: {
-          storage: ResilientStorageAdapter,
-          autoRefreshToken: true,
-          persistSession: true,
-          detectSessionInUrl: false, // Important for React Native
-          flowType: "pkce", // More secure than implicit
-        },
+    supabaseClient = createClient<Database>(Config.supabaseUrl, Config.supabaseAnonKey, {
+      auth: {
+        storage: ResilientStorageAdapter,
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: false, // Important for React Native
+        flowType: "pkce", // More secure than implicit
       },
-    );
+    });
   }
 
   return supabaseClient;
@@ -131,9 +121,7 @@ export async function getUserId(): Promise<string | null> {
  * Wrap an operation that requires authentication
  * Automatically gets user ID and passes it to the operation
  */
-export async function withAuth<T>(
-  operation: (userId: string) => Promise<T>,
-): Promise<T> {
+export async function withAuth<T>(operation: (userId: string) => Promise<T>): Promise<T> {
   const userId = await requireUserId();
   return operation(userId);
 }

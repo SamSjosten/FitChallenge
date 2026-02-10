@@ -31,10 +31,7 @@ import {
 import { pushTokenService } from "@/services/pushTokens";
 
 // Activity type colors for the hero gradient
-const challengeTypeColors: Record<
-  string,
-  { primary: string; secondary: string }
-> = {
+const challengeTypeColors: Record<string, { primary: string; secondary: string }> = {
   steps: { primary: "#3B82F6", secondary: "#DBEAFE" },
   workouts: { primary: "#8B5CF6", secondary: "#EDE9FE" },
   distance: { primary: "#0D9488", secondary: "#CCFBF1" },
@@ -84,35 +81,28 @@ export default function InviteDetailScreen() {
   const handleDecline = async () => {
     if (!challenge) return;
 
-    Alert.alert(
-      "Decline Invite",
-      "Are you sure you want to decline this challenge invite?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Decline",
-          style: "destructive",
-          onPress: async () => {
-            setIsDeclining(true);
-            try {
-              await respondToInvite.mutateAsync({
-                challenge_id: challenge.id,
-                response: "declined",
-              });
-              router.back();
-            } catch (err) {
-              console.error("Failed to decline invite:", err);
-              Alert.alert(
-                "Error",
-                "Failed to decline invite. Please try again.",
-              );
-            } finally {
-              setIsDeclining(false);
-            }
-          },
+    Alert.alert("Decline Invite", "Are you sure you want to decline this challenge invite?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Decline",
+        style: "destructive",
+        onPress: async () => {
+          setIsDeclining(true);
+          try {
+            await respondToInvite.mutateAsync({
+              challenge_id: challenge.id,
+              response: "declined",
+            });
+            router.back();
+          } catch (err) {
+            console.error("Failed to decline invite:", err);
+            Alert.alert("Error", "Failed to decline invite. Please try again.");
+          } finally {
+            setIsDeclining(false);
+          }
         },
-      ],
-    );
+      },
+    ]);
   };
 
   const handleShare = () => {
@@ -133,9 +123,7 @@ export default function InviteDetailScreen() {
   const getDaysUntilStart = (startDate: string) => {
     const start = new Date(startDate);
     const now = new Date();
-    const diff = Math.ceil(
-      (start.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
-    );
+    const diff = Math.ceil((start.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
     if (diff <= 0) return "Starting soon";
     if (diff === 1) return "Starts tomorrow";
     return `Starts in ${diff} days`;
@@ -144,9 +132,7 @@ export default function InviteDetailScreen() {
   const getDuration = (startDate: string, endDate: string) => {
     const start = new Date(startDate);
     const end = new Date(endDate);
-    const days = Math.ceil(
-      (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24),
-    );
+    const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
     if (days === 1) return "1 day";
     if (days === 7) return "1 week";
     if (days === 14) return "2 weeks";
@@ -203,10 +189,8 @@ export default function InviteDetailScreen() {
     );
   }
 
-  const typeColors =
-    challengeTypeColors[challenge.challenge_type] || challengeTypeColors.custom;
-  const creatorName =
-    invite.creator?.display_name || invite.creator?.username || "Someone";
+  const typeColors = challengeTypeColors[challenge.challenge_type] || challengeTypeColors.custom;
+  const creatorName = invite.creator?.display_name || invite.creator?.username || "Someone";
 
   return (
     <SafeAreaView
@@ -215,10 +199,7 @@ export default function InviteDetailScreen() {
     >
       <Stack.Screen options={{ headerShown: false }} />
 
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Hero section */}
         <LinearGradient
           colors={[typeColors.primary, typeColors.secondary]}
@@ -227,18 +208,12 @@ export default function InviteDetailScreen() {
           style={styles.hero}
         >
           {/* Back button */}
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={styles.heroBackButton}
-          >
+          <TouchableOpacity onPress={() => router.back()} style={styles.heroBackButton}>
             <ChevronLeftIcon size={24} color="#FFFFFF" />
           </TouchableOpacity>
 
           {/* Share button */}
-          <TouchableOpacity
-            onPress={handleShare}
-            style={styles.heroShareButton}
-          >
+          <TouchableOpacity onPress={handleShare} style={styles.heroShareButton}>
             <ShareIcon size={24} color="#FFFFFF" />
           </TouchableOpacity>
 
@@ -253,9 +228,7 @@ export default function InviteDetailScreen() {
 
           {/* Start info */}
           <View style={styles.heroStartBadge}>
-            <Text style={styles.heroStartText}>
-              {getDaysUntilStart(challenge.start_date)}
-            </Text>
+            <Text style={styles.heroStartText}>{getDaysUntilStart(challenge.start_date)}</Text>
           </View>
         </LinearGradient>
 
@@ -294,22 +267,14 @@ export default function InviteDetailScreen() {
                 <FlagIcon size={18} color={typeColors.primary} />
               </View>
               <View style={styles.detailContent}>
-                <Text
-                  style={[styles.detailLabel, { color: colors.textSecondary }]}
-                >
-                  Goal
-                </Text>
-                <Text
-                  style={[styles.detailValue, { color: colors.textPrimary }]}
-                >
+                <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Goal</Text>
+                <Text style={[styles.detailValue, { color: colors.textPrimary }]}>
                   {challenge.goal_value.toLocaleString()} {challenge.goal_unit}
                 </Text>
               </View>
             </View>
 
-            <View
-              style={[styles.divider, { backgroundColor: colors.border }]}
-            />
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
             {/* Duration */}
             <View style={[styles.detailRow, { padding: spacing.md }]}>
@@ -325,26 +290,17 @@ export default function InviteDetailScreen() {
                 <CalendarIcon size={18} color={colors.textSecondary} />
               </View>
               <View style={styles.detailContent}>
-                <Text
-                  style={[styles.detailLabel, { color: colors.textSecondary }]}
-                >
-                  Duration
-                </Text>
-                <Text
-                  style={[styles.detailValue, { color: colors.textPrimary }]}
-                >
+                <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Duration</Text>
+                <Text style={[styles.detailValue, { color: colors.textPrimary }]}>
                   {getDuration(challenge.start_date, challenge.end_date)}
                 </Text>
                 <Text style={[styles.detailMeta, { color: colors.textMuted }]}>
-                  {formatDate(challenge.start_date)} -{" "}
-                  {formatDate(challenge.end_date)}
+                  {formatDate(challenge.start_date)} - {formatDate(challenge.end_date)}
                 </Text>
               </View>
             </View>
 
-            <View
-              style={[styles.divider, { backgroundColor: colors.border }]}
-            />
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
             {/* Win condition */}
             <View style={[styles.detailRow, { padding: spacing.md }]}>
@@ -360,22 +316,16 @@ export default function InviteDetailScreen() {
                 <TrophyIcon size={18} color={colors.energy.dark} />
               </View>
               <View style={styles.detailContent}>
-                <Text
-                  style={[styles.detailLabel, { color: colors.textSecondary }]}
-                >
+                <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>
                   Win Condition
                 </Text>
-                <Text
-                  style={[styles.detailValue, { color: colors.textPrimary }]}
-                >
+                <Text style={[styles.detailValue, { color: colors.textPrimary }]}>
                   {getWinConditionLabel(challenge.win_condition)}
                 </Text>
               </View>
             </View>
 
-            <View
-              style={[styles.divider, { backgroundColor: colors.border }]}
-            />
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
             {/* Participants */}
             <View style={[styles.detailRow, { padding: spacing.md }]}>
@@ -391,14 +341,10 @@ export default function InviteDetailScreen() {
                 <UserGroupIcon size={18} color={colors.primary.main} />
               </View>
               <View style={styles.detailContent}>
-                <Text
-                  style={[styles.detailLabel, { color: colors.textSecondary }]}
-                >
+                <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>
                   Participants
                 </Text>
-                <Text
-                  style={[styles.detailValue, { color: colors.textPrimary }]}
-                >
+                <Text style={[styles.detailValue, { color: colors.textPrimary }]}>
                   Waiting for you to join
                 </Text>
               </View>
@@ -454,14 +400,7 @@ export default function InviteDetailScreen() {
           {isDeclining ? (
             <ActivityIndicator size="small" color={colors.textSecondary} />
           ) : (
-            <Text
-              style={[
-                styles.declineButtonText,
-                { color: colors.textSecondary },
-              ]}
-            >
-              Decline
-            </Text>
+            <Text style={[styles.declineButtonText, { color: colors.textSecondary }]}>Decline</Text>
           )}
         </TouchableOpacity>
 

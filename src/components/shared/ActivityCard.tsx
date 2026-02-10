@@ -10,12 +10,7 @@ import {
   activityColors,
   type ActivityType,
 } from "@/components/icons/ActivityIcons";
-import {
-  ClockIcon,
-  FireIcon,
-  HeartIcon,
-  MapPinIcon,
-} from "react-native-heroicons/outline";
+import { ClockIcon, FireIcon, HeartIcon, MapPinIcon } from "react-native-heroicons/outline";
 import { getDayLabel } from "@/lib/serverTime";
 
 export interface ActivityCardProps {
@@ -102,32 +97,22 @@ export function ActivityCard({
         </View>
 
         <View style={styles.headerText}>
-          <Text style={[styles.name, { color: colors.textPrimary }]}>
-            {name}
-          </Text>
+          <Text style={[styles.name, { color: colors.textPrimary }]}>{name}</Text>
           <Text style={[styles.dateTime, { color: colors.textSecondary }]}>
             {getDayLabel(recordedAt)} • {formatTime(recordedAt)}
           </Text>
         </View>
 
         <View style={styles.pointsContainer}>
-          <Text style={[styles.points, { color: colors.primary.main }]}>
-            +{points}
-          </Text>
-          <Text style={[styles.pointsLabel, { color: colors.textSecondary }]}>
-            pts
-          </Text>
+          <Text style={[styles.points, { color: colors.primary.main }]}>+{points}</Text>
+          <Text style={[styles.pointsLabel, { color: colors.textSecondary }]}>pts</Text>
         </View>
       </View>
 
       {/* Main value */}
       <View style={[styles.valueRow, { marginTop: spacing.md }]}>
-        <Text style={[styles.value, { color: colors.textPrimary }]}>
-          {value.toLocaleString()}
-        </Text>
-        <Text style={[styles.unit, { color: colors.textSecondary }]}>
-          {unit}
-        </Text>
+        <Text style={[styles.value, { color: colors.textPrimary }]}>{value.toLocaleString()}</Text>
+        <Text style={[styles.unit, { color: colors.textSecondary }]}>{unit}</Text>
       </View>
 
       {/* Stats row */}
@@ -135,25 +120,19 @@ export function ActivityCard({
         {duration !== undefined && (
           <View style={styles.stat}>
             <ClockIcon size={14} color={colors.textMuted} />
-            <Text style={[styles.statText, { color: colors.textSecondary }]}>
-              {duration} min
-            </Text>
+            <Text style={[styles.statText, { color: colors.textSecondary }]}>{duration} min</Text>
           </View>
         )}
         {calories !== undefined && (
           <View style={styles.stat}>
             <FireIcon size={14} color={colors.textMuted} />
-            <Text style={[styles.statText, { color: colors.textSecondary }]}>
-              {calories} cal
-            </Text>
+            <Text style={[styles.statText, { color: colors.textSecondary }]}>{calories} cal</Text>
           </View>
         )}
         {heartRate !== undefined && (
           <View style={styles.stat}>
             <HeartIcon size={14} color={colors.textMuted} />
-            <Text style={[styles.statText, { color: colors.textSecondary }]}>
-              {heartRate} bpm
-            </Text>
+            <Text style={[styles.statText, { color: colors.textSecondary }]}>{heartRate} bpm</Text>
           </View>
         )}
         {distance !== undefined && (
@@ -190,16 +169,12 @@ export function ActivityCard({
               },
             ]}
           >
-            <Text
-              style={[styles.challengeText, { color: colors.primary.main }]}
-            >
+            <Text style={[styles.challengeText, { color: colors.primary.main }]}>
               {challengeName}
             </Text>
           </View>
         )}
-        <Text style={[styles.sourceText, { color: colors.textMuted }]}>
-          via {getSourceLabel()}
-        </Text>
+        <Text style={[styles.sourceText, { color: colors.textMuted }]}>via {getSourceLabel()}</Text>
       </View>
     </TouchableOpacity>
   );
@@ -264,23 +239,15 @@ export function ActivityListItem({
       </View>
 
       <View style={styles.listItemContent}>
-        <Text style={[styles.listItemName, { color: colors.textPrimary }]}>
-          {name}
-        </Text>
+        <Text style={[styles.listItemName, { color: colors.textPrimary }]}>{name}</Text>
         <Text style={[styles.listItemMeta, { color: colors.textSecondary }]}>
           {value.toLocaleString()} {unit} • {formatTime(recordedAt)}
         </Text>
       </View>
 
       <View style={styles.listItemPoints}>
-        <Text
-          style={[styles.listItemPointsValue, { color: colors.primary.main }]}
-        >
-          +{points}
-        </Text>
-        <Text style={[styles.listItemPointsLabel, { color: colors.textMuted }]}>
-          pts
-        </Text>
+        <Text style={[styles.listItemPointsValue, { color: colors.primary.main }]}>+{points}</Text>
+        <Text style={[styles.listItemPointsLabel, { color: colors.textMuted }]}>pts</Text>
       </View>
     </TouchableOpacity>
   );

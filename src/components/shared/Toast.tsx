@@ -3,13 +3,7 @@
 // Design System
 
 import React, { useEffect, useRef } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  Animated,
-  TouchableOpacity,
-} from "react-native";
+import { View, Text, StyleSheet, Animated, TouchableOpacity } from "react-native";
 import { useAppTheme } from "@/providers/ThemeProvider";
 
 export interface ToastProps {
@@ -112,14 +106,10 @@ export function Toast({
         },
       ]}
     >
-      <Text style={[styles.message, { color: colors.background }]}>
-        {message}
-      </Text>
+      <Text style={[styles.message, { color: colors.background }]}>{message}</Text>
       {actionLabel && onAction && (
         <TouchableOpacity onPress={handleAction}>
-          <Text style={[styles.action, { color: colors.primary.main }]}>
-            {actionLabel}
-          </Text>
+          <Text style={[styles.action, { color: colors.primary.main }]}>{actionLabel}</Text>
         </TouchableOpacity>
       )}
     </Animated.View>

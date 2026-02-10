@@ -2,15 +2,7 @@
 // Security settings screen - biometric sign-in toggle
 
 import React, { useEffect, useState, useCallback } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  Switch,
-  TouchableOpacity,
-  Alert,
-  ScrollView,
-} from "react-native";
+import { View, Text, StyleSheet, Switch, TouchableOpacity, Alert, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Stack, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -26,9 +18,7 @@ import {
 export default function SecuritySettingsScreen() {
   const { colors, spacing, radius } = useAppTheme();
 
-  const [capability, setCapability] = useState<BiometricCapability | null>(
-    null,
-  );
+  const [capability, setCapability] = useState<BiometricCapability | null>(null);
   const [biometricSignInEnabled, setBiometricSignInEnabled] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -83,32 +73,22 @@ export default function SecuritySettingsScreen() {
             text: "Disable",
             style: "destructive",
             onPress: async () => {
-              console.log(
-                `[Security] User confirmed disable, calling clearBiometricSignIn...`,
-              );
+              console.log(`[Security] User confirmed disable, calling clearBiometricSignIn...`);
               try {
                 await clearBiometricSignIn();
-                console.log(
-                  `[Security] clearBiometricSignIn completed, updating UI state`,
-                );
+                console.log(`[Security] clearBiometricSignIn completed, updating UI state`);
                 setBiometricSignInEnabled(false);
 
                 // Verify it was actually disabled
                 console.log(`[Security] Verifying disable...`);
                 const stillEnabled = await isBiometricSignInEnabled();
-                console.log(
-                  `[Security] Still enabled after clear: ${stillEnabled}`,
-                );
+                console.log(`[Security] Still enabled after clear: ${stillEnabled}`);
 
                 if (stillEnabled) {
-                  console.error(
-                    `[Security] FAILED: Face ID still enabled after clear!`,
-                  );
-                  Alert.alert(
-                    "Error",
-                    "Failed to disable Face ID. Please try again.",
-                    [{ text: "OK" }],
-                  );
+                  console.error(`[Security] FAILED: Face ID still enabled after clear!`);
+                  Alert.alert("Error", "Failed to disable Face ID. Please try again.", [
+                    { text: "OK" },
+                  ]);
                   // Re-check status to sync UI
                   checkStatus();
                 } else {
@@ -116,11 +96,9 @@ export default function SecuritySettingsScreen() {
                 }
               } catch (error: any) {
                 console.error(`[Security] Exception:`, error?.message || error);
-                Alert.alert(
-                  "Error",
-                  "Failed to disable Face ID. Please try again.",
-                  [{ text: "OK" }],
-                );
+                Alert.alert("Error", "Failed to disable Face ID. Please try again.", [
+                  { text: "OK" },
+                ]);
               }
             },
           },
@@ -131,9 +109,7 @@ export default function SecuritySettingsScreen() {
 
   if (isLoading) {
     return (
-      <SafeAreaView
-        style={[styles.container, { backgroundColor: colors.background }]}
-      >
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
         <Stack.Screen options={{ title: "Security" }} />
         <View style={styles.loadingContainer}>
           <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
@@ -154,16 +130,9 @@ export default function SecuritySettingsScreen() {
       <ScrollView style={styles.scrollView}>
         {/* Biometric Section */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-            QUICK SIGN-IN
-          </Text>
+          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>QUICK SIGN-IN</Text>
 
-          <View
-            style={[
-              styles.card,
-              { backgroundColor: colors.surface, borderRadius: radius.lg },
-            ]}
-          >
+          <View style={[styles.card, { backgroundColor: colors.surface, borderRadius: radius.lg }]}>
             {/* Biometric Toggle */}
             <View style={styles.settingRow}>
               <View style={styles.settingInfo}>
@@ -171,25 +140,14 @@ export default function SecuritySettingsScreen() {
                   {capability?.biometricType === "face" ? (
                     <FaceIDIcon size={24} color={colors.primary.main} />
                   ) : (
-                    <Ionicons
-                      name="finger-print-outline"
-                      size={24}
-                      color={colors.primary.main}
-                    />
+                    <Ionicons name="finger-print-outline" size={24} color={colors.primary.main} />
                   )}
                 </View>
                 <View style={styles.settingTextContainer}>
-                  <Text
-                    style={[styles.settingTitle, { color: colors.textPrimary }]}
-                  >
+                  <Text style={[styles.settingTitle, { color: colors.textPrimary }]}>
                     {capability?.displayName || "Biometrics"} Sign-In
                   </Text>
-                  <Text
-                    style={[
-                      styles.settingDescription,
-                      { color: colors.textSecondary },
-                    ]}
-                  >
+                  <Text style={[styles.settingDescription, { color: colors.textSecondary }]}>
                     {capability?.isAvailable
                       ? biometricSignInEnabled
                         ? "Sign in quickly with Face ID"
@@ -223,42 +181,22 @@ export default function SecuritySettingsScreen() {
             ACCOUNT SECURITY
           </Text>
 
-          <View
-            style={[
-              styles.card,
-              { backgroundColor: colors.surface, borderRadius: radius.lg },
-            ]}
-          >
+          <View style={[styles.card, { backgroundColor: colors.surface, borderRadius: radius.lg }]}>
             <TouchableOpacity style={styles.settingRow} disabled>
               <View style={styles.settingInfo}>
                 <View style={styles.settingIconContainer}>
-                  <Ionicons
-                    name="key-outline"
-                    size={24}
-                    color={colors.textMuted}
-                  />
+                  <Ionicons name="key-outline" size={24} color={colors.textMuted} />
                 </View>
                 <View style={styles.settingTextContainer}>
-                  <Text
-                    style={[styles.settingTitle, { color: colors.textMuted }]}
-                  >
+                  <Text style={[styles.settingTitle, { color: colors.textMuted }]}>
                     Change Password
                   </Text>
-                  <Text
-                    style={[
-                      styles.settingDescription,
-                      { color: colors.textMuted },
-                    ]}
-                  >
+                  <Text style={[styles.settingDescription, { color: colors.textMuted }]}>
                     Coming soon
                   </Text>
                 </View>
               </View>
-              <Ionicons
-                name="chevron-forward"
-                size={20}
-                color={colors.textMuted}
-              />
+              <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
             </TouchableOpacity>
           </View>
         </View>

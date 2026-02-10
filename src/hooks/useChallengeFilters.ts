@@ -13,10 +13,7 @@ import { CHALLENGE_FILTERS, type ChallengeFilterType } from "@/components/shared
 import { getDaysRemaining } from "@/lib/serverTime";
 
 // Enable LayoutAnimation on Android (idempotent)
-if (
-  Platform.OS === "android" &&
-  UIManager.setLayoutAnimationEnabledExperimental
-) {
+if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
@@ -62,10 +59,7 @@ export function useChallengeFilters<T extends FilterableChallenge>(
             const daysLeft = getDaysRemaining(c.end_date);
             return daysLeft <= 5 && daysLeft >= 0;
           })
-          .sort(
-            (a, b) =>
-              new Date(a.end_date).getTime() - new Date(b.end_date).getTime(),
-          );
+          .sort((a, b) => new Date(a.end_date).getTime() - new Date(b.end_date).getTime());
         break;
       case "steps":
         filtered = filtered.filter((c) => c.challenge_type === "steps");
@@ -78,9 +72,7 @@ export function useChallengeFilters<T extends FilterableChallenge>(
         filtered = filtered.filter((c) => c.challenge_type === "distance");
         break;
       case "active_minutes":
-        filtered = filtered.filter(
-          (c) => c.challenge_type === "active_minutes",
-        );
+        filtered = filtered.filter((c) => c.challenge_type === "active_minutes");
         break;
       default:
         // "all" - no filter

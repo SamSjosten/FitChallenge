@@ -10,11 +10,7 @@ import {
   respondToInviteSchema,
   CreateChallengeInput,
 } from "@/lib/validation";
-import type {
-  Challenge,
-  ChallengeParticipant,
-  ProfilePublic,
-} from "@/types/database-helpers";
+import type { Challenge, ChallengeParticipant, ProfilePublic } from "@/types/database-helpers";
 import { getServerNow } from "@/lib/serverTime";
 
 // =============================================================================
@@ -31,34 +27,16 @@ const challengeRpcRowSchema = z.object({
   creator_id: z.string().uuid().nullable(),
   title: z.string(),
   description: z.string().nullable(),
-  challenge_type: z.enum([
-    "steps",
-    "active_minutes",
-    "workouts",
-    "distance",
-    "custom",
-  ]),
+  challenge_type: z.enum(["steps", "active_minutes", "workouts", "distance", "custom"]),
   goal_value: z.number(),
   goal_unit: z.string(),
-  win_condition: z.enum([
-    "highest_total",
-    "first_to_goal",
-    "longest_streak",
-    "all_complete",
-  ]),
+  win_condition: z.enum(["highest_total", "first_to_goal", "longest_streak", "all_complete"]),
   daily_target: z.number().nullable(),
   start_date: z.string(),
   end_date: z.string(),
   starting_soon_notified_at: z.string().nullable().optional(),
   ending_soon_notified_at: z.string().nullable().optional(),
-  status: z.enum([
-    "draft",
-    "pending",
-    "active",
-    "completed",
-    "archived",
-    "cancelled",
-  ]),
+  status: z.enum(["draft", "pending", "active", "completed", "archived", "cancelled"]),
   xp_reward: z.number().nullable(),
   max_participants: z.number().nullable(),
   is_public: z.boolean().nullable(),
@@ -104,10 +82,7 @@ type LeaderboardRpcRow = z.infer<typeof leaderboardRpcRowSchema>;
 // =============================================================================
 
 // Derive participation type from DB types to reduce drift
-type ParticipationFields = Pick<
-  ChallengeParticipant,
-  "invite_status" | "current_progress"
->;
+type ParticipationFields = Pick<ChallengeParticipant, "invite_status" | "current_progress">;
 
 // Coerced version with non-null numerics (nulls coalesced in service layer)
 export interface MyParticipation {
@@ -148,9 +123,7 @@ export interface PendingInvite {
  * Maps flat RPC response row to ChallengeWithParticipation interface.
  * Transforms server-side aggregations to existing UI data shape.
  */
-function mapRpcToChallengeWithParticipation(
-  row: ChallengeRpcRow,
-): ChallengeWithParticipation {
+function mapRpcToChallengeWithParticipation(row: ChallengeRpcRow): ChallengeWithParticipation {
   const {
     my_invite_status,
     my_current_progress,
@@ -181,9 +154,7 @@ function mapRpcToChallengeWithParticipation(
 /**
  * Map raw participation data to MyParticipation, coalescing numeric nulls to 0
  */
-function mapParticipation(
-  raw: ParticipationFields | undefined,
-): MyParticipation | undefined {
+function mapParticipation(raw: ParticipationFields | undefined): MyParticipation | undefined {
   if (!raw) return undefined;
   return {
     invite_status: raw.invite_status, // Keep as-is (nullable)
@@ -226,9 +197,7 @@ export const challengeService = {
         // Optional parameters (undefined = use database default)
         p_description: validated.description,
         p_custom_activity_name:
-          validated.challenge_type === "custom"
-            ? validated.custom_activity_name
-            : undefined,
+          validated.challenge_type === "custom" ? validated.custom_activity_name : undefined,
         p_win_condition: validated.win_condition,
         p_daily_target: validated.daily_target,
         // Workout points + retention (migration 034/035)
@@ -273,12 +242,9 @@ export const challengeService = {
    */
   async getMyActiveChallenges(): Promise<ChallengeWithParticipation[]> {
     return withAuth(async () => {
-      const { data, error } = await getSupabaseClient().rpc(
-        "get_my_challenges",
-        {
-          p_filter: "active",
-        },
-      );
+      const { data, error } = await getSupabaseClient().rpc("get_my_challenges", {
+        p_filter: "active",
+      });
 
       if (error) throw error;
 
@@ -298,12 +264,9 @@ export const challengeService = {
    */
   async getCompletedChallenges(): Promise<ChallengeWithParticipation[]> {
     return withAuth(async () => {
-      const { data, error } = await getSupabaseClient().rpc(
-        "get_my_challenges",
-        {
-          p_filter: "completed",
-        },
-      );
+      const { data, error } = await getSupabaseClient().rpc("get_my_challenges", {
+        p_filter: "completed",
+      });
 
       if (error) throw error;
 
@@ -379,18 +342,14 @@ export const challengeService = {
 
       let creatorNames = new Map<string, string>();
       if (creatorIds.length > 0) {
-        const { data: creators, error: creatorsError } =
-          await getSupabaseClient()
-            .from("profiles_public")
-            .select("id, username, display_name")
-            .in("id", creatorIds);
+        const { data: creators, error: creatorsError } = await getSupabaseClient()
+          .from("profiles_public")
+          .select("id, username, display_name")
+          .in("id", creatorIds);
 
         if (!creatorsError && creators) {
           for (const creator of creators) {
-            creatorNames.set(
-              creator.id,
-              creator.display_name || creator.username || "Someone",
-            );
+            creatorNames.set(creator.id, creator.display_name || creator.username || "Someone");
           }
         }
       }
@@ -398,9 +357,7 @@ export const challengeService = {
       return (data || []).map((challenge) => {
         // Find the current user's participation row
         const myParticipation = Array.isArray(challenge.challenge_participants)
-          ? challenge.challenge_participants.find(
-              (p: any) => p.user_id === userId,
-            )
+          ? challenge.challenge_participants.find((p: any) => p.user_id === userId)
           : challenge.challenge_participants;
 
         // Determine if user is creator (for UI differentiation if needed)
@@ -419,9 +376,7 @@ export const challengeService = {
           my_rank: 1, // Not meaningful for not-started challenges
           is_creator: isCreator,
           creator_name:
-            !isCreator && challenge.creator_id
-              ? creatorNames.get(challenge.creator_id)
-              : undefined,
+            !isCreator && challenge.creator_id ? creatorNames.get(challenge.creator_id) : undefined,
         };
       });
     });
@@ -454,20 +409,17 @@ export const challengeService = {
         ...new Set(
           challenges
             .map((c) => c.challenge.creator_id)
-            .filter(
-              (id): id is string => typeof id === "string" && id.length > 0,
-            ),
+            .filter((id): id is string => typeof id === "string" && id.length > 0),
         ),
       ];
 
       // Guard: skip query if no creator IDs to fetch (empty .in() is problematic)
       let creatorMap = new Map<string, ProfilePublic>();
       if (creatorIds.length > 0) {
-        const { data: creators, error: creatorsError } =
-          await getSupabaseClient()
-            .from("profiles_public")
-            .select("*")
-            .in("id", creatorIds);
+        const { data: creators, error: creatorsError } = await getSupabaseClient()
+          .from("profiles_public")
+          .select("*")
+          .in("id", creatorIds);
 
         if (creatorsError) {
           throw new Error("Unable to load invite details. Please try again.");
@@ -494,9 +446,7 @@ export const challengeService = {
    * Get a single challenge by ID
    * CONTRACT: RLS enforces visibility
    */
-  async getChallenge(
-    challengeId: string,
-  ): Promise<ChallengeWithParticipation | null> {
+  async getChallenge(challengeId: string): Promise<ChallengeWithParticipation | null> {
     return withAuth(async (userId) => {
       const { data, error } = await getSupabaseClient()
         .from("challenges")
@@ -555,13 +505,10 @@ export const challengeService = {
 
     return withAuth(async () => {
       // Atomic invite with max_participants check (RLS still enforced)
-      const { error: inviteError } = await getSupabaseClient().rpc(
-        "invite_to_challenge",
-        {
-          p_challenge_id: challenge_id,
-          p_user_id: user_id,
-        },
-      );
+      const { error: inviteError } = await getSupabaseClient().rpc("invite_to_challenge", {
+        p_challenge_id: challenge_id,
+        p_user_id: user_id,
+      });
 
       if (inviteError) {
         // Handle max participants exceeded
@@ -594,13 +541,10 @@ export const challengeService = {
     const { challenge_id, response } = validate(respondToInviteSchema, input);
 
     return withAuth(async () => {
-      const { error } = await getSupabaseClient().rpc(
-        "respond_to_challenge_invite",
-        {
-          p_challenge_id: challenge_id,
-          p_response: response,
-        },
-      );
+      const { error } = await getSupabaseClient().rpc("respond_to_challenge_invite", {
+        p_challenge_id: challenge_id,
+        p_response: response,
+      });
 
       if (error) {
         if (error.message?.includes("invite_not_found")) {
@@ -732,9 +676,7 @@ export const challengeService = {
       const newEnd = new Date(tomorrowUTC.getTime() + durationMs);
 
       // Filter to participants other than creator (for invite loop)
-      const othersToInvite = previousParticipantIds.filter(
-        (id) => id !== userId,
-      );
+      const othersToInvite = previousParticipantIds.filter((id) => id !== userId);
 
       // Create the new challenge via existing create flow
       const newChallenge = await challengeService.create({
@@ -769,13 +711,9 @@ export const challengeService = {
         ),
       );
 
-      const failedInvites = inviteResults.filter(
-        (r) => r.status === "rejected",
-      );
+      const failedInvites = inviteResults.filter((r) => r.status === "rejected");
       if (failedInvites.length > 0) {
-        console.warn(
-          `Rematch: ${failedInvites.length}/${othersToInvite.length} invites failed`,
-        );
+        console.warn(`Rematch: ${failedInvites.length}/${othersToInvite.length} invites failed`);
       }
 
       return newChallenge.id;

@@ -7,11 +7,7 @@ import { useState, useCallback, useEffect } from "react";
 import { Platform } from "react-native";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getHealthService } from "../healthService";
-import type {
-  ConnectionStatus,
-  HealthConnection,
-  HealthPermission,
-} from "../types";
+import type { ConnectionStatus, HealthConnection, HealthPermission } from "../types";
 
 export const healthQueryKeys = {
   connection: ["health", "connection"] as const,

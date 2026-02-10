@@ -60,14 +60,12 @@ const variantConfigs: Record<ErrorVariant, VariantConfig> = {
   server: {
     icon: ServerIcon,
     defaultTitle: "Server error",
-    defaultMessage:
-      "We're having trouble connecting to our servers. Please try again later.",
+    defaultMessage: "We're having trouble connecting to our servers. Please try again later.",
   },
   "not-found": {
     icon: ExclamationTriangleIcon,
     defaultTitle: "Not found",
-    defaultMessage:
-      "The content you're looking for doesn't exist or has been removed.",
+    defaultMessage: "The content you're looking for doesn't exist or has been removed.",
   },
 };
 
@@ -101,23 +99,15 @@ export function ErrorState({
       ]}
       testID={testID}
     >
-      <View
-        style={[styles.iconContainer, { backgroundColor: colors.error + "15" }]}
-      >
+      <View style={[styles.iconContainer, { backgroundColor: colors.error + "15" }]}>
         <IconComponent size={32} color={colors.error} />
       </View>
 
-      <Text
-        style={[styles.title, { color: colors.textPrimary }]}
-        testID={`${testID}-title`}
-      >
+      <Text style={[styles.title, { color: colors.textPrimary }]} testID={`${testID}-title`}>
         {title || config.defaultTitle}
       </Text>
 
-      <Text
-        style={[styles.message, { color: colors.textSecondary }]}
-        testID={`${testID}-message`}
-      >
+      <Text style={[styles.message, { color: colors.textSecondary }]} testID={`${testID}-message`}>
         {message || config.defaultMessage}
       </Text>
 
@@ -135,24 +125,17 @@ export function ErrorState({
           testID={`${testID}-retry`}
         >
           <ArrowPathIcon size={18} color={colors.primary.contrast} />
-          <Text style={[styles.retryText, { color: colors.primary.contrast }]}>
-            {retryLabel}
-          </Text>
+          <Text style={[styles.retryText, { color: colors.primary.contrast }]}>{retryLabel}</Text>
         </Pressable>
       )}
 
       {onBack && (
         <Pressable
-          style={({ pressed }) => [
-            styles.backButton,
-            { opacity: pressed ? 0.6 : 1 },
-          ]}
+          style={({ pressed }) => [styles.backButton, { opacity: pressed ? 0.6 : 1 }]}
           onPress={onBack}
           testID={`${testID}-back`}
         >
-          <Text style={[styles.backText, { color: colors.textSecondary }]}>
-            {backLabel}
-          </Text>
+          <Text style={[styles.backText, { color: colors.textSecondary }]}>{backLabel}</Text>
         </Pressable>
       )}
     </View>

@@ -104,11 +104,7 @@ export const authService = {
     input: unknown,
   ): Promise<{ session: import("@supabase/supabase-js").Session | null }> {
     // Validation applies .toLowerCase() transform to username
-    const {
-      email,
-      password,
-      username: validatedUsername,
-    } = validate(signUpSchema, input);
+    const { email, password, username: validatedUsername } = validate(signUpSchema, input);
 
     // Explicit normalization for defense-in-depth and clarity
     const username = normalizeUsername(validatedUsername);
@@ -212,10 +208,7 @@ export const authService = {
           }, TIMEOUT_MS);
         });
 
-        const { data, error } = await Promise.race([
-          queryPromise,
-          timeoutPromise,
-        ]);
+        const { data, error } = await Promise.race([queryPromise, timeoutPromise]);
         const elapsed = Date.now() - startTime;
 
         if (error) {
@@ -323,9 +316,7 @@ export const authService = {
       .maybeSingle();
 
     if (error) {
-      throw new Error(
-        "Unable to check username availability. Please try again.",
-      );
+      throw new Error("Unable to check username availability. Please try again.");
     }
 
     return data === null;
@@ -419,10 +410,7 @@ export const authService = {
     // may not exist yet if handle_new_user trigger hasn't completed.
     let appleDisplayName: string | null = null;
     if (credential.fullName) {
-      const name = [
-        credential.fullName.givenName,
-        credential.fullName.familyName,
-      ]
+      const name = [credential.fullName.givenName, credential.fullName.familyName]
         .filter(Boolean)
         .join(" ")
         .trim();
@@ -492,9 +480,7 @@ export function configureGoogleSignIn(): void {
   const iosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID;
 
   if (!webClientId) {
-    console.warn(
-      "[Auth] EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID not set — Google Sign-In disabled",
-    );
+    console.warn("[Auth] EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID not set — Google Sign-In disabled");
     return;
   }
 

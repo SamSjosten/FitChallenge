@@ -148,11 +148,7 @@ export function shouldRetryError(error: unknown): boolean {
   // Expand detection beyond just "fetch" to catch mobile network errors
   if (error instanceof TypeError) {
     const msg = error.message.toLowerCase();
-    if (
-      msg.includes("fetch") ||
-      msg.includes("network") ||
-      msg.includes("failed")
-    ) {
+    if (msg.includes("fetch") || msg.includes("network") || msg.includes("failed")) {
       return true;
     }
   }
@@ -243,11 +239,7 @@ export function mutationRetryFn(failureCount: number, error: unknown): boolean {
   // Only retry obvious network failures (expanded detection)
   if (error instanceof TypeError) {
     const msg = error.message.toLowerCase();
-    if (
-      msg.includes("fetch") ||
-      msg.includes("network") ||
-      msg.includes("failed")
-    ) {
+    if (msg.includes("fetch") || msg.includes("network") || msg.includes("failed")) {
       return true;
     }
   }

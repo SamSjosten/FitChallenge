@@ -72,9 +72,7 @@ export async function transformSamples(
   samples: HealthSample[],
   provider: HealthProvider,
 ): Promise<ProcessedActivity[]> {
-  const results = await Promise.all(
-    samples.map((sample) => transformSample(sample, provider)),
-  );
+  const results = await Promise.all(samples.map((sample) => transformSample(sample, provider)));
   return results;
 }
 
@@ -106,9 +104,7 @@ export function findMatchingChallenge(
     return undefined;
   }
 
-  matches.sort(
-    (a, b) => new Date(a.end_date).getTime() - new Date(b.end_date).getTime(),
-  );
+  matches.sort((a, b) => new Date(a.end_date).getTime() - new Date(b.end_date).getTime());
 
   return matches[0].challenge_id;
 }
@@ -156,13 +152,8 @@ export function aggregateByDayAndType(
 /**
  * Calculate total for a specific type across all samples.
  */
-export function calculateTotal(
-  samples: HealthSample[],
-  type: ChallengeType,
-): number {
-  return samples
-    .filter((s) => s.type === type)
-    .reduce((sum, s) => sum + s.value, 0);
+export function calculateTotal(samples: HealthSample[], type: ChallengeType): number {
+  return samples.filter((s) => s.type === type).reduce((sum, s) => sum + s.value, 0);
 }
 
 // =============================================================================
@@ -172,9 +163,7 @@ export function calculateTotal(
 /**
  * Validate a health sample has required fields.
  */
-export function isValidSample(
-  sample: Partial<HealthSample>,
-): sample is HealthSample {
+export function isValidSample(sample: Partial<HealthSample>): sample is HealthSample {
   return (
     typeof sample.id === "string" &&
     sample.id.length > 0 &&
@@ -191,9 +180,7 @@ export function isValidSample(
 /**
  * Filter out invalid samples from a batch.
  */
-export function filterValidSamples(
-  samples: Partial<HealthSample>[],
-): HealthSample[] {
+export function filterValidSamples(samples: Partial<HealthSample>[]): HealthSample[] {
   return samples.filter(isValidSample);
 }
 

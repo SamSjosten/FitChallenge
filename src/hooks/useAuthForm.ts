@@ -45,10 +45,7 @@ const REMEMBER_EMAIL_KEY = "fitchallenge_remembered_email";
 // HOOK
 // =============================================================================
 
-export function useAuthForm(
-  config: UseAuthFormConfig,
-  initialMode: AuthMode = "signup",
-) {
+export function useAuthForm(config: UseAuthFormConfig, initialMode: AuthMode = "signup") {
   const { signIn, signUp } = config;
 
   // ── Form State ──────────────────────────────────────────────────────────
@@ -129,8 +126,7 @@ export function useAuthForm(
    */
   const validateForm = useCallback((): boolean => {
     const schema = mode === "signup" ? signUpSchema : signInSchema;
-    const data =
-      mode === "signup" ? { email, password, username } : { email, password };
+    const data = mode === "signup" ? { email, password, username } : { email, password };
 
     const result = schema.safeParse(data);
 

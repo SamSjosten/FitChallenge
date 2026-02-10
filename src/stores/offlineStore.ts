@@ -23,10 +23,7 @@ import { getSupabaseClient, requireUserId } from "@/lib/supabase";
  * - ACCEPT_INVITE: Idempotent (update to same value is no-op)
  * - SEND_FRIEND_REQUEST: Idempotent via unique constraint
  */
-export type QueuedActionType =
-  | "LOG_ACTIVITY"
-  | "ACCEPT_INVITE"
-  | "SEND_FRIEND_REQUEST";
+export type QueuedActionType = "LOG_ACTIVITY" | "ACCEPT_INVITE" | "SEND_FRIEND_REQUEST";
 
 export interface LogActivityPayload {
   challenge_id: string;
@@ -100,8 +97,7 @@ async function executeAction(action: QueuedAction): Promise<void> {
 
   switch (action.type) {
     case "LOG_ACTIVITY": {
-      const { challenge_id, activity_type, value, client_event_id } =
-        action.payload;
+      const { challenge_id, activity_type, value, client_event_id } = action.payload;
 
       // GUARDRAIL 3: Auth check at execution time
       await requireUserId();
@@ -115,11 +111,7 @@ async function executeAction(action: QueuedAction): Promise<void> {
       });
 
       // Idempotency: duplicate key is success
-      if (
-        error &&
-        !error.message?.includes("duplicate") &&
-        error.code !== "23505"
-      ) {
+      if (error && !error.message?.includes("duplicate") && error.code !== "23505") {
         throw error;
       }
       break;
@@ -154,9 +146,7 @@ async function executeAction(action: QueuedAction): Promise<void> {
 
     default: {
       const _exhaustive: never = action;
-      throw new Error(
-        `Unknown action type: ${(_exhaustive as QueuedAction).type}`,
-      );
+      throw new Error(`Unknown action type: ${(_exhaustive as QueuedAction).type}`);
     }
   }
 }
@@ -165,9 +155,7 @@ async function executeAction(action: QueuedAction): Promise<void> {
 // STORE
 // =============================================================================
 
-export const useOfflineStore = create<
-  OfflineStoreState & OfflineStoreActions
->()(
+export const useOfflineStore = create<OfflineStoreState & OfflineStoreActions>()(
   persist(
     (set, get) => ({
       // State
@@ -180,16 +168,11 @@ export const useOfflineStore = create<
         const id = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
         set((state) => ({
-          queue: [
-            ...state.queue,
-            { id, action, createdAt: Date.now(), retryCount: 0 },
-          ],
+          queue: [...state.queue, { id, action, createdAt: Date.now(), retryCount: 0 }],
         }));
 
         // GUARDRAIL 3: Telemetry for queue depth
-        console.log(
-          `[OfflineQueue] Added ${action.type}, queue depth: ${get().queue.length}`,
-        );
+        console.log(`[OfflineQueue] Added ${action.type}, queue depth: ${get().queue.length}`);
 
         return id;
       },
@@ -231,12 +214,9 @@ export const useOfflineStore = create<
             succeeded++;
 
             // GUARDRAIL 3: Telemetry for success
-            console.log(
-              `[OfflineQueue] Processed ${item.action.type} (${item.id})`,
-            );
+            console.log(`[OfflineQueue] Processed ${item.action.type} (${item.id})`);
           } catch (error) {
-            const errorMessage =
-              error instanceof Error ? error.message : String(error);
+            const errorMessage = error instanceof Error ? error.message : String(error);
 
             // GUARDRAIL 3: Retry limits
             if (item.retryCount + 1 >= MAX_RETRIES) {

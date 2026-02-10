@@ -3,13 +3,7 @@
 // Design System - Based on prototype
 
 import React from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-} from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from "react-native";
 import { useAppTheme } from "@/providers/ThemeProvider";
 import {
   InboxIcon,
@@ -19,12 +13,7 @@ import {
   TrophyIcon,
 } from "react-native-heroicons/outline";
 
-export type NotificationFilterType =
-  | "unread"
-  | "all"
-  | "social"
-  | "challenges"
-  | "archived";
+export type NotificationFilterType = "unread" | "all" | "social" | "challenges" | "archived";
 
 export interface FilterOption {
   id: NotificationFilterType;
@@ -65,10 +54,7 @@ export function NotificationFilters({
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={[
-          styles.container,
-          { paddingHorizontal: spacing.lg },
-        ]}
+        contentContainerStyle={[styles.container, { paddingHorizontal: spacing.lg }]}
       >
         {DEFAULT_NOTIFICATION_FILTERS.map((filter) => {
           const isActive = activeFilter === filter.id;
@@ -82,17 +68,12 @@ export function NotificationFilters({
               style={[
                 styles.filterButton,
                 {
-                  backgroundColor: isActive
-                    ? colors.primary.main
-                    : colors.surfaceElevated,
+                  backgroundColor: isActive ? colors.primary.main : colors.surfaceElevated,
                 },
               ]}
               activeOpacity={0.7}
             >
-              <Icon
-                size={14}
-                color={isActive ? "#FFFFFF" : colors.textSecondary}
-              />
+              <Icon size={14} color={isActive ? "#FFFFFF" : colors.textSecondary} />
               <Text
                 style={[
                   styles.filterLabel,
@@ -108,9 +89,7 @@ export function NotificationFilters({
                   style={[
                     styles.countBadge,
                     {
-                      backgroundColor: isActive
-                        ? "rgba(255,255,255,0.2)"
-                        : colors.border,
+                      backgroundColor: isActive ? "rgba(255,255,255,0.2)" : colors.border,
                     },
                   ]}
                 >
@@ -151,13 +130,9 @@ export function NotificationHeader({
   return (
     <View style={[styles.header, { paddingHorizontal: spacing.lg }]}>
       <View>
-        <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>
-          Notifications
-        </Text>
+        <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Notifications</Text>
         {unreadCount > 0 && (
-          <Text
-            style={[styles.headerSubtitle, { color: colors.textSecondary }]}
-          >
+          <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
             {unreadCount} unread
           </Text>
         )}
@@ -199,9 +174,7 @@ export interface NotificationGroupHeaderProps {
   title: string;
 }
 
-export function NotificationGroupHeader({
-  title,
-}: NotificationGroupHeaderProps) {
+export function NotificationGroupHeader({ title }: NotificationGroupHeaderProps) {
   const { colors, spacing } = useAppTheme();
 
   return (

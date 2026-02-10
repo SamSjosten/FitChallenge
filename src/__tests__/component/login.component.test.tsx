@@ -2,12 +2,7 @@
 // Component tests for Login screen
 
 import React from "react";
-import {
-  render,
-  screen,
-  fireEvent,
-  waitFor,
-} from "@testing-library/react-native";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react-native";
 import LoginScreen from "../../../app/(auth)/login";
 import { mockAuthState, mockRouter } from "./jest.setup";
 
@@ -119,10 +114,7 @@ describe("LoginScreen", () => {
       fireEvent.press(signInButton);
 
       await waitFor(() => {
-        expect(mockAuthState.signIn).toHaveBeenCalledWith(
-          "test@example.com",
-          "password123",
-        );
+        expect(mockAuthState.signIn).toHaveBeenCalledWith("test@example.com", "password123");
       });
     });
 
@@ -145,9 +137,7 @@ describe("LoginScreen", () => {
     });
 
     it("displays error message on sign in failure", async () => {
-      mockAuthState.signIn.mockRejectedValueOnce(
-        new Error("Invalid credentials"),
-      );
+      mockAuthState.signIn.mockRejectedValueOnce(new Error("Invalid credentials"));
 
       render(<LoginScreen />);
 

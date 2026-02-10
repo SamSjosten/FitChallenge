@@ -11,11 +11,7 @@ import { QueryClient } from "@tanstack/react-query";
 /**
  * Realtime connection status types from Supabase
  */
-export type RealtimeStatus =
-  | "SUBSCRIBED"
-  | "CHANNEL_ERROR"
-  | "TIMED_OUT"
-  | "CLOSED";
+export type RealtimeStatus = "SUBSCRIBED" | "CHANNEL_ERROR" | "TIMED_OUT" | "CLOSED";
 
 /**
  * Global realtime connection state
@@ -54,9 +50,7 @@ export function getRealtimeStatus(): RealtimeConnectionState {
  * Subscribe to realtime status changes
  * @returns Unsubscribe function
  */
-export function subscribeToRealtimeStatus(
-  listener: RealtimeStatusListener,
-): () => void {
+export function subscribeToRealtimeStatus(listener: RealtimeStatusListener): () => void {
   listeners.add(listener);
   // Immediately notify with current state
   try {
@@ -118,10 +112,7 @@ export function resetRealtimeStatus(): void {
  * @param delayMs - Milliseconds to wait after last change before invalidating (default 500)
  * @returns Function to schedule throttled invalidation for a query key
  */
-export function createThrottledInvalidator(
-  queryClient: QueryClient,
-  delayMs: number = 500,
-) {
+export function createThrottledInvalidator(queryClient: QueryClient, delayMs: number = 500) {
   const pending = new Map<string, ReturnType<typeof setTimeout>>();
 
   return function throttledInvalidate(queryKey: readonly unknown[]): void {

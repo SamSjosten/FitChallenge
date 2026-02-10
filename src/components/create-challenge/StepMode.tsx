@@ -4,10 +4,7 @@
 import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { useAppTheme } from "@/providers/ThemeProvider";
-import {
-  UserGroupIcon,
-  ChevronRightIcon,
-} from "react-native-heroicons/outline";
+import { UserGroupIcon, ChevronRightIcon } from "react-native-heroicons/outline";
 import type { StepModeProps, ChallengeMode } from "./types";
 
 // Using a target-like icon for solo; UserGroup for social
@@ -51,32 +48,21 @@ function ModeCard({
       ]}
     >
       <View style={styles.cardContent}>
-        <View
-          style={[
-            styles.iconWrap,
-            { backgroundColor: iconBg, borderRadius: radius.xl },
-          ]}
-        >
+        <View style={[styles.iconWrap, { backgroundColor: iconBg, borderRadius: radius.xl }]}>
           {mode === "social" ? (
             <UserGroupIcon size={24} color={iconColor} />
           ) : (
             <View>
               {/* Simple target circle for solo */}
               <View style={[styles.targetOuter, { borderColor: iconColor }]}>
-                <View
-                  style={[styles.targetInner, { backgroundColor: iconColor }]}
-                />
+                <View style={[styles.targetInner, { backgroundColor: iconColor }]} />
               </View>
             </View>
           )}
         </View>
         <View style={styles.cardText}>
-          <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>
-            {title}
-          </Text>
-          <Text style={[styles.cardDesc, { color: colors.textSecondary }]}>
-            {description}
-          </Text>
+          <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>{title}</Text>
+          <Text style={[styles.cardDesc, { color: colors.textSecondary }]}>{description}</Text>
           <View style={styles.tagRow}>
             {tags.map((tag) => (
               <View
@@ -89,9 +75,7 @@ function ModeCard({
                   },
                 ]}
               >
-                <Text style={[styles.tagText, { color: tagColor.text }]}>
-                  {tag}
-                </Text>
+                <Text style={[styles.tagText, { color: tagColor.text }]}>{tag}</Text>
               </View>
             ))}
           </View>

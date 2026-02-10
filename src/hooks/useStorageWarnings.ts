@@ -21,10 +21,7 @@ type ShowToast = (message: string, options?: ToastOptions) => void;
  * - Mid-session: subscribes to live degradation events
  * - On logout: resets so next login re-checks
  */
-export function useStorageWarnings(
-  session: Session | null,
-  showToast: ShowToast,
-) {
+export function useStorageWarnings(session: Session | null, showToast: ShowToast) {
   const warningShown = useRef(false);
 
   // Check storage status on login (once per session)
@@ -36,15 +33,15 @@ export function useStorageWarnings(
       warningShown.current = true;
 
       if (!status.isPersistent) {
-        showToast(
-          "Session won't persist between app restarts. Storage unavailable.",
-          { variant: "error", duration: 6000 },
-        );
+        showToast("Session won't persist between app restarts. Storage unavailable.", {
+          variant: "error",
+          duration: 6000,
+        });
       } else if (!status.isSecure) {
-        showToast(
-          "Using unencrypted session storage. Your data is still safe.",
-          { variant: "warning", duration: 5000 },
-        );
+        showToast("Using unencrypted session storage. Your data is still safe.", {
+          variant: "warning",
+          duration: 5000,
+        });
       }
     });
   }, [session?.user?.id, showToast]);
@@ -61,15 +58,15 @@ export function useStorageWarnings(
     const unsubscribe = subscribeToStorageStatus((status) => {
       if (status.degradedAt) {
         if (!status.isPersistent) {
-          showToast(
-            "Storage failed. Session may not persist after app restart.",
-            { variant: "error", duration: 0 },
-          );
+          showToast("Storage failed. Session may not persist after app restart.", {
+            variant: "error",
+            duration: 0,
+          });
         } else if (!status.isSecure) {
-          showToast(
-            "Switched to unencrypted storage. Your session is still safe.",
-            { variant: "warning", duration: 6000 },
-          );
+          showToast("Switched to unencrypted storage. Your session is still safe.", {
+            variant: "warning",
+            duration: 6000,
+          });
         }
       }
     });

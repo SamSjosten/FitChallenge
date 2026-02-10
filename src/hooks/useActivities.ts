@@ -2,11 +2,7 @@
 // React Query hooks for activity data
 // Used by V2 home screen for recent activity section
 
-import {
-  useQuery,
-  useQueryClient,
-  UseQueryResult,
-} from "@tanstack/react-query";
+import { useQuery, useQueryClient, UseQueryResult } from "@tanstack/react-query";
 import { activityService } from "@/services/activities";
 import { useAuth } from "@/providers/AuthProvider";
 import type { ActivityLog } from "@/types/database";
@@ -33,9 +29,7 @@ export const activityKeys = {
  * Fetch recent activities for current user
  * Used on home screen for "Recent Activity" section
  */
-export function useRecentActivities(
-  limit: number = 10,
-): UseQueryResult<ActivityLog[], Error> {
+export function useRecentActivities(limit: number = 10): UseQueryResult<ActivityLog[], Error> {
   const { session } = useAuth();
   const userId = session?.user?.id;
 
@@ -100,9 +94,7 @@ export interface DisplayActivity extends ActivityLog {
 export function toDisplayActivity(activity: ActivityLog): DisplayActivity {
   const recordedAt = new Date(activity.recorded_at);
   const now = new Date();
-  const diffDays = Math.floor(
-    (now.getTime() - recordedAt.getTime()) / (1000 * 60 * 60 * 24),
-  );
+  const diffDays = Math.floor((now.getTime() - recordedAt.getTime()) / (1000 * 60 * 60 * 24));
 
   let displayDate: string;
   if (diffDays === 0) {

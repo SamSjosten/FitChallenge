@@ -379,12 +379,8 @@ describe("Critical Path Integration Tests", () => {
       expect(error).toBeNull();
       expect(participants?.length).toBeGreaterThanOrEqual(2);
 
-      const user1Participant = participants?.find(
-        (p) => p.user_id === user1.id,
-      );
-      const user2Participant = participants?.find(
-        (p) => p.user_id === user2.id,
-      );
+      const user1Participant = participants?.find((p) => p.user_id === user1.id);
+      const user2Participant = participants?.find((p) => p.user_id === user2.id);
 
       expect(user1Participant).toBeDefined();
       expect(user2Participant).toBeDefined();
@@ -420,9 +416,7 @@ describe("Critical Path Integration Tests", () => {
       expect(error).toBeNull();
 
       // Now user2 should see all accepted participants
-      const acceptedCount = participants?.filter(
-        (p) => p.invite_status === "accepted",
-      ).length;
+      const acceptedCount = participants?.filter((p) => p.invite_status === "accepted").length;
       expect(acceptedCount).toBeGreaterThanOrEqual(2);
     });
 
@@ -430,10 +424,9 @@ describe("Critical Path Integration Tests", () => {
       if (!challengeId) throw new Error("Challenge not created");
 
       // Use get_leaderboard RPC (matches production code path)
-      const { data: leaderboard, error } = await user1.client.rpc(
-        "get_leaderboard",
-        { p_challenge_id: challengeId },
-      );
+      const { data: leaderboard, error } = await user1.client.rpc("get_leaderboard", {
+        p_challenge_id: challengeId,
+      });
 
       expect(error).toBeNull();
       expect(leaderboard).toBeDefined();

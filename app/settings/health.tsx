@@ -47,14 +47,8 @@ export default function HealthSettingsScreen() {
     refresh: refreshConnection,
   } = useHealthConnection();
 
-  const {
-    sync,
-    isSyncing,
-    lastResult,
-    syncHistory,
-    isLoadingHistory,
-    refreshHistory,
-  } = useHealthSync();
+  const { sync, isSyncing, lastResult, syncHistory, isLoadingHistory, refreshHistory } =
+    useHealthSync();
 
   const providerName = Platform.OS === "ios" ? "Apple Health" : "Google Fit";
   const isConnected = status === "connected";
@@ -66,9 +60,7 @@ export default function HealthSettingsScreen() {
     } catch (error) {
       Alert.alert(
         "Connection Failed",
-        error instanceof Error
-          ? error.message
-          : "Could not connect to health data",
+        error instanceof Error ? error.message : "Could not connect to health data",
       );
     }
   };
@@ -98,10 +90,7 @@ export default function HealthSettingsScreen() {
     try {
       const result = await sync({ syncType: "manual" });
       if (result.success) {
-        Alert.alert(
-          "Sync Complete",
-          `Synced ${result.recordsInserted} new activities`,
-        );
+        Alert.alert("Sync Complete", `Synced ${result.recordsInserted} new activities`);
       } else {
         Alert.alert(
           "Sync Completed with Issues",
@@ -199,9 +188,7 @@ export default function HealthSettingsScreen() {
 
       <ScrollView
         style={{ flex: 1 }}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         {/* Connection Status Card */}
         <View
@@ -226,9 +213,7 @@ export default function HealthSettingsScreen() {
                 width: 56,
                 height: 56,
                 borderRadius: 14,
-                backgroundColor: isConnected
-                  ? colors.success + "20"
-                  : colors.textMuted + "20",
+                backgroundColor: isConnected ? colors.success + "20" : colors.textMuted + "20",
                 justifyContent: "center",
                 alignItems: "center",
               }}
@@ -506,8 +491,7 @@ export default function HealthSettingsScreen() {
                     padding: spacing.md,
                     flexDirection: "row",
                     alignItems: "center",
-                    borderBottomWidth:
-                      index < Math.min(syncHistory.length, 5) - 1 ? 1 : 0,
+                    borderBottomWidth: index < Math.min(syncHistory.length, 5) - 1 ? 1 : 0,
                     borderBottomColor: colors.border,
                   }}
                 >
@@ -520,9 +504,7 @@ export default function HealthSettingsScreen() {
                         color: colors.textPrimary,
                       }}
                     >
-                      {log.sync_type.charAt(0).toUpperCase() +
-                        log.sync_type.slice(1)}{" "}
-                      sync
+                      {log.sync_type.charAt(0).toUpperCase() + log.sync_type.slice(1)} sync
                     </Text>
                     <Text
                       style={{
@@ -567,9 +549,9 @@ export default function HealthSettingsScreen() {
                 lineHeight: 20,
               }}
             >
-              Connect to {providerName} to automatically sync your fitness data
-              with your challenges. Your steps, workouts, and activity minutes
-              will be imported to track your progress.
+              Connect to {providerName} to automatically sync your fitness data with your
+              challenges. Your steps, workouts, and activity minutes will be imported to track your
+              progress.
             </Text>
           </View>
         )}
@@ -600,10 +582,7 @@ function Header({
         backgroundColor: colors.surface,
       }}
     >
-      <TouchableOpacity
-        onPress={() => router.back()}
-        style={{ padding: spacing.xs }}
-      >
+      <TouchableOpacity onPress={() => router.back()} style={{ padding: spacing.xs }}>
         <ChevronLeftIcon size={24} color={colors.textPrimary} />
       </TouchableOpacity>
       <Text

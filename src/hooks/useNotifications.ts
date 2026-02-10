@@ -91,27 +91,20 @@ export function useMarkNotificationAsRead() {
         return { previousNotification: undefined, wasUnread: false };
       }
 
-      const previousNotification = currentNotifications.find(
-        (n) => n.id === notificationId,
-      );
+      const previousNotification = currentNotifications.find((n) => n.id === notificationId);
       const wasUnread = previousNotification && !previousNotification.read_at;
 
       // Optimistically update only this notification
-      queryClient.setQueryData<Notification[]>(
-        notificationsKeys.list(),
-        (old) =>
-          old?.map((n) =>
-            n.id === notificationId
-              ? { ...n, read_at: n.read_at ?? new Date().toISOString() }
-              : n,
-          ),
+      queryClient.setQueryData<Notification[]>(notificationsKeys.list(), (old) =>
+        old?.map((n) =>
+          n.id === notificationId ? { ...n, read_at: n.read_at ?? new Date().toISOString() } : n,
+        ),
       );
 
       // Only decrement unread count if notification was actually unread
       if (wasUnread) {
-        queryClient.setQueryData<number>(
-          notificationsKeys.unreadCount(),
-          (old) => Math.max(0, (old ?? 0) - 1),
+        queryClient.setQueryData<number>(notificationsKeys.unreadCount(), (old) =>
+          Math.max(0, (old ?? 0) - 1),
         );
       }
 
@@ -123,12 +116,8 @@ export function useMarkNotificationAsRead() {
     // This prevents concurrent mutations from corrupting each other
     onError: (_error, notificationId, context) => {
       if (context?.previousNotification) {
-        queryClient.setQueryData<Notification[]>(
-          notificationsKeys.list(),
-          (current) =>
-            current?.map((n) =>
-              n.id === notificationId ? context.previousNotification! : n,
-            ),
+        queryClient.setQueryData<Notification[]>(notificationsKeys.list(), (current) =>
+          current?.map((n) => (n.id === notificationId ? context.previousNotification! : n)),
         );
       }
       // Restore count only if we decremented it
@@ -202,9 +191,8 @@ export function useMarkAllNotificationsAsRead() {
 
       // Optimistically mark all as read
       const now = new Date().toISOString();
-      queryClient.setQueryData<Notification[]>(
-        notificationsKeys.list(),
-        (old) => old?.map((n) => (n.read_at ? n : { ...n, read_at: now })),
+      queryClient.setQueryData<Notification[]>(notificationsKeys.list(), (old) =>
+        old?.map((n) => (n.read_at ? n : { ...n, read_at: now })),
       );
 
       // Optimistically set unread count to 0
@@ -217,19 +205,12 @@ export function useMarkAllNotificationsAsRead() {
     // Surgical rollback - restore only notifications THIS mutation marked as read
     // This prevents concurrent single-notification mutations from being corrupted
     onError: (_error, _variables, context) => {
-      if (
-        context?.unreadNotificationIds &&
-        context.unreadNotificationIds.size > 0
-      ) {
+      if (context?.unreadNotificationIds && context.unreadNotificationIds.size > 0) {
         // Restore only the notifications we marked as read
-        queryClient.setQueryData<Notification[]>(
-          notificationsKeys.list(),
-          (current) =>
-            current?.map((n) =>
-              context.unreadNotificationIds.has(n.id)
-                ? { ...n, read_at: null }
-                : n,
-            ),
+        queryClient.setQueryData<Notification[]>(notificationsKeys.list(), (current) =>
+          current?.map((n) =>
+            context.unreadNotificationIds.has(n.id) ? { ...n, read_at: null } : n,
+          ),
         );
         // Restore the count
         queryClient.setQueryData<number>(
@@ -280,32 +261,23 @@ export function useArchiveNotification() {
       const previousNotifications = queryClient.getQueryData<Notification[]>(
         notificationsKeys.list(),
       );
-      const previousUnreadCount = queryClient.getQueryData<number>(
-        notificationsKeys.unreadCount(),
-      );
+      const previousUnreadCount = queryClient.getQueryData<number>(notificationsKeys.unreadCount());
 
-      const notification = previousNotifications?.find(
-        (n) => n.id === notificationId,
-      );
+      const notification = previousNotifications?.find((n) => n.id === notificationId);
       const wasUnread = notification && !notification.read_at;
 
       // Optimistic update: set read_at + dismissed_at
       const now = new Date().toISOString();
-      queryClient.setQueryData<Notification[]>(
-        notificationsKeys.list(),
-        (old) =>
-          old?.map((n) =>
-            n.id === notificationId
-              ? { ...n, read_at: n.read_at ?? now, dismissed_at: now }
-              : n,
-          ),
+      queryClient.setQueryData<Notification[]>(notificationsKeys.list(), (old) =>
+        old?.map((n) =>
+          n.id === notificationId ? { ...n, read_at: n.read_at ?? now, dismissed_at: now } : n,
+        ),
       );
 
       // Decrement unread count if needed
       if (wasUnread) {
-        queryClient.setQueryData<number>(
-          notificationsKeys.unreadCount(),
-          (old) => Math.max(0, (old ?? 0) - 1),
+        queryClient.setQueryData<number>(notificationsKeys.unreadCount(), (old) =>
+          Math.max(0, (old ?? 0) - 1),
         );
       }
 
@@ -315,16 +287,10 @@ export function useArchiveNotification() {
     onError: (_error, _notificationId, context) => {
       // Rollback on error
       if (context?.previousNotifications) {
-        queryClient.setQueryData(
-          notificationsKeys.list(),
-          context.previousNotifications,
-        );
+        queryClient.setQueryData(notificationsKeys.list(), context.previousNotifications);
       }
       if (context?.previousUnreadCount !== undefined) {
-        queryClient.setQueryData(
-          notificationsKeys.unreadCount(),
-          context.previousUnreadCount,
-        );
+        queryClient.setQueryData(notificationsKeys.unreadCount(), context.previousUnreadCount);
       }
     },
 
@@ -358,12 +324,8 @@ export function useRestoreNotification() {
       );
 
       // Optimistic update: clear dismissed_at (keep read_at)
-      queryClient.setQueryData<Notification[]>(
-        notificationsKeys.list(),
-        (old) =>
-          old?.map((n) =>
-            n.id === notificationId ? { ...n, dismissed_at: null } : n,
-          ),
+      queryClient.setQueryData<Notification[]>(notificationsKeys.list(), (old) =>
+        old?.map((n) => (n.id === notificationId ? { ...n, dismissed_at: null } : n)),
       );
 
       return { previousNotifications };
@@ -371,10 +333,7 @@ export function useRestoreNotification() {
 
     onError: (_error, _notificationId, context) => {
       if (context?.previousNotifications) {
-        queryClient.setQueryData(
-          notificationsKeys.list(),
-          context.previousNotifications,
-        );
+        queryClient.setQueryData(notificationsKeys.list(), context.previousNotifications);
       }
     },
 

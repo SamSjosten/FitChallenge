@@ -11,10 +11,7 @@
 // - Using device time instead of server time → type error (not a contract violation)
 // - Rendering without viewer role awareness → type error (not a dead-end UX)
 
-import type {
-  ChallengeWithParticipation,
-  LeaderboardEntry,
-} from "@/services/challenges";
+import type { ChallengeWithParticipation, LeaderboardEntry } from "@/services/challenges";
 import type { ProfilePublic } from "@/types/database";
 import type { EffectiveStatus } from "@/lib/challengeStatus";
 

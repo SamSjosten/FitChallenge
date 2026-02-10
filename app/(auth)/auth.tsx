@@ -47,10 +47,7 @@ export default function AuthScreenV2() {
   const params = useLocalSearchParams<{ mode?: string }>();
   const insets = useSafeAreaInsets();
 
-  const form = useAuthForm(
-    { signIn, signUp },
-    (params.mode as AuthMode) || "signup",
-  );
+  const form = useAuthForm({ signIn, signUp }, (params.mode as AuthMode) || "signup");
 
   // ── Navigation Lock ───────────────────────────────────────────────────
   const isMounted = useRef(true);
@@ -61,9 +58,7 @@ export default function AuthScreenV2() {
     };
   }, []);
 
-  const setAuthHandlingNavigation = useNavigationStore(
-    (s) => s.setAuthHandlingNavigation,
-  );
+  const setAuthHandlingNavigation = useNavigationStore((s) => s.setAuthHandlingNavigation);
   const lockTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const acquireLock = useCallback(
@@ -167,8 +162,7 @@ export default function AuthScreenV2() {
       } else {
         releaseLock("autoBiometric-fail");
         form.setIsLoading(false);
-        if (!result.cancelled && result.error)
-          form.setErrors({ general: result.error });
+        if (!result.cancelled && result.error) form.setErrors({ general: result.error });
       }
     } catch (error: any) {
       if (isMounted.current) {
@@ -210,9 +204,7 @@ export default function AuthScreenV2() {
       return;
     }
     const shouldPromptBiometric =
-      form.mode === "signin"
-        ? biometricAvailable && !biometricEnabled
-        : biometricAvailable;
+      form.mode === "signin" ? biometricAvailable && !biometricEnabled : biometricAvailable;
     if (shouldPromptBiometric && result.credentials) {
       setPendingCredentials(result.credentials);
       setShowBiometricSetup(true);
@@ -233,8 +225,7 @@ export default function AuthScreenV2() {
       else await signInWithGoogle();
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : "Sign-in failed";
-      const cancelled =
-        /cancel[le]d|ERR_REQUEST_CANCELED|SIGN_IN_CANCELLED/.test(msg);
+      const cancelled = /cancel[le]d|ERR_REQUEST_CANCELED|SIGN_IN_CANCELLED/.test(msg);
       if (!cancelled) Alert.alert("Sign In Failed", msg);
     } finally {
       form.setIsLoading(false);
@@ -268,11 +259,7 @@ export default function AuthScreenV2() {
               style={[styles.backButton, { top: insets.top + 8 }]}
               onPress={() => router.back()}
             >
-              <Ionicons
-                name="chevron-back"
-                size={24}
-                color="rgba(255,255,255,0.8)"
-              />
+              <Ionicons name="chevron-back" size={24} color="rgba(255,255,255,0.8)" />
             </TouchableOpacity>
             <View style={styles.headerContent}>
               <View style={styles.iconContainer}>
@@ -282,9 +269,7 @@ export default function AuthScreenV2() {
                 {form.mode === "signup" ? "Create Account" : "Welcome Back"}
               </Text>
               <Text style={styles.headerSubtitle}>
-                {form.mode === "signup"
-                  ? "Join the fitness community"
-                  : "Sign in to continue"}
+                {form.mode === "signup" ? "Join the fitness community" : "Sign in to continue"}
               </Text>
             </View>
           </LinearGradient>
@@ -294,10 +279,7 @@ export default function AuthScreenV2() {
             {/* Mode Toggle */}
             <View style={styles.modeToggle}>
               <TouchableOpacity
-                style={[
-                  styles.modeButton,
-                  form.mode === "signup" && styles.modeButtonActive,
-                ]}
+                style={[styles.modeButton, form.mode === "signup" && styles.modeButtonActive]}
                 onPress={() => form.switchMode("signup")}
               >
                 <Text
@@ -310,10 +292,7 @@ export default function AuthScreenV2() {
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[
-                  styles.modeButton,
-                  form.mode === "signin" && styles.modeButtonActive,
-                ]}
+                style={[styles.modeButton, form.mode === "signin" && styles.modeButtonActive]}
                 onPress={() => form.switchMode("signin")}
               >
                 <Text
@@ -332,9 +311,7 @@ export default function AuthScreenV2() {
               {form.errors.general && (
                 <View style={styles.errorBanner}>
                   <Ionicons name="alert-circle" size={18} color="#DC2626" />
-                  <Text style={styles.errorBannerText}>
-                    {form.errors.general}
-                  </Text>
+                  <Text style={styles.errorBannerText}>{form.errors.general}</Text>
                   <TouchableOpacity
                     onPress={form.clearGeneralError}
                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -404,10 +381,7 @@ export default function AuthScreenV2() {
 
             {/* Submit Button */}
             <TouchableOpacity
-              style={[
-                styles.submitButton,
-                form.isLoading && styles.submitButtonDisabled,
-              ]}
+              style={[styles.submitButton, form.isLoading && styles.submitButtonDisabled]}
               onPress={handleSubmit}
               disabled={form.isLoading}
             >
@@ -420,10 +394,7 @@ export default function AuthScreenV2() {
               )}
             </TouchableOpacity>
 
-            <SocialLoginButtons
-              onSocialLogin={handleSocialLogin}
-              disabled={form.isLoading}
-            />
+            <SocialLoginButtons onSocialLogin={handleSocialLogin} disabled={form.isLoading} />
 
             {form.mode === "signup" && (
               <Text style={styles.termsText}>

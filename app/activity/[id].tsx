@@ -3,13 +3,7 @@
 // Design System v2.0
 
 import React, { useMemo } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-} from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from "react-native";
 import { router, useLocalSearchParams, Stack } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAppTheme } from "@/providers/ThemeProvider";
@@ -139,9 +133,7 @@ export default function ActivityDetailScreen() {
           <LoadingState variant="full-screen" />
         ) : (
           <View style={[styles.notFound, { padding: spacing.xl }]}>
-            <Text
-              style={[styles.notFoundText, { color: colors.textSecondary }]}
-            >
+            <Text style={[styles.notFoundText, { color: colors.textSecondary }]}>
               Activity not found
             </Text>
             <TouchableOpacity
@@ -163,8 +155,7 @@ export default function ActivityDetailScreen() {
     );
   }
 
-  const typeColors =
-    activityColors[activity.activity_type] || activityColors.custom;
+  const typeColors = activityColors[activity.activity_type] || activityColors.custom;
   const points = calculatePoints(activity.value, activity.activity_type);
 
   return (
@@ -188,15 +179,10 @@ export default function ActivityDetailScreen() {
           },
         ]}
       >
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={styles.headerBackButton}
-        >
+        <TouchableOpacity onPress={() => router.back()} style={styles.headerBackButton}>
           <ChevronLeftIcon size={24} color={colors.textPrimary} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>
-          Activity Details
-        </Text>
+        <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Activity Details</Text>
         <View style={styles.headerRight} />
       </View>
 
@@ -229,14 +215,10 @@ export default function ActivityDetailScreen() {
               <FireIcon size={32} color={typeColors.text} />
             </View>
             <View style={styles.typeText}>
-              <Text
-                style={[styles.activityType, { color: colors.textPrimary }]}
-              >
+              <Text style={[styles.activityType, { color: colors.textPrimary }]}>
                 {getActivityTypeName(activity.activity_type)}
               </Text>
-              <Text
-                style={[styles.sourceText, { color: colors.textSecondary }]}
-              >
+              <Text style={[styles.sourceText, { color: colors.textSecondary }]}>
                 via {getSourceLabel(activity.source)}
               </Text>
             </View>
@@ -247,9 +229,7 @@ export default function ActivityDetailScreen() {
             <Text style={[styles.valueText, { color: colors.textPrimary }]}>
               {activity.value.toLocaleString()}
             </Text>
-            <Text style={[styles.unitText, { color: colors.textSecondary }]}>
-              {activity.unit}
-            </Text>
+            <Text style={[styles.unitText, { color: colors.textSecondary }]}>{activity.unit}</Text>
           </View>
 
           {/* Points earned */}
@@ -286,11 +266,7 @@ export default function ActivityDetailScreen() {
               <CalendarIcon size={20} color={colors.textMuted} />
             </View>
             <View style={styles.detailContent}>
-              <Text
-                style={[styles.detailLabel, { color: colors.textSecondary }]}
-              >
-                Date
-              </Text>
+              <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Date</Text>
               <Text style={[styles.detailValue, { color: colors.textPrimary }]}>
                 {formatDate(activity.recorded_at)}
               </Text>
@@ -305,11 +281,7 @@ export default function ActivityDetailScreen() {
               <ClockIcon size={20} color={colors.textMuted} />
             </View>
             <View style={styles.detailContent}>
-              <Text
-                style={[styles.detailLabel, { color: colors.textSecondary }]}
-              >
-                Time
-              </Text>
+              <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Time</Text>
               <Text style={[styles.detailValue, { color: colors.textPrimary }]}>
                 {formatTime(activity.recorded_at)}
               </Text>
@@ -319,30 +291,19 @@ export default function ActivityDetailScreen() {
           {/* Challenge (if linked) */}
           {activity.challenge_id && (
             <>
-              <View
-                style={[styles.divider, { backgroundColor: colors.border }]}
-              />
+              <View style={[styles.divider, { backgroundColor: colors.border }]} />
               <TouchableOpacity
                 style={[styles.detailRow, { padding: spacing.md }]}
-                onPress={() =>
-                  router.push(`/challenge/${activity.challenge_id}`)
-                }
+                onPress={() => router.push(`/challenge/${activity.challenge_id}`)}
               >
                 <View style={styles.detailIcon}>
                   <TrophyIcon size={20} color={colors.textMuted} />
                 </View>
                 <View style={styles.detailContent}>
-                  <Text
-                    style={[
-                      styles.detailLabel,
-                      { color: colors.textSecondary },
-                    ]}
-                  >
+                  <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>
                     Challenge
                   </Text>
-                  <Text
-                    style={[styles.detailValue, { color: colors.primary.main }]}
-                  >
+                  <Text style={[styles.detailValue, { color: colors.primary.main }]}>
                     View Challenge →
                   </Text>
                 </View>

@@ -56,8 +56,7 @@ export const pushTokenService = {
       return false;
     }
 
-    const { status: existingStatus } =
-      await Notifications.getPermissionsAsync();
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
 
     if (existingStatus === "granted") {
       return true;
@@ -89,9 +88,7 @@ export const pushTokenService = {
    * @param skipPermissionCheck - If true, assumes permission already granted
    * @returns RegistrationResult with success status and optional token/error
    */
-  async registerToken(
-    skipPermissionCheck = false,
-  ): Promise<RegistrationResult> {
+  async registerToken(skipPermissionCheck = false): Promise<RegistrationResult> {
     if (!isNotificationSupported()) {
       return {
         success: false,

@@ -6,11 +6,7 @@
 import React from "react";
 import { render, screen, waitFor } from "@testing-library/react-native";
 import ChallengeDetailScreen from "../../../app/challenge/[id]";
-import {
-  mockSupabaseClient,
-  TestWrapper,
-  mockSearchParams,
-} from "./jest.setup";
+import { mockSupabaseClient, TestWrapper, mockSearchParams } from "./jest.setup";
 import {
   seedAuthenticatedUser,
   seedChallenge,
@@ -92,9 +88,7 @@ describe("ChallengeDetailScreen Integration", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockSupabaseClient.__reset();
-    Object.keys(mockSearchParams).forEach(
-      (key) => delete mockSearchParams[key],
-    );
+    Object.keys(mockSearchParams).forEach((key) => delete mockSearchParams[key]);
   });
 
   describe("Accepted Participant View", () => {

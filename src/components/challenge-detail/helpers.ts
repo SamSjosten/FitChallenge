@@ -31,10 +31,7 @@ export function formatWinCondition(condition: string): string {
  * Calculate elapsed days since a start date.
  * Requires server-authoritative now — never uses device clock.
  */
-export function getDaysElapsed(
-  startDate: string | Date,
-  serverNow: Date,
-): number {
+export function getDaysElapsed(startDate: string | Date, serverNow: Date): number {
   const start = typeof startDate === "string" ? new Date(startDate) : startDate;
   const diffMs = serverNow.getTime() - start.getTime();
   return Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
@@ -55,11 +52,7 @@ export function formatActivityDate(dateStr: string, serverNow: Date): string {
   const date = new Date(dateStr);
 
   // Day boundaries based on server time, not device time
-  const today = new Date(
-    serverNow.getFullYear(),
-    serverNow.getMonth(),
-    serverNow.getDate(),
-  );
+  const today = new Date(serverNow.getFullYear(), serverNow.getMonth(), serverNow.getDate());
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
 
@@ -104,9 +97,7 @@ export function formatTimeRemaining(
       return "Archived";
     case "upcoming": {
       if (daysUntilStart !== undefined && daysUntilStart > 0) {
-        return daysUntilStart === 1
-          ? "Starts tomorrow"
-          : `Starts in ${daysUntilStart} days`;
+        return daysUntilStart === 1 ? "Starts tomorrow" : `Starts in ${daysUntilStart} days`;
       }
       return "Starting soon";
     }

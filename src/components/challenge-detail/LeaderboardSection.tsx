@@ -96,9 +96,7 @@ export function LeaderboardSection({
     );
   }
 
-  const displayList = showAll
-    ? leaderboard
-    : leaderboard.slice(0, LEADERBOARD_DISPLAY_LIMIT);
+  const displayList = showAll ? leaderboard : leaderboard.slice(0, LEADERBOARD_DISPLAY_LIMIT);
   const remaining = leaderboard.length - LEADERBOARD_DISPLAY_LIMIT;
 
   return (
@@ -108,8 +106,7 @@ export function LeaderboardSection({
     >
       {displayList.map((entry, index) => {
         // Clamp percent for both bar AND text (fixes B5)
-        const rawPercent =
-          goalValue > 0 ? (entry.current_progress / goalValue) * 100 : 0;
+        const rawPercent = goalValue > 0 ? (entry.current_progress / goalValue) * 100 : 0;
         const clampedPercent = Math.min(rawPercent, 100);
         const isYou = entry.user_id === currentUserId;
         const barColor = isYou ? colors.primary.main : colors.textMuted;
@@ -120,9 +117,7 @@ export function LeaderboardSection({
             key={entry.user_id}
             testID={
               isYou
-                ? TestIDs.challengeDetail.leaderboardEntryHighlighted(
-                    entry.profile.username,
-                  )
+                ? TestIDs.challengeDetail.leaderboardEntryHighlighted(entry.profile.username)
                 : TestIDs.challengeDetail.leaderboardEntry(index)
             }
             style={{
@@ -170,9 +165,7 @@ export function LeaderboardSection({
               <Avatar
                 name={entry.profile.display_name || entry.profile.username}
                 size="sm"
-                style={
-                  isYou ? { backgroundColor: colors.primary.main } : undefined
-                }
+                style={isYou ? { backgroundColor: colors.primary.main } : undefined}
               />
 
               {/* Name */}
@@ -180,16 +173,12 @@ export function LeaderboardSection({
                 style={{
                   flex: 1,
                   fontSize: 13,
-                  fontFamily: isYou
-                    ? "PlusJakartaSans_600SemiBold"
-                    : "PlusJakartaSans_500Medium",
+                  fontFamily: isYou ? "PlusJakartaSans_600SemiBold" : "PlusJakartaSans_500Medium",
                   color: colors.textPrimary,
                 }}
                 numberOfLines={1}
               >
-                {isYou
-                  ? "You"
-                  : entry.profile.display_name || entry.profile.username}
+                {isYou ? "You" : entry.profile.display_name || entry.profile.username}
               </Text>
 
               {/* Today's Change */}

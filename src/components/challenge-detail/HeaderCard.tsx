@@ -16,12 +16,7 @@ import { useAppTheme } from "@/providers/ThemeProvider";
 import { getStatusLabel, getStatusColor } from "@/lib/challengeStatus";
 import { getDaysRemaining } from "@/lib/serverTime";
 import { TestIDs } from "@/constants/testIDs";
-import {
-  formatNumber,
-  formatTimeRemaining,
-  ACTIVITY_ICONS,
-  RANK_EMOJI,
-} from "./helpers";
+import { formatNumber, formatTimeRemaining, ACTIVITY_ICONS, RANK_EMOJI } from "./helpers";
 import type { HeaderCardProps } from "./types";
 
 export function HeaderCard({
@@ -51,9 +46,7 @@ export function HeaderCard({
 
   // Calculate days until start for upcoming challenges
   const daysUntilStart =
-    status === "upcoming"
-      ? Math.max(0, getDaysRemaining(challenge.start_date))
-      : undefined;
+    status === "upcoming" ? Math.max(0, getDaysRemaining(challenge.start_date)) : undefined;
 
   const badgeText = formatTimeRemaining(status, daysLeft, daysUntilStart);
 
@@ -185,9 +178,7 @@ export function HeaderCard({
           >
             Rank
           </Text>
-          <Text style={{ fontSize: 22 }}>
-            {RANK_EMOJI[myRank] || myRank || "-"}
-          </Text>
+          <Text style={{ fontSize: 22 }}>{RANK_EMOJI[myRank] || myRank || "-"}</Text>
         </View>
 
         {/* Today */}
@@ -276,10 +267,7 @@ export function HeaderCard({
       </View>
 
       {/* Progress Section */}
-      <View
-        style={{ padding: spacing.md }}
-        testID={TestIDs.challengeDetail.progressCard}
-      >
+      <View style={{ padding: spacing.md }} testID={TestIDs.challengeDetail.progressCard}>
         <View
           style={{
             flexDirection: "row",

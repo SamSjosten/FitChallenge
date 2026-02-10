@@ -89,8 +89,7 @@ const createSupabaseMock = () => {
       // Return object with .single() method for RPC calls that need it
       return {
         single: jest.fn(() => Promise.resolve(response)),
-        then: (resolve: (value: unknown) => void) =>
-          Promise.resolve(response).then(resolve),
+        then: (resolve: (value: unknown) => void) => Promise.resolve(response).then(resolve),
       };
     }),
     from: jest.fn((tableName: string) => {
@@ -116,9 +115,7 @@ jest.mock("@/services/health/utils", () => ({
       recorded_at: new Date().toISOString(),
     })),
   ),
-  assignChallengesToActivities: jest.fn(
-    (activities, _challenges) => activities,
-  ),
+  assignChallengesToActivities: jest.fn((activities, _challenges) => activities),
   calculateSyncDateRange: jest.fn((lookbackDays: number) => ({
     startDate: new Date(Date.now() - lookbackDays * 24 * 60 * 60 * 1000),
     endDate: new Date(),
@@ -158,11 +155,7 @@ function setRpcResponse(fnName: string, data: unknown, error: unknown = null) {
   mockRpcResponses[fnName] = { data, error };
 }
 
-function setFromResponse(
-  tableName: string,
-  data: unknown,
-  error: unknown = null,
-) {
+function setFromResponse(tableName: string, data: unknown, error: unknown = null) {
   mockFromResponses[tableName] = { data, error };
 }
 
@@ -324,9 +317,7 @@ describe("HealthService", () => {
       const mockProvider = new MockHealthProvider({ isAvailable: false });
       const service = createMockHealthService(mockProvider);
 
-      await expect(service.connect()).rejects.toThrow(
-        "healthkit is not available on this device",
-      );
+      await expect(service.connect()).rejects.toThrow("healthkit is not available on this device");
     });
 
     it("should throw when no permissions are granted", async () => {
@@ -336,9 +327,7 @@ describe("HealthService", () => {
       });
       const service = createMockHealthService(mockProvider);
 
-      await expect(service.connect()).rejects.toThrow(
-        "No health permissions were granted",
-      );
+      await expect(service.connect()).rejects.toThrow("No health permissions were granted");
     });
 
     it("should save connection and trigger initial sync on success", async () => {
@@ -371,9 +360,7 @@ describe("HealthService", () => {
       expect(result).toEqual(mockConnection);
 
       // Verify connect_health_provider was called
-      const connectCall = mockRpcCalls.find(
-        (c) => c.fn === "connect_health_provider",
-      );
+      const connectCall = mockRpcCalls.find((c) => c.fn === "connect_health_provider");
       expect(connectCall).toBeDefined();
       expect(connectCall?.args.p_provider).toBe("healthkit");
 
@@ -418,9 +405,7 @@ describe("HealthService", () => {
 
       await service.disconnect();
 
-      const disconnectCall = mockRpcCalls.find(
-        (c) => c.fn === "disconnect_health_provider",
-      );
+      const disconnectCall = mockRpcCalls.find((c) => c.fn === "disconnect_health_provider");
       expect(disconnectCall).toBeDefined();
       expect(disconnectCall?.args.p_provider).toBe("healthkit");
     });
@@ -433,9 +418,7 @@ describe("HealthService", () => {
         message: "Database error",
       });
 
-      await expect(service.disconnect()).rejects.toThrow(
-        "Failed to disconnect: Database error",
-      );
+      await expect(service.disconnect()).rejects.toThrow("Failed to disconnect: Database error");
     });
   });
 
@@ -463,9 +446,7 @@ describe("HealthService", () => {
       expect(result.errors).toHaveLength(0);
 
       // Verify sync was completed with 'completed' status
-      const completeCall = mockRpcCalls.find(
-        (c) => c.fn === "complete_health_sync",
-      );
+      const completeCall = mockRpcCalls.find((c) => c.fn === "complete_health_sync");
       expect(completeCall?.args.p_status).toBe("completed");
     });
 
@@ -522,9 +503,7 @@ describe("HealthService", () => {
       expect(result.errors).toHaveLength(1);
 
       // Verify sync completed with 'partial' status
-      const completeCall = mockRpcCalls.find(
-        (c) => c.fn === "complete_health_sync",
-      );
+      const completeCall = mockRpcCalls.find((c) => c.fn === "complete_health_sync");
       expect(completeCall?.args.p_status).toBe("partial");
     });
 
@@ -578,14 +557,10 @@ describe("HealthService", () => {
       setRpcResponse("start_health_sync", "sync-log-1");
       setRpcResponse("complete_health_sync", null);
 
-      await expect(service.sync({ syncType: "manual" })).rejects.toThrow(
-        "Provider fetch failed",
-      );
+      await expect(service.sync({ syncType: "manual" })).rejects.toThrow("Provider fetch failed");
 
       // Verify sync was completed with 'failed' status
-      const completeCall = mockRpcCalls.find(
-        (c) => c.fn === "complete_health_sync",
-      );
+      const completeCall = mockRpcCalls.find((c) => c.fn === "complete_health_sync");
       expect(completeCall?.args.p_status).toBe("failed");
       expect(completeCall?.args.p_error_message).toBe("Provider fetch failed");
     });
@@ -656,9 +631,7 @@ describe("HealthService", () => {
       const mockProvider = createFullyGrantedMockProvider();
       const service = createMockHealthService(mockProvider);
 
-      const mockActivities = [
-        { activity_type: "steps", value: 5000, recorded_at: "2024-01-15" },
-      ];
+      const mockActivities = [{ activity_type: "steps", value: 5000, recorded_at: "2024-01-15" }];
 
       setRpcResponse("get_recent_health_activities", mockActivities);
 
@@ -666,9 +639,7 @@ describe("HealthService", () => {
 
       expect(result).toEqual(mockActivities);
 
-      const rpcCall = mockRpcCalls.find(
-        (c) => c.fn === "get_recent_health_activities",
-      );
+      const rpcCall = mockRpcCalls.find((c) => c.fn === "get_recent_health_activities");
       expect(rpcCall?.args.p_limit).toBe(20);
       expect(rpcCall?.args.p_offset).toBe(10);
     });
@@ -694,9 +665,7 @@ describe("HealthService", () => {
 
       await service.getRecentActivities();
 
-      const rpcCall = mockRpcCalls.find(
-        (c) => c.fn === "get_recent_health_activities",
-      );
+      const rpcCall = mockRpcCalls.find((c) => c.fn === "get_recent_health_activities");
       expect(rpcCall?.args.p_limit).toBe(50);
       expect(rpcCall?.args.p_offset).toBe(0);
     });
@@ -731,9 +700,7 @@ describe("HealthService", () => {
       await service.sync({ syncType: "manual" });
 
       // Should have called log_health_activity 3 times (100, 100, 50)
-      const logCalls = mockRpcCalls.filter(
-        (c) => c.fn === "log_health_activity",
-      );
+      const logCalls = mockRpcCalls.filter((c) => c.fn === "log_health_activity");
       expect(logCalls.length).toBe(3);
     });
 
@@ -751,46 +718,39 @@ describe("HealthService", () => {
       const originalRpc = supabase.rpc;
 
       // Override to return different results per batch
-      supabase.rpc.mockImplementation(
-        (fn: string, args: Record<string, unknown>) => {
-          mockRpcCalls.push({ fn, args });
+      supabase.rpc.mockImplementation((fn: string, args: Record<string, unknown>) => {
+        mockRpcCalls.push({ fn, args });
 
-          if (fn === "log_health_activity") {
-            callCount++;
-            const batchResult =
-              callCount === 1
-                ? {
-                    inserted: 95,
-                    deduplicated: 5,
-                    total_processed: 100,
-                    errors: [],
-                  }
-                : {
-                    inserted: 48,
-                    deduplicated: 2,
-                    total_processed: 50,
-                    errors: [],
-                  };
+        if (fn === "log_health_activity") {
+          callCount++;
+          const batchResult =
+            callCount === 1
+              ? {
+                  inserted: 95,
+                  deduplicated: 5,
+                  total_processed: 100,
+                  errors: [],
+                }
+              : {
+                  inserted: 48,
+                  deduplicated: 2,
+                  total_processed: 50,
+                  errors: [],
+                };
 
-            return {
-              single: jest.fn(() =>
-                Promise.resolve({ data: batchResult, error: null }),
-              ),
-              then: (resolve: (v: unknown) => void) =>
-                Promise.resolve({ data: batchResult, error: null }).then(
-                  resolve,
-                ),
-            };
-          }
-
-          const response = mockRpcResponses[fn] || { data: null, error: null };
           return {
-            single: jest.fn(() => Promise.resolve(response)),
+            single: jest.fn(() => Promise.resolve({ data: batchResult, error: null })),
             then: (resolve: (v: unknown) => void) =>
-              Promise.resolve(response).then(resolve),
+              Promise.resolve({ data: batchResult, error: null }).then(resolve),
           };
-        },
-      );
+        }
+
+        const response = mockRpcResponses[fn] || { data: null, error: null };
+        return {
+          single: jest.fn(() => Promise.resolve(response)),
+          then: (resolve: (v: unknown) => void) => Promise.resolve(response).then(resolve),
+        };
+      });
 
       setRpcResponse("start_health_sync", "sync-log-1");
       setRpcResponse("get_challenges_for_health_sync", []);

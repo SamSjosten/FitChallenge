@@ -37,9 +37,7 @@ export function LogActivitySheet({
 }: LogActivitySheetProps) {
   const { colors, spacing, radius, typography } = useAppTheme();
   const [value, setValue] = useState("");
-  const [selectedWorkoutType, setSelectedWorkoutType] = useState<string | null>(
-    null,
-  );
+  const [selectedWorkoutType, setSelectedWorkoutType] = useState<string | null>(null);
   const [durationMinutes, setDurationMinutes] = useState("");
   const [showTypePicker, setShowTypePicker] = useState(false);
 
@@ -51,9 +49,7 @@ export function LogActivitySheet({
     if (!allowedWorkoutTypes || allowedWorkoutTypes.length === 0) {
       return WORKOUT_TYPE_CATALOG;
     }
-    return WORKOUT_TYPE_CATALOG.filter((t) =>
-      allowedWorkoutTypes.includes(t.id),
-    );
+    return WORKOUT_TYPE_CATALOG.filter((t) => allowedWorkoutTypes.includes(t.id));
   }, [isWorkoutMode, allowedWorkoutTypes]);
 
   // Auto-select first available type
@@ -450,11 +446,7 @@ export function LogActivitySheet({
                   color: "#FFFFFF",
                 }}
               >
-                {isLoading
-                  ? "Logging..."
-                  : isWorkoutMode
-                    ? "Log Workout"
-                    : "Log Activity"}
+                {isLoading ? "Logging..." : isWorkoutMode ? "Log Workout" : "Log Activity"}
               </Text>
             </TouchableOpacity>
           </View>

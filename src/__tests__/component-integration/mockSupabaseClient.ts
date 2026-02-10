@@ -43,9 +43,7 @@ export interface MockSupabaseClient {
     getSession: jest.Mock<Promise<MockResponse<{ session: Session | null }>>>;
     getUser: jest.Mock<Promise<MockResponse<{ user: User | null }>>>;
     signInWithPassword: jest.Mock<Promise<MockResponse<{ session: Session }>>>;
-    signUp: jest.Mock<
-      Promise<MockResponse<{ session: Session | null; user: User | null }>>
-    >;
+    signUp: jest.Mock<Promise<MockResponse<{ session: Session | null; user: User | null }>>>;
     signOut: jest.Mock<Promise<MockResponse<null>>>;
     onAuthStateChange: jest.Mock<{
       data: { subscription: MockAuthSubscription };
@@ -75,8 +73,7 @@ export function createMockSupabaseClient(): MockSupabaseClient {
   const authListeners: MockAuthStateChangeCallback[] = [];
 
   // Store table-specific data for queries
-  const tableData: Map<string, { data: unknown; error: Error | null }> =
-    new Map();
+  const tableData: Map<string, { data: unknown; error: Error | null }> = new Map();
 
   // Create chainable query builder for a specific table
   const createQueryBuilder = (tableName: string): MockQueryBuilder => {
@@ -123,9 +120,7 @@ export function createMockSupabaseClient(): MockSupabaseClient {
         ),
       getUser: jest
         .fn()
-        .mockImplementation(() =>
-          Promise.resolve({ data: { user: currentUser }, error: null }),
-        ),
+        .mockImplementation(() => Promise.resolve({ data: { user: currentUser }, error: null })),
       signInWithPassword: jest.fn().mockResolvedValue({
         data: { session: null },
         error: null,
@@ -176,11 +171,7 @@ export function createMockSupabaseClient(): MockSupabaseClient {
       currentUser = user;
     },
 
-    __setTableData: (
-      table: string,
-      data: unknown,
-      error: Error | null = null,
-    ) => {
+    __setTableData: (table: string, data: unknown, error: Error | null = null) => {
       tableData.set(table, { data, error });
     },
   };
@@ -302,14 +293,11 @@ export interface MockProfilePublic {
 /**
  * Create a mock profile with sensible defaults
  */
-export function createMockProfile(
-  overrides: Partial<MockProfile> = {},
-): MockProfile {
+export function createMockProfile(overrides: Partial<MockProfile> = {}): MockProfile {
   return {
     id: overrides.id ?? "test-user-id",
     username: overrides.username ?? "testuser",
-    display_name:
-      "display_name" in overrides ? overrides.display_name! : "Test User",
+    display_name: "display_name" in overrides ? overrides.display_name! : "Test User",
     avatar_url: "avatar_url" in overrides ? overrides.avatar_url! : null,
     xp_total: overrides.xp_total ?? 1000,
     current_streak: overrides.current_streak ?? 5,
@@ -324,9 +312,7 @@ export function createMockProfile(
 /**
  * Create a mock challenge with sensible defaults
  */
-export function createMockChallenge(
-  overrides: Partial<MockChallenge> = {},
-): MockChallenge {
+export function createMockChallenge(overrides: Partial<MockChallenge> = {}): MockChallenge {
   const now = new Date();
   const startDate = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000); // 2 days ago
   const endDate = new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000); // 5 days from now
@@ -447,9 +433,7 @@ export function seedLeaderboard(
 ): MockLeaderboardEntry[] {
   const leaderboard =
     entries.length > 0
-      ? entries.map((e, i) =>
-          createMockLeaderboardEntry({ ...e, rank: e.rank ?? i + 1 }),
-        )
+      ? entries.map((e, i) => createMockLeaderboardEntry({ ...e, rank: e.rank ?? i + 1 }))
       : [
           createMockLeaderboardEntry({
             user_id: "user-1",

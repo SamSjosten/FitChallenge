@@ -62,8 +62,7 @@ export function useHealthSync(): UseHealthSyncResult {
     refetchHistory();
   }, [refetchHistory]);
 
-  const error =
-    syncMutation.error instanceof Error ? syncMutation.error.message : null;
+  const error = syncMutation.error instanceof Error ? syncMutation.error.message : null;
 
   return {
     sync,

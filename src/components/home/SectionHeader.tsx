@@ -71,9 +71,7 @@ export function SectionHeader({
         {icon && <View style={styles.iconWrapper}>{icon}</View>}
 
         {/* Title */}
-        <Text style={[styles.title, { color: colors.textPrimary }]}>
-          {title}
-        </Text>
+        <Text style={[styles.title, { color: colors.textPrimary }]}>{title}</Text>
 
         {/* Count badge (optional) */}
         {count !== undefined && count > 0 && (
@@ -86,9 +84,7 @@ export function SectionHeader({
               },
             ]}
           >
-            <Text style={[styles.countText, { color: accentColor }]}>
-              {count}
-            </Text>
+            <Text style={[styles.countText, { color: accentColor }]}>{count}</Text>
           </View>
         )}
       </View>

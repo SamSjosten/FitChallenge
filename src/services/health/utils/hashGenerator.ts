@@ -13,9 +13,7 @@ import type { HealthSample, ChallengeType } from "../types";
  * Generate a SHA-256 hash for a health sample.
  * This hash is used as source_external_id for deduplication.
  */
-export async function generateSampleHash(
-  sample: HealthSample,
-): Promise<string> {
+export async function generateSampleHash(sample: HealthSample): Promise<string> {
   const hashInput = [
     sample.type,
     sample.value.toString(),
@@ -26,10 +24,7 @@ export async function generateSampleHash(
     sample.id,
   ].join("|");
 
-  const hash = await Crypto.digestStringAsync(
-    Crypto.CryptoDigestAlgorithm.SHA256,
-    hashInput,
-  );
+  const hash = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, hashInput);
 
   return hash;
 }
@@ -37,9 +32,7 @@ export async function generateSampleHash(
 /**
  * Generate a batch of hashes for multiple samples.
  */
-export async function generateBatchHashes(
-  samples: HealthSample[],
-): Promise<string[]> {
+export async function generateBatchHashes(samples: HealthSample[]): Promise<string[]> {
   const hashPromises = samples.map((sample) => generateSampleHash(sample));
   return Promise.all(hashPromises);
 }
@@ -53,17 +46,9 @@ export async function generateQuickHash(
   timestamp: Date,
   sourceId: string,
 ): Promise<string> {
-  const hashInput = [
-    type,
-    value.toString(),
-    timestamp.toISOString(),
-    sourceId,
-  ].join("|");
+  const hashInput = [type, value.toString(), timestamp.toISOString(), sourceId].join("|");
 
-  return Crypto.digestStringAsync(
-    Crypto.CryptoDigestAlgorithm.SHA256,
-    hashInput,
-  );
+  return Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, hashInput);
 }
 
 /**

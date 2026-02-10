@@ -51,9 +51,7 @@ import type { Profile } from "@/types/database";
 export class AuthTimeoutError extends Error {
   readonly code = "AUTH_TIMEOUT" as const;
 
-  constructor(
-    message = "Authentication timed out. Please check your connection and try again.",
-  ) {
+  constructor(message = "Authentication timed out. Please check your connection and try again.") {
     super(message);
     this.name = "AuthTimeoutError";
   }
@@ -130,17 +128,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const loadProfileAndSetState = useCallback(async (session: Session) => {
     // Guard against concurrent calls
     if (profileLoadingRef.current) {
-      console.log(
-        `[AuthProvider] ⏭️ loadProfileAndSetState skipped - already loading`,
-      );
+      console.log(`[AuthProvider] ⏭️ loadProfileAndSetState skipped - already loading`);
       return;
     }
     profileLoadingRef.current = true;
     const startTime = Date.now();
     const shortId = session.user.id.substring(0, 8);
-    console.log(
-      `[AuthProvider] 📂 loadProfileAndSetState starting for ${shortId}`,
-    );
+    console.log(`[AuthProvider] 📂 loadProfileAndSetState starting for ${shortId}`);
 
     // Set session IMMEDIATELY so ProtectedRoute knows user is authenticated
     setState((prev) => ({
@@ -152,18 +146,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }));
 
     // Sync server time (non-blocking)
-    syncServerTime().catch((err) =>
-      console.warn("Server time sync failed:", err),
-    );
+    syncServerTime().catch((err) => console.warn("Server time sync failed:", err));
 
     try {
       const profile = await authService.getMyProfileWithUserId(session.user.id);
 
       if (mountedRef.current) {
         const elapsed = Date.now() - startTime;
-        console.log(
-          `[AuthProvider] ✅ Profile loaded for ${shortId} in ${elapsed}ms`,
-        );
+        console.log(`[AuthProvider] ✅ Profile loaded for ${shortId} in ${elapsed}ms`);
         setState((prev) => ({
           ...prev,
           profile,
@@ -176,9 +166,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           .registerToken()
           .catch((err) => console.warn("Push token registration failed:", err));
       } else {
-        console.log(
-          `[AuthProvider] ⚠️ Unmounted before setState (${Date.now() - startTime}ms)`,
-        );
+        console.log(`[AuthProvider] ⚠️ Unmounted before setState (${Date.now() - startTime}ms)`);
       }
     } catch (err) {
       console.error(
@@ -262,9 +250,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       // =================================================================
       if (event === "TOKEN_REFRESHED") {
         if (!bootstrapComplete) {
-          console.log(
-            `[AuthProvider] ⏭️ Skipping TOKEN_REFRESHED before bootstrap`,
-          );
+          console.log(`[AuthProvider] ⏭️ Skipping TOKEN_REFRESHED before bootstrap`);
           return;
         }
         console.log(`[AuthProvider] 🔄 Token refreshed — updating session`);
@@ -281,9 +267,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       // SIGNED_IN, USER_UPDATED, etc. are side effects of actions that
       // calling methods already handle end-to-end.
       // =================================================================
-      console.log(
-        `[AuthProvider] ⏭️ Ignoring ${event} — caller owns this flow`,
-      );
+      console.log(`[AuthProvider] ⏭️ Ignoring ${event} — caller owns this flow`);
     });
 
     // Safety timeout: if INITIAL_SESSION never fires (corrupted storage, etc.)
@@ -291,9 +275,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       if (mountedRef.current) {
         setState((prev) => {
           if (prev.loading) {
-            console.warn(
-              "[AuthProvider] ⏱️ Auth init timed out — INITIAL_SESSION never fired",
-            );
+            console.warn("[AuthProvider] ⏱️ Auth init timed out — INITIAL_SESSION never fired");
             return {
               ...prev,
               loading: false,
@@ -320,9 +302,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     if (!state.session) return;
 
     const intervalId = setInterval(() => {
-      syncServerTime().catch((err) =>
-        console.warn("Periodic server time sync failed:", err),
-      );
+      syncServerTime().catch((err) => console.warn("Periodic server time sync failed:", err));
     }, RESYNC_INTERVAL_MS);
 
     return () => clearInterval(intervalId);
@@ -375,10 +355,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     });
 
     if (error) {
-      console.warn(
-        `[AuthProvider] Failed to set onboarding metadata:`,
-        error.message,
-      );
+      console.warn(`[AuthProvider] Failed to set onboarding metadata:`, error.message);
       return session;
     }
 
@@ -412,23 +389,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
           } = await getSupabaseClient().auth.getSession();
 
           if (sessionError) {
-            throw new Error(
-              `Failed to verify session: ${sessionError.message}`,
-            );
+            throw new Error(`Failed to verify session: ${sessionError.message}`);
           }
           if (!session) {
-            throw new Error(
-              "Sign up succeeded but no session was created. Please try again.",
-            );
+            throw new Error("Sign up succeeded but no session was created. Please try again.");
           }
 
           await loadProfileAndSetState(session);
           console.log(`[AuthProvider] ✅ signUp() complete`);
         } else {
           // Email confirmation required
-          console.log(
-            `[AuthProvider] 📧 signUp() complete — pending email confirmation`,
-          );
+          console.log(`[AuthProvider] 📧 signUp() complete — pending email confirmation`);
           setState((prev) => ({
             ...prev,
             loading: false,
@@ -459,9 +430,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           throw new Error(`Failed to verify session: ${sessionError.message}`);
         }
         if (!session) {
-          throw new Error(
-            "Sign in succeeded but no session was created. Please try again.",
-          );
+          throw new Error("Sign in succeeded but no session was created. Please try again.");
         }
 
         await loadProfileAndSetState(session);
@@ -504,9 +473,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         throw new Error(`Failed to verify session: ${sessionError.message}`);
       }
       if (!session) {
-        throw new Error(
-          "Apple sign-in succeeded but no session was created. Please try again.",
-        );
+        throw new Error("Apple sign-in succeeded but no session was created. Please try again.");
       }
 
       session = await ensureNewUserOnboarding(session);
@@ -521,31 +488,21 @@ export function AuthProvider({ children }: AuthProviderProps) {
             .from("profiles")
             .update({ display_name: appleDisplayName })
             .eq("id", session.user.id);
-          console.log(
-            `[AuthProvider] 🍎 Applied Apple display name: "${appleDisplayName}"`,
-          );
+          console.log(`[AuthProvider] 🍎 Applied Apple display name: "${appleDisplayName}"`);
           // Refresh profile state to reflect the name change
-          const updatedProfile = await authService.getMyProfileWithUserId(
-            session.user.id,
-          );
+          const updatedProfile = await authService.getMyProfileWithUserId(session.user.id);
           if (mountedRef.current) {
             setState((prev) => ({ ...prev, profile: updatedProfile }));
           }
         } catch (nameErr) {
           // Non-fatal: sign-in succeeded, name can be set later in settings
-          console.warn(
-            `[AuthProvider] ⚠️ Failed to apply Apple display name:`,
-            nameErr,
-          );
+          console.warn(`[AuthProvider] ⚠️ Failed to apply Apple display name:`, nameErr);
         }
       }
 
       console.log(`[AuthProvider] ✅ signInWithApple() complete`);
     } catch (err: any) {
-      if (
-        err?.code === "ERR_REQUEST_CANCELED" ||
-        err?.code === "ERR_CANCELED"
-      ) {
+      if (err?.code === "ERR_REQUEST_CANCELED" || err?.code === "ERR_CANCELED") {
         console.log(`[AuthProvider] 🍎 Apple Sign-In cancelled by user`);
         setState((prev) => ({ ...prev, loading: false }));
         return;
@@ -571,9 +528,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         throw new Error(`Failed to verify session: ${sessionError.message}`);
       }
       if (!session) {
-        throw new Error(
-          "Google sign-in succeeded but no session was created. Please try again.",
-        );
+        throw new Error("Google sign-in succeeded but no session was created. Please try again.");
       }
 
       session = await ensureNewUserOnboarding(session);
@@ -639,16 +594,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       refreshProfile,
       clearError,
     }),
-    [
-      state,
-      signUp,
-      signIn,
-      signInWithApple,
-      signInWithGoogle,
-      signOut,
-      refreshProfile,
-      clearError,
-    ],
+    [state, signUp, signIn, signInWithApple, signInWithGoogle, signOut, refreshProfile, clearError],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -24,12 +24,7 @@ export {
   type ChallengeFilterProps,
   type ActiveFilterBadgeProps,
 } from "./ChallengeFilter";
-export {
-  InviteCard,
-  InviteRow,
-  type InviteCardProps,
-  type InviteRowProps,
-} from "./InviteCard";
+export { InviteCard, InviteRow, type InviteCardProps, type InviteRowProps } from "./InviteCard";
 
 // Friends components
 export {

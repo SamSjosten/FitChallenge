@@ -4,10 +4,7 @@ import type { Notification as DbNotification } from "@/types/database-helpers";
 // Service-level Notification type with guaranteed non-null fields.
 // Migration 026 adds NOT NULL to created_at. After regenerating types,
 // the Omit and assertion below become redundant but remain as defensive code.
-export interface Notification extends Omit<
-  DbNotification,
-  "data" | "created_at"
-> {
+export interface Notification extends Omit<DbNotification, "data" | "created_at"> {
   data: Record<string, unknown>;
   created_at: string; // NOT NULL enforced by migration 026
   dismissed_at: string | null; // Added by migration 028
@@ -17,18 +14,14 @@ function mapNotification(db: DbNotification): Notification {
   // Defensive assertion - migration 026 enforces NOT NULL, but this catches
   // any edge cases until types are regenerated
   if (!db.created_at) {
-    throw new Error(
-      `Notification ${db.id} has null created_at - data integrity issue`,
-    );
+    throw new Error(`Notification ${db.id} has null created_at - data integrity issue`);
   }
 
   const { data, ...rest } = db;
   return {
     ...rest,
     created_at: db.created_at,
-    dismissed_at:
-      (db as DbNotification & { dismissed_at?: string | null }).dismissed_at ??
-      null,
+    dismissed_at: (db as DbNotification & { dismissed_at?: string | null }).dismissed_at ?? null,
     data:
       data !== null && typeof data === "object" && !Array.isArray(data)
         ? (data as Record<string, unknown>)
@@ -66,12 +59,9 @@ export const notificationsService = {
 
   async markAsRead(notificationId: string): Promise<void> {
     return withAuth(async () => {
-      const { error } = await getSupabaseClient().rpc(
-        "mark_notification_read",
-        {
-          p_notification_id: notificationId,
-        },
-      );
+      const { error } = await getSupabaseClient().rpc("mark_notification_read", {
+        p_notification_id: notificationId,
+      });
 
       if (error) throw error;
     });
@@ -79,9 +69,7 @@ export const notificationsService = {
 
   async markAllAsRead(): Promise<void> {
     return withAuth(async () => {
-      const { error } = await getSupabaseClient().rpc(
-        "mark_all_notifications_read",
-      );
+      const { error } = await getSupabaseClient().rpc("mark_all_notifications_read");
 
       if (error) throw error;
     });

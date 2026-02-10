@@ -38,29 +38,18 @@ export async function checkBiometricCapability(): Promise<BiometricCapability> {
     }
 
     // Get supported biometric types
-    const supportedTypes =
-      await LocalAuthentication.supportedAuthenticationTypesAsync();
+    const supportedTypes = await LocalAuthentication.supportedAuthenticationTypesAsync();
 
     let biometricType: BiometricType = "none";
     let displayName = "Biometrics";
 
-    if (
-      supportedTypes.includes(
-        LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION,
-      )
-    ) {
+    if (supportedTypes.includes(LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION)) {
       biometricType = "facial";
       displayName = Platform.OS === "ios" ? "Face ID" : "Face Recognition";
-    } else if (
-      supportedTypes.includes(
-        LocalAuthentication.AuthenticationType.FINGERPRINT,
-      )
-    ) {
+    } else if (supportedTypes.includes(LocalAuthentication.AuthenticationType.FINGERPRINT)) {
       biometricType = "fingerprint";
       displayName = Platform.OS === "ios" ? "Touch ID" : "Fingerprint";
-    } else if (
-      supportedTypes.includes(LocalAuthentication.AuthenticationType.IRIS)
-    ) {
+    } else if (supportedTypes.includes(LocalAuthentication.AuthenticationType.IRIS)) {
       biometricType = "iris";
       displayName = "Iris Recognition";
     }

@@ -2,12 +2,7 @@
 // Component tests for the Challenge Detail screen
 
 import React from "react";
-import {
-  render,
-  screen,
-  fireEvent,
-  waitFor,
-} from "@testing-library/react-native";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react-native";
 import ChallengeDetailScreen from "@/app/challenge/[id]";
 import { mockChallengesState } from "./jest.setup";
 import { Alert } from "react-native";
@@ -247,9 +242,7 @@ describe("ChallengeDetailScreen", () => {
 
       // Assert
       await waitFor(() => {
-        expect(
-          mockChallengesState.logActivity.mutateAsync,
-        ).toHaveBeenCalledWith({
+        expect(mockChallengesState.logActivity.mutateAsync).toHaveBeenCalledWith({
           challenge_id: "challenge-xyz",
           activity_type: "steps",
           value: 10000,
@@ -270,10 +263,7 @@ describe("ChallengeDetailScreen", () => {
 
       // Assert
       await waitFor(() => {
-        expect(Alert.alert).toHaveBeenCalledWith(
-          "Invalid Value",
-          "Please enter a positive number",
-        );
+        expect(Alert.alert).toHaveBeenCalledWith("Invalid Value", "Please enter a positive number");
       });
     });
 
@@ -307,9 +297,7 @@ describe("ChallengeDetailScreen", () => {
         challenge: {
           status: "pending",
           start_date: futureDate.toISOString(),
-          end_date: new Date(
-            futureDate.getTime() + 14 * 24 * 60 * 60 * 1000,
-          ).toISOString(),
+          end_date: new Date(futureDate.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString(),
         },
       });
 
@@ -331,9 +319,7 @@ describe("ChallengeDetailScreen", () => {
         challenge: {
           status: "pending",
           start_date: futureDate.toISOString(),
-          end_date: new Date(
-            futureDate.getTime() + 14 * 24 * 60 * 60 * 1000,
-          ).toISOString(),
+          end_date: new Date(futureDate.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString(),
         },
       });
 

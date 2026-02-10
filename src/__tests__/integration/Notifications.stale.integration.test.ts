@@ -56,10 +56,7 @@ async function createTestUser(name: string): Promise<TestUser> {
 // Helper: Cleanup test user
 async function cleanupTestUser(userId: string): Promise<void> {
   await serviceClient.from("notifications").delete().eq("user_id", userId);
-  await serviceClient
-    .from("challenge_participants")
-    .delete()
-    .eq("user_id", userId);
+  await serviceClient.from("challenge_participants").delete().eq("user_id", userId);
   await serviceClient
     .from("friends")
     .delete()
@@ -138,14 +135,8 @@ describe("Stale Notification Triggers", () => {
 
     afterEach(async () => {
       // Cleanup challenge and related data
-      await serviceClient
-        .from("notifications")
-        .delete()
-        .eq("data->challenge_id", challengeId);
-      await serviceClient
-        .from("challenge_participants")
-        .delete()
-        .eq("challenge_id", challengeId);
+      await serviceClient.from("notifications").delete().eq("data->challenge_id", challengeId);
+      await serviceClient.from("challenge_participants").delete().eq("challenge_id", challengeId);
       await serviceClient.from("challenges").delete().eq("id", challengeId);
     });
 
@@ -177,13 +168,10 @@ describe("Stale Notification Triggers", () => {
       expect(notification!.read_at).toBeNull();
 
       // 4. Decline invite (as invitee)
-      const { error } = await invitee.client.rpc(
-        "respond_to_challenge_invite",
-        {
-          p_challenge_id: challengeId,
-          p_response: "declined",
-        },
-      );
+      const { error } = await invitee.client.rpc("respond_to_challenge_invite", {
+        p_challenge_id: challengeId,
+        p_response: "declined",
+      });
       expect(error).toBeNull();
 
       // 5. Verify notification is now marked as read
@@ -215,13 +203,10 @@ describe("Stale Notification Triggers", () => {
       });
 
       // 3. Accept invite
-      const { error } = await invitee.client.rpc(
-        "respond_to_challenge_invite",
-        {
-          p_challenge_id: challengeId,
-          p_response: "accepted",
-        },
-      );
+      const { error } = await invitee.client.rpc("respond_to_challenge_invite", {
+        p_challenge_id: challengeId,
+        p_response: "accepted",
+      });
       expect(error).toBeNull();
 
       // 4. Verify notification is marked as read
@@ -298,13 +283,11 @@ describe("Stale Notification Triggers", () => {
 
     test("accepting friend request marks notification as read", async () => {
       // 1. Send friend request (as creator -> invitee)
-      const { error: friendError } = await creator.client
-        .from("friends")
-        .insert({
-          requested_by: creator.id,
-          requested_to: invitee.id,
-          status: "pending",
-        });
+      const { error: friendError } = await creator.client.from("friends").insert({
+        requested_by: creator.id,
+        requested_to: invitee.id,
+        status: "pending",
+      });
       expect(friendError).toBeNull();
 
       // 2. Create notification (simulating enqueue_friend_request_notification)

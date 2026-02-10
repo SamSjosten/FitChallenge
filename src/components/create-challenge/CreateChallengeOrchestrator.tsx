@@ -115,9 +115,7 @@ export function CreateChallengeOrchestrator() {
   // ─── Flow state ───
   const [currentStep, setCurrentStep] = useState<CreateStep>("mode");
   const [mode, setMode] = useState<ChallengeMode | null>(null);
-  const [challengeType, setChallengeType] = useState<ChallengeType | null>(
-    null,
-  );
+  const [challengeType, setChallengeType] = useState<ChallengeType | null>(null);
   const [formData, setFormData] = useState<CreateFormData>(INITIAL_FORM_DATA);
   const [selectedFriendIds, setSelectedFriendIds] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -202,8 +200,7 @@ export function CreateChallengeOrchestrator() {
       const durationDays =
         formData.durationPreset === "custom"
           ? parseInt(formData.customDurationDays, 10) || 7
-          : (DURATION_PRESETS.find((d) => d.id === formData.durationPreset)
-              ?.days ?? 7);
+          : (DURATION_PRESETS.find((d) => d.id === formData.durationPreset)?.days ?? 7);
 
       const now = getServerNow();
 
@@ -213,10 +210,7 @@ export function CreateChallengeOrchestrator() {
         startDate = formData.scheduledStart;
         // Validate scheduled start is in the future
         if (startDate <= now) {
-          Alert.alert(
-            "Invalid Start Date",
-            "Scheduled start must be in the future.",
-          );
+          Alert.alert("Invalid Start Date", "Scheduled start must be in the future.");
           setIsSubmitting(false);
           return;
         }
@@ -252,8 +246,7 @@ export function CreateChallengeOrchestrator() {
         win_condition: formData.winCondition,
         ...(dailyTarget > 0 ? { daily_target: dailyTarget } : {}),
         // For workout challenges: pass selected types (empty = all allowed)
-        ...(challengeType === "workouts" &&
-        formData.selectedWorkoutTypes.length > 0
+        ...(challengeType === "workouts" && formData.selectedWorkoutTypes.length > 0
           ? { allowed_workout_types: formData.selectedWorkoutTypes }
           : {}),
       });
@@ -278,21 +271,11 @@ export function CreateChallengeOrchestrator() {
 
       setCurrentStep("success");
     } catch (err) {
-      Alert.alert(
-        "Error",
-        err instanceof Error ? err.message : "Failed to create challenge",
-      );
+      Alert.alert("Error", err instanceof Error ? err.message : "Failed to create challenge");
     } finally {
       setIsSubmitting(false);
     }
-  }, [
-    challengeType,
-    mode,
-    formData,
-    selectedFriendIds,
-    createChallenge,
-    inviteUser,
-  ]);
+  }, [challengeType, mode, formData, selectedFriendIds, createChallenge, inviteUser]);
 
   const handleDone = useCallback(() => {
     router.back();
@@ -304,11 +287,9 @@ export function CreateChallengeOrchestrator() {
     switch (currentStep) {
       case "details": {
         const nameEmpty = formData.name.trim().length === 0;
-        const goalEmpty =
-          formData.goal.trim().length === 0 || parseInt(formData.goal, 10) <= 0;
+        const goalEmpty = formData.goal.trim().length === 0 || parseInt(formData.goal, 10) <= 0;
         // Custom challenges require the "what are you tracking?" field
-        const customMissing =
-          challengeType === "custom" && formData.customUnit.trim().length < 2;
+        const customMissing = challengeType === "custom" && formData.customUnit.trim().length < 2;
         return nameEmpty || goalEmpty || customMissing;
       }
       case "review":
@@ -335,22 +316,14 @@ export function CreateChallengeOrchestrator() {
         handleCreate();
         break;
     }
-  }, [
-    currentStep,
-    handleWorkoutPickerNext,
-    handleDetailsNext,
-    handleInviteNext,
-    handleCreate,
-  ]);
+  }, [currentStep, handleWorkoutPickerNext, handleDetailsNext, handleInviteNext, handleCreate]);
 
   // ─── Render ───
 
   // Success is full-screen, no header/footer
   if (currentStep === "success") {
     return (
-      <SafeAreaView
-        style={[styles.safe, { backgroundColor: colors.background }]}
-      >
+      <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
         <StepSuccess
           mode={mode || "social"}
           challengeName={formData.name}
@@ -367,10 +340,7 @@ export function CreateChallengeOrchestrator() {
   const ctaLabel = getCtaLabel(currentStep, mode, selectedFriendIds.length);
 
   return (
-    <SafeAreaView
-      edges={["top"]}
-      style={[styles.safe, { backgroundColor: colors.background }]}
-    >
+    <SafeAreaView edges={["top"]} style={[styles.safe, { backgroundColor: colors.background }]}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={styles.flex}
@@ -393,17 +363,12 @@ export function CreateChallengeOrchestrator() {
             >
               <ChevronLeftIcon size={24} color={colors.textSecondary} />
             </TouchableOpacity>
-            <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>
-              {title}
-            </Text>
+            <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>{title}</Text>
             {/* Spacer for centering */}
             <View style={styles.backBtn} />
           </View>
           {stepIndex >= 0 && (
-            <StepProgress
-              currentStep={stepIndex}
-              totalSteps={visibleSteps.length}
-            />
+            <StepProgress currentStep={stepIndex} totalSteps={visibleSteps.length} />
           )}
         </View>
 
@@ -414,15 +379,9 @@ export function CreateChallengeOrchestrator() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {currentStep === "mode" && (
-            <StepMode onSelect={handleModeSelect} onClose={handleClose} />
-          )}
+          {currentStep === "mode" && <StepMode onSelect={handleModeSelect} onClose={handleClose} />}
           {currentStep === "type" && mode && (
-            <StepType
-              mode={mode}
-              onSelect={handleTypeSelect}
-              onBack={handleBack}
-            />
+            <StepType mode={mode} onSelect={handleTypeSelect} onBack={handleBack} />
           )}
           {currentStep === "workoutPicker" && (
             <StepWorkoutPicker
@@ -484,25 +443,17 @@ export function CreateChallengeOrchestrator() {
               style={[
                 styles.ctaButton,
                 {
-                  backgroundColor: isCtaDisabled
-                    ? colors.textMuted
-                    : colors.primary.main,
+                  backgroundColor: isCtaDisabled ? colors.textMuted : colors.primary.main,
                   borderRadius: radius.xl,
                 },
               ]}
             >
               {isSubmitting ? (
-                <Text
-                  style={[styles.ctaText, { color: colors.primary.contrast }]}
-                >
+                <Text style={[styles.ctaText, { color: colors.primary.contrast }]}>
                   Creating...
                 </Text>
               ) : (
-                <Text
-                  style={[styles.ctaText, { color: colors.primary.contrast }]}
-                >
-                  {ctaLabel}
-                </Text>
+                <Text style={[styles.ctaText, { color: colors.primary.contrast }]}>{ctaLabel}</Text>
               )}
             </TouchableOpacity>
           </View>

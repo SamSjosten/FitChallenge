@@ -131,12 +131,7 @@ export function FaceIDIcon({ size = 48, color = "#10B981" }: FaceIDIconProps) {
       {/* Face */}
       <View style={styles.faceContainer}>
         {/* Eyes */}
-        <View
-          style={[
-            styles.eyesContainer,
-            { gap: size * 0.15, marginBottom: size * 0.08 },
-          ]}
-        >
+        <View style={[styles.eyesContainer, { gap: size * 0.15, marginBottom: size * 0.08 }]}>
           <View
             style={[
               styles.eye,

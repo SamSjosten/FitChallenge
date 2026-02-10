@@ -31,9 +31,7 @@ jest.mock("react-native-get-random-values", () => {
     (global as any).crypto = {};
   }
   if (typeof global.crypto.getRandomValues !== "function") {
-    (global.crypto as any).getRandomValues = <T extends ArrayBufferView>(
-      array: T,
-    ): T => {
+    (global.crypto as any).getRandomValues = <T extends ArrayBufferView>(array: T): T => {
       if (array instanceof Uint8Array) {
         for (let i = 0; i < array.length; i++) {
           array[i] = Math.floor(Math.random() * 256);
@@ -145,10 +143,7 @@ describe("hybridStorage", () => {
       secureStoreWorks = true;
       asyncStorageWorks = true;
 
-      const {
-        hybridStorageReady,
-        getHybridStorageStatus,
-      } = require("../hybridStorage");
+      const { hybridStorageReady, getHybridStorageStatus } = require("../hybridStorage");
       const status = await hybridStorageReady;
 
       expect(status.mode).toBe("hybrid-encrypted");
@@ -220,10 +215,7 @@ describe("hybridStorage", () => {
     });
 
     it("stores and retrieves values correctly", async () => {
-      const {
-        hybridStorageReady,
-        createHybridStorageAdapter,
-      } = require("../hybridStorage");
+      const { hybridStorageReady, createHybridStorageAdapter } = require("../hybridStorage");
       await hybridStorageReady;
 
       const adapter = createHybridStorageAdapter();
@@ -240,10 +232,7 @@ describe("hybridStorage", () => {
     });
 
     it("stores encryption key in SecureStore (small)", async () => {
-      const {
-        hybridStorageReady,
-        createHybridStorageAdapter,
-      } = require("../hybridStorage");
+      const { hybridStorageReady, createHybridStorageAdapter } = require("../hybridStorage");
       await hybridStorageReady;
 
       const adapter = createHybridStorageAdapter();
@@ -258,10 +247,7 @@ describe("hybridStorage", () => {
     });
 
     it("stores encrypted payload in AsyncStorage", async () => {
-      const {
-        hybridStorageReady,
-        createHybridStorageAdapter,
-      } = require("../hybridStorage");
+      const { hybridStorageReady, createHybridStorageAdapter } = require("../hybridStorage");
       await hybridStorageReady;
 
       const adapter = createHybridStorageAdapter();
@@ -278,10 +264,7 @@ describe("hybridStorage", () => {
     });
 
     it("removes values from both storages", async () => {
-      const {
-        hybridStorageReady,
-        createHybridStorageAdapter,
-      } = require("../hybridStorage");
+      const { hybridStorageReady, createHybridStorageAdapter } = require("../hybridStorage");
       await hybridStorageReady;
 
       const adapter = createHybridStorageAdapter();
@@ -297,10 +280,7 @@ describe("hybridStorage", () => {
     });
 
     it("returns null for non-existent keys", async () => {
-      const {
-        hybridStorageReady,
-        createHybridStorageAdapter,
-      } = require("../hybridStorage");
+      const { hybridStorageReady, createHybridStorageAdapter } = require("../hybridStorage");
       await hybridStorageReady;
 
       const adapter = createHybridStorageAdapter();
@@ -318,10 +298,7 @@ describe("hybridStorage", () => {
     });
 
     it("encrypt/decrypt roundtrip preserves data", async () => {
-      const {
-        __cryptoForTesting,
-        hybridStorageReady,
-      } = require("../hybridStorage");
+      const { __cryptoForTesting, hybridStorageReady } = require("../hybridStorage");
       await hybridStorageReady;
 
       // Use ASCII-only text for reliable cross-platform testing
@@ -335,10 +312,7 @@ describe("hybridStorage", () => {
     });
 
     it("produces different ciphertext for same plaintext (random counter)", async () => {
-      const {
-        __cryptoForTesting,
-        hybridStorageReady,
-      } = require("../hybridStorage");
+      const { __cryptoForTesting, hybridStorageReady } = require("../hybridStorage");
       await hybridStorageReady;
 
       const plaintext = "same-data";
@@ -357,10 +331,7 @@ describe("hybridStorage", () => {
     });
 
     it("hex encoding/decoding roundtrip preserves bytes", async () => {
-      const {
-        __cryptoForTesting,
-        hybridStorageReady,
-      } = require("../hybridStorage");
+      const { __cryptoForTesting, hybridStorageReady } = require("../hybridStorage");
       await hybridStorageReady;
 
       const original = new Uint8Array([0, 1, 127, 128, 255, 42, 100]);
@@ -407,10 +378,7 @@ describe("hybridStorage", () => {
       secureStoreWorks = true;
       asyncStorageWorks = true;
 
-      const {
-        hybridStorageReady,
-        createHybridStorageAdapter,
-      } = require("../hybridStorage");
+      const { hybridStorageReady, createHybridStorageAdapter } = require("../hybridStorage");
       await hybridStorageReady;
 
       const adapter = createHybridStorageAdapter();
@@ -503,10 +471,7 @@ describe("hybridStorage", () => {
       secureStoreWorks = true;
       asyncStorageWorks = true;
 
-      const {
-        hybridStorageReady,
-        getHybridStorageStatus,
-      } = require("../hybridStorage");
+      const { hybridStorageReady, getHybridStorageStatus } = require("../hybridStorage");
       await hybridStorageReady;
 
       const status = getHybridStorageStatus();
@@ -516,10 +481,7 @@ describe("hybridStorage", () => {
     });
 
     it("isHybridStorageReady returns correct state", async () => {
-      const {
-        isHybridStorageReady,
-        hybridStorageReady,
-      } = require("../hybridStorage");
+      const { isHybridStorageReady, hybridStorageReady } = require("../hybridStorage");
 
       // Wait for initialization
       await hybridStorageReady;
@@ -571,10 +533,7 @@ describe("large payload handling", () => {
   });
 
   it("handles payloads larger than 2KB", async () => {
-    const {
-      hybridStorageReady,
-      createHybridStorageAdapter,
-    } = require("../hybridStorage");
+    const { hybridStorageReady, createHybridStorageAdapter } = require("../hybridStorage");
     await hybridStorageReady;
 
     const adapter = createHybridStorageAdapter();
@@ -605,10 +564,7 @@ describe("large payload handling", () => {
   });
 
   it("handles very large payloads (10KB+)", async () => {
-    const {
-      hybridStorageReady,
-      createHybridStorageAdapter,
-    } = require("../hybridStorage");
+    const { hybridStorageReady, createHybridStorageAdapter } = require("../hybridStorage");
     await hybridStorageReady;
 
     const adapter = createHybridStorageAdapter();

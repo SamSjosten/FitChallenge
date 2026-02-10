@@ -8,13 +8,7 @@
 // Allows tap-to-retry for user-initiated resync attempts.
 
 import React, { useCallback, useState } from "react";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  ActivityIndicator,
-} from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
 import { useAppTheme } from "@/providers/ThemeProvider";
 import { useServerTimeSyncStatus, syncServerTime } from "@/lib/serverTime";
 import { spacing, typography, radius } from "@/constants/theme";
@@ -62,19 +56,13 @@ export function ServerTimeBanner() {
       <View style={styles.content}>
         <Text style={[styles.icon]}>⚠️</Text>
         <View style={styles.textContainer}>
-          <Text style={[styles.title, { color: colors.textInverse }]}>
-            Time sync unavailable
-          </Text>
+          <Text style={[styles.title, { color: colors.textInverse }]}>Time sync unavailable</Text>
           <Text style={[styles.subtitle, { color: colors.textInverse }]}>
             Challenge times may be inaccurate. Tap to retry.
           </Text>
         </View>
         {retrying && (
-          <ActivityIndicator
-            size="small"
-            color={colors.textInverse}
-            style={styles.spinner}
-          />
+          <ActivityIndicator size="small" color={colors.textInverse} style={styles.spinner} />
         )}
       </View>
     </TouchableOpacity>

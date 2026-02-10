@@ -31,18 +31,12 @@ import { ToastProvider } from "@/providers/ToastProvider";
 import { ServerTimeBanner } from "@/components/ServerTimeBanner";
 import { OfflineIndicator } from "@/components/OfflineIndicator";
 import { supabaseConfigError } from "@/lib/supabase";
-import {
-  configureForegroundHandler,
-  setupNotificationChannel,
-} from "@/lib/notifications";
+import { configureForegroundHandler, setupNotificationChannel } from "@/lib/notifications";
 import { persistOptions } from "@/lib/queryPersister";
 import { queryRetryFn, mutationRetryFn } from "@/lib/queryRetry";
 import { initSentry, setUserContext } from "@/lib/sentry";
 import { useOfflineStore } from "@/stores/offlineStore";
-import {
-  useNavigationStore,
-  initNavigationStoreRecovery,
-} from "@/stores/navigationStore";
+import { useNavigationStore, initNavigationStoreRecovery } from "@/stores/navigationStore";
 import { useToast } from "@/providers/ToastProvider";
 
 import * as Sentry from "@sentry/react-native";
@@ -57,10 +51,7 @@ Sentry.init({
   enableLogs: true,
   replaysSessionSampleRate: 0.1,
   replaysOnErrorSampleRate: 1,
-  integrations: [
-    Sentry.mobileReplayIntegration(),
-    Sentry.feedbackIntegration(),
-  ],
+  integrations: [Sentry.mobileReplayIntegration(), Sentry.feedbackIntegration()],
 });
 
 initSentry();

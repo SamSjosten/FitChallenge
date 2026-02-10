@@ -36,10 +36,7 @@ describe("createThrottledInvalidator", () => {
   });
 
   it("should not invalidate immediately", () => {
-    const throttledInvalidate = createThrottledInvalidator(
-      mockQueryClient,
-      500,
-    );
+    const throttledInvalidate = createThrottledInvalidator(mockQueryClient, 500);
     const queryKey = ["test", "key"];
 
     throttledInvalidate(queryKey);
@@ -48,10 +45,7 @@ describe("createThrottledInvalidator", () => {
   });
 
   it("should invalidate after delay", () => {
-    const throttledInvalidate = createThrottledInvalidator(
-      mockQueryClient,
-      500,
-    );
+    const throttledInvalidate = createThrottledInvalidator(mockQueryClient, 500);
     const queryKey = ["test", "key"];
 
     throttledInvalidate(queryKey);
@@ -63,10 +57,7 @@ describe("createThrottledInvalidator", () => {
   });
 
   it("should batch rapid calls into single invalidation", () => {
-    const throttledInvalidate = createThrottledInvalidator(
-      mockQueryClient,
-      500,
-    );
+    const throttledInvalidate = createThrottledInvalidator(mockQueryClient, 500);
     const queryKey = ["test", "key"];
 
     // Simulate burst of 5 changes in rapid succession
@@ -92,10 +83,7 @@ describe("createThrottledInvalidator", () => {
   });
 
   it("should handle different query keys independently", () => {
-    const throttledInvalidate = createThrottledInvalidator(
-      mockQueryClient,
-      500,
-    );
+    const throttledInvalidate = createThrottledInvalidator(mockQueryClient, 500);
     const keyA = ["friends", "all"];
     const keyB = ["notifications", "all"];
 
@@ -110,10 +98,7 @@ describe("createThrottledInvalidator", () => {
   });
 
   it("should reset timer on each call (trailing edge debounce)", () => {
-    const throttledInvalidate = createThrottledInvalidator(
-      mockQueryClient,
-      500,
-    );
+    const throttledInvalidate = createThrottledInvalidator(mockQueryClient, 500);
     const queryKey = ["test", "key"];
 
     throttledInvalidate(queryKey);
@@ -144,10 +129,7 @@ describe("createThrottledInvalidator", () => {
   });
 
   it("should respect custom delay", () => {
-    const throttledInvalidate = createThrottledInvalidator(
-      mockQueryClient,
-      1000,
-    );
+    const throttledInvalidate = createThrottledInvalidator(mockQueryClient, 1000);
     const queryKey = ["test"];
 
     throttledInvalidate(queryKey);
@@ -160,10 +142,7 @@ describe("createThrottledInvalidator", () => {
   });
 
   it("should handle complex query keys", () => {
-    const throttledInvalidate = createThrottledInvalidator(
-      mockQueryClient,
-      500,
-    );
+    const throttledInvalidate = createThrottledInvalidator(mockQueryClient, 500);
     const queryKey = ["challenges", "leaderboard", "uuid-123-456"];
 
     throttledInvalidate(queryKey);
@@ -173,10 +152,7 @@ describe("createThrottledInvalidator", () => {
   });
 
   it("should allow multiple independent bursts", () => {
-    const throttledInvalidate = createThrottledInvalidator(
-      mockQueryClient,
-      500,
-    );
+    const throttledInvalidate = createThrottledInvalidator(mockQueryClient, 500);
     const queryKey = ["test"];
 
     // First burst
@@ -327,9 +303,7 @@ describe("Realtime Status Store", () => {
       subscribeToRealtimeStatus(listener);
 
       expect(listener).toHaveBeenCalledTimes(1);
-      expect(listener).toHaveBeenCalledWith(
-        expect.objectContaining({ status: "DISCONNECTED" }),
-      );
+      expect(listener).toHaveBeenCalledWith(expect.objectContaining({ status: "DISCONNECTED" }));
     });
 
     it("should call listener on status updates", () => {
@@ -375,9 +349,7 @@ describe("Realtime Status Store", () => {
     });
 
     it("should handle listener errors gracefully", () => {
-      const consoleWarnSpy = jest
-        .spyOn(console, "warn")
-        .mockImplementation(() => {});
+      const consoleWarnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
       const badListener = jest.fn(() => {
         throw new Error("Listener error");
       });
@@ -433,9 +405,7 @@ describe("Realtime Status Store", () => {
 
       resetRealtimeStatus();
 
-      expect(listener).toHaveBeenCalledWith(
-        expect.objectContaining({ status: "DISCONNECTED" }),
-      );
+      expect(listener).toHaveBeenCalledWith(expect.objectContaining({ status: "DISCONNECTED" }));
     });
   });
 

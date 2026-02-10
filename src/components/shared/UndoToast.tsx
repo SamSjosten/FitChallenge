@@ -3,13 +3,7 @@
 // Shows at bottom of screen with 5-second countdown
 
 import React, { useEffect, useRef } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Animated,
-} from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, Animated } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "@/providers/ThemeProvider";
 
@@ -110,21 +104,11 @@ export function UndoToast({
       ]}
     >
       <View
-        style={[
-          styles.content,
-          { paddingVertical: spacing.md, paddingHorizontal: spacing.lg },
-        ]}
+        style={[styles.content, { paddingVertical: spacing.md, paddingHorizontal: spacing.lg }]}
       >
-        <Text style={[styles.message, { color: colors.textPrimary }]}>
-          {message}
-        </Text>
-        <TouchableOpacity
-          onPress={handleUndo}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <Text style={[styles.undoButton, { color: colors.primary.main }]}>
-            UNDO
-          </Text>
+        <Text style={[styles.message, { color: colors.textPrimary }]}>{message}</Text>
+        <TouchableOpacity onPress={handleUndo} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <Text style={[styles.undoButton, { color: colors.primary.main }]}>UNDO</Text>
         </TouchableOpacity>
       </View>
     </Animated.View>

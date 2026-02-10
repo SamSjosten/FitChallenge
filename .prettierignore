@@ -1,0 +1,10 @@
+dist/
+.expo/
+node_modules/
+android/
+ios/
+coverage/
+supabase/functions/
+src/types/database.ts
+e2e/
+*.lock

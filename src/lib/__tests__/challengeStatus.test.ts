@@ -16,11 +16,7 @@ describe("challengeStatus", () => {
   const ONE_DAY_MS = 24 * ONE_HOUR_MS;
 
   // Helper to create challenges relative to BASE_NOW
-  const makeChallenge = (
-    status: string,
-    startOffsetMs: number,
-    endOffsetMs: number
-  ) => ({
+  const makeChallenge = (status: string, startOffsetMs: number, endOffsetMs: number) => ({
     status,
     start_date: new Date(BASE_NOW.getTime() + startOffsetMs).toISOString(),
     end_date: new Date(BASE_NOW.getTime() + endOffsetMs).toISOString(),
@@ -57,11 +53,7 @@ describe("challengeStatus", () => {
       });
 
       test("returns 'completed' when now is after end", () => {
-        const challenge = makeChallenge(
-          "pending",
-          -ONE_DAY_MS * 7,
-          -ONE_HOUR_MS
-        );
+        const challenge = makeChallenge("pending", -ONE_DAY_MS * 7, -ONE_HOUR_MS);
         expect(getEffectiveStatus(challenge, BASE_NOW)).toBe("completed");
       });
     });
@@ -69,39 +61,23 @@ describe("challengeStatus", () => {
     describe("override statuses take precedence over time", () => {
       test("returns 'cancelled' regardless of time", () => {
         // Time says active, but status is cancelled
-        const challenge = makeChallenge(
-          "cancelled",
-          -ONE_DAY_MS,
-          ONE_DAY_MS * 6
-        );
+        const challenge = makeChallenge("cancelled", -ONE_DAY_MS, ONE_DAY_MS * 6);
         expect(getEffectiveStatus(challenge, BASE_NOW)).toBe("cancelled");
       });
 
       test("returns 'archived' regardless of time", () => {
         // Time says active, but status is archived
-        const challenge = makeChallenge(
-          "archived",
-          -ONE_DAY_MS,
-          ONE_DAY_MS * 6
-        );
+        const challenge = makeChallenge("archived", -ONE_DAY_MS, ONE_DAY_MS * 6);
         expect(getEffectiveStatus(challenge, BASE_NOW)).toBe("archived");
       });
 
       test("cancelled takes precedence for upcoming challenges", () => {
-        const challenge = makeChallenge(
-          "cancelled",
-          ONE_DAY_MS,
-          ONE_DAY_MS * 7
-        );
+        const challenge = makeChallenge("cancelled", ONE_DAY_MS, ONE_DAY_MS * 7);
         expect(getEffectiveStatus(challenge, BASE_NOW)).toBe("cancelled");
       });
 
       test("archived takes precedence for completed challenges", () => {
-        const challenge = makeChallenge(
-          "archived",
-          -ONE_DAY_MS * 7,
-          -ONE_HOUR_MS
-        );
+        const challenge = makeChallenge("archived", -ONE_DAY_MS * 7, -ONE_HOUR_MS);
         expect(getEffectiveStatus(challenge, BASE_NOW)).toBe("archived");
       });
     });
@@ -114,13 +90,9 @@ describe("challengeStatus", () => {
         "stored status '%s' derives from time bounds",
         (storedStatus) => {
           // All these should return "active" based on time, not stored status
-          const challenge = makeChallenge(
-            storedStatus,
-            -ONE_DAY_MS,
-            ONE_DAY_MS * 6
-          );
+          const challenge = makeChallenge(storedStatus, -ONE_DAY_MS, ONE_DAY_MS * 6);
           expect(getEffectiveStatus(challenge, BASE_NOW)).toBe("active");
-        }
+        },
       );
     });
   });

@@ -11,11 +11,7 @@ import { useAppTheme } from "@/providers/ThemeProvider";
 import { formatActivityDate } from "./helpers";
 import type { YourActivitySectionProps } from "./types";
 
-export function YourActivitySection({
-  activities,
-  goalUnit,
-  serverNow,
-}: YourActivitySectionProps) {
+export function YourActivitySection({ activities, goalUnit, serverNow }: YourActivitySectionProps) {
   const { colors, spacing, typography } = useAppTheme();
 
   if (!activities || activities.length === 0) {
@@ -48,8 +44,7 @@ export function YourActivitySection({
           }}
         >
           <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-            {(activity.source === "healthkit" ||
-              activity.source === "googlefit") && (
+            {(activity.source === "healthkit" || activity.source === "googlefit") && (
               <HeartIcon size={11} color={colors.error} />
             )}
             <Text

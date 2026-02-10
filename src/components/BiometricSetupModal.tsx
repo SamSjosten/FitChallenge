@@ -41,9 +41,7 @@ export function BiometricSetupModal({
 }: BiometricSetupModalProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [capability, setCapability] = useState<BiometricCapability | null>(
-    null,
-  );
+  const [capability, setCapability] = useState<BiometricCapability | null>(null);
 
   // Check biometric type on mount and clear error
   useEffect(() => {
@@ -85,12 +83,7 @@ export function BiometricSetupModal({
   const isFaceId = capability?.biometricType === "face";
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={handleNotNow}
-    >
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={handleNotNow}>
       <TouchableWithoutFeedback onPress={handleNotNow}>
         <View style={styles.overlay}>
           <TouchableWithoutFeedback>
@@ -139,10 +132,7 @@ export function BiometricSetupModal({
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={[
-                    styles.primaryButton,
-                    isLoading && styles.buttonDisabled,
-                  ]}
+                  style={[styles.primaryButton, isLoading && styles.buttonDisabled]}
                   onPress={handleEnable}
                   disabled={isLoading}
                 >

@@ -21,8 +21,7 @@ export function ConfigurationErrorScreen() {
         <Text style={styles.icon}>⚠️</Text>
         <Text style={styles.title}>Configuration Error</Text>
         <Text style={styles.message}>
-          The app is not properly configured. Please contact support or try
-          reinstalling the app.
+          The app is not properly configured. Please contact support or try reinstalling the app.
         </Text>
         {__DEV__ && supabaseConfigError && (
           <View style={styles.devInfo}>

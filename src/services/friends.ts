@@ -78,11 +78,10 @@ export const friendsService = {
       // Guard against empty array to prevent PostgREST error
       let profileMap = new Map<string, ProfilePublic>();
       if (otherUserIds.length > 0) {
-        const { data: profiles, error: profilesError } =
-          await getSupabaseClient()
-            .from("profiles_public")
-            .select("*")
-            .in("id", otherUserIds);
+        const { data: profiles, error: profilesError } = await getSupabaseClient()
+          .from("profiles_public")
+          .select("*")
+          .in("id", otherUserIds);
 
         if (profilesError) {
           throw new Error("Unable to load friend profiles. Please try again.");
@@ -92,8 +91,7 @@ export const friendsService = {
       }
 
       return friends.map((f) => {
-        const otherId =
-          f.requested_by === userId ? f.requested_to : f.requested_by;
+        const otherId = f.requested_by === userId ? f.requested_to : f.requested_by;
         return {
           ...mapFriend(f),
           friend_profile: profileMap.get(otherId) || {
@@ -129,16 +127,13 @@ export const friendsService = {
       // Guard against empty array to prevent PostgREST error
       let profileMap = new Map<string, ProfilePublic>();
       if (requesterIds.length > 0) {
-        const { data: profiles, error: profilesError } =
-          await getSupabaseClient()
-            .from("profiles_public")
-            .select("*")
-            .in("id", requesterIds);
+        const { data: profiles, error: profilesError } = await getSupabaseClient()
+          .from("profiles_public")
+          .select("*")
+          .in("id", requesterIds);
 
         if (profilesError) {
-          throw new Error(
-            "Unable to load friend request details. Please try again.",
-          );
+          throw new Error("Unable to load friend request details. Please try again.");
         }
 
         profileMap = new Map(profiles?.map((p) => [p.id, p]) || []);
@@ -211,10 +206,7 @@ export const friendsService = {
     const { friendship_id } = validate(declineFriendRequestSchema, input);
 
     return withAuth(async () => {
-      const { error } = await getSupabaseClient()
-        .from("friends")
-        .delete()
-        .eq("id", friendship_id);
+      const { error } = await getSupabaseClient().from("friends").delete().eq("id", friendship_id);
 
       if (error) throw error;
     });
@@ -228,10 +220,7 @@ export const friendsService = {
     const { friendship_id } = validate(removeFriendSchema, input);
 
     return withAuth(async () => {
-      const { error } = await getSupabaseClient()
-        .from("friends")
-        .delete()
-        .eq("id", friendship_id);
+      const { error } = await getSupabaseClient().from("friends").delete().eq("id", friendship_id);
 
       if (error) throw error;
     });

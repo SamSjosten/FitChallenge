@@ -208,9 +208,7 @@ describe("Activity Logging Idempotency (P1-1)", () => {
 
       // Simulate React Query calling mutationFn 3 times (initial + 2 retries)
       // In the real code, this is: mutationFn: async (input) => activityService.logActivity(input)
-      const simulateMutationFn = async (
-        input: typeof mutationInput,
-      ): Promise<void> => {
+      const simulateMutationFn = async (input: typeof mutationInput): Promise<void> => {
         await activityService.logActivity(input);
       };
 

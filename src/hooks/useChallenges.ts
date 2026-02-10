@@ -4,11 +4,7 @@
 // GUARDRAIL 3: Optimistic updates with rollback on failure
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  challengeService,
-  PendingInvite,
-  ChallengeWithParticipation,
-} from "@/services/challenges";
+import { challengeService, PendingInvite, ChallengeWithParticipation } from "@/services/challenges";
 import {
   activityService,
   generateClientEventId,
@@ -30,8 +26,7 @@ export const challengeKeys = {
   pending: () => [...challengeKeys.all, "pending"] as const,
   startingSoon: () => [...challengeKeys.all, "startingSoon"] as const,
   detail: (id: string) => [...challengeKeys.all, "detail", id] as const,
-  leaderboard: (id: string) =>
-    [...challengeKeys.all, "leaderboard", id] as const,
+  leaderboard: (id: string) => [...challengeKeys.all, "leaderboard", id] as const,
 };
 
 // =============================================================================
@@ -51,8 +46,7 @@ function optimisticallyUpdateChallengeDetail(
     ...challenge,
     my_participation: {
       ...challenge.my_participation,
-      current_progress:
-        challenge.my_participation.current_progress + additionalValue,
+      current_progress: challenge.my_participation.current_progress + additionalValue,
     },
   };
 }
@@ -136,10 +130,7 @@ interface UseLeaderboardOptions {
  * @param options.enabled - Whether to fetch (default: true when challengeId exists)
  * @param options.limit - Max entries to return (default: all)
  */
-export function useLeaderboard(
-  challengeId: string | undefined,
-  options?: UseLeaderboardOptions,
-) {
+export function useLeaderboard(challengeId: string | undefined, options?: UseLeaderboardOptions) {
   const { enabled = true, limit } = options ?? {};
 
   return useQuery({
@@ -171,11 +162,7 @@ export function useCreateChallenge() {
       start_date: string;
       end_date: string;
       daily_target?: number;
-      win_condition?:
-        | "highest_total"
-        | "first_to_goal"
-        | "longest_streak"
-        | "all_complete";
+      win_condition?: "highest_total" | "first_to_goal" | "longest_streak" | "all_complete";
       is_solo?: boolean;
       allowed_workout_types?: string[];
     }) => challengeService.create(input),
@@ -213,26 +200,19 @@ export function useRespondToInvite() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (input: {
-      challenge_id: string;
-      response: "accepted" | "declined";
-    }) => challengeService.respondToInvite(input),
+    mutationFn: (input: { challenge_id: string; response: "accepted" | "declined" }) =>
+      challengeService.respondToInvite(input),
 
     // GUARDRAIL 3: Optimistic update - remove from pending immediately
     onMutate: async (variables) => {
       await queryClient.cancelQueries({ queryKey: challengeKeys.pending() });
 
-      const previousInvites = queryClient.getQueryData<PendingInvite[]>(
-        challengeKeys.pending(),
-      );
+      const previousInvites = queryClient.getQueryData<PendingInvite[]>(challengeKeys.pending());
 
       // Optimistically remove the invite
       queryClient.setQueryData<PendingInvite[]>(
         challengeKeys.pending(),
-        (old) =>
-          old?.filter(
-            (invite) => invite.challenge.id !== variables.challenge_id,
-          ) ?? [],
+        (old) => old?.filter((invite) => invite.challenge.id !== variables.challenge_id) ?? [],
       );
 
       return { previousInvites };
@@ -240,15 +220,9 @@ export function useRespondToInvite() {
 
     // GUARDRAIL 3: Rollback on error
     onError: (error, variables, context) => {
-      console.warn(
-        "[useRespondToInvite] Rolling back optimistic update:",
-        error,
-      );
+      console.warn("[useRespondToInvite] Rolling back optimistic update:", error);
       if (context?.previousInvites) {
-        queryClient.setQueryData(
-          challengeKeys.pending(),
-          context.previousInvites,
-        );
+        queryClient.setQueryData(challengeKeys.pending(), context.previousInvites);
       }
     },
 
@@ -302,10 +276,9 @@ export function useLogActivity() {
       });
 
       // Snapshot previous value for rollback
-      const previousDetail =
-        queryClient.getQueryData<ChallengeWithParticipation | null>(
-          challengeKeys.detail(variables.challenge_id),
-        );
+      const previousDetail = queryClient.getQueryData<ChallengeWithParticipation | null>(
+        challengeKeys.detail(variables.challenge_id),
+      );
 
       // Optimistically update challenge detail (progress bar, stats)
       if (previousDetail) {
@@ -386,19 +359,15 @@ export function useLogWorkout() {
         queryKey: challengeKeys.detail(variables.challenge_id),
       });
 
-      const previousDetail =
-        queryClient.getQueryData<ChallengeWithParticipation | null>(
-          challengeKeys.detail(variables.challenge_id),
-        );
+      const previousDetail = queryClient.getQueryData<ChallengeWithParticipation | null>(
+        challengeKeys.detail(variables.challenge_id),
+      );
 
       // Optimistic: use duration as rough estimate (actual points calculated server-side)
       if (previousDetail) {
         queryClient.setQueryData(
           challengeKeys.detail(variables.challenge_id),
-          optimisticallyUpdateChallengeDetail(
-            previousDetail,
-            variables.duration_minutes,
-          ),
+          optimisticallyUpdateChallengeDetail(previousDetail, variables.duration_minutes),
         );
       }
 
@@ -442,8 +411,7 @@ export function useLeaveChallenge() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (challengeId: string) =>
-      challengeService.leaveChallenge(challengeId),
+    mutationFn: (challengeId: string) => challengeService.leaveChallenge(challengeId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: challengeKeys.active() });
       // Trigger refetch notifications since the DB trigger marked challenge notifications as read
@@ -459,8 +427,7 @@ export function useCancelChallenge() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (challengeId: string) =>
-      challengeService.cancelChallenge(challengeId),
+    mutationFn: (challengeId: string) => challengeService.cancelChallenge(challengeId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: challengeKeys.active() });
       // Trigger refetch notifications since the DB trigger marked challenge notifications as read

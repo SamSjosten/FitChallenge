@@ -183,17 +183,13 @@ describe("helper functions with invalid config", () => {
   it("requireUserId throws when config is invalid", async () => {
     const { requireUserId } = require("../supabase");
 
-    await expect(requireUserId()).rejects.toThrow(
-      "[FitChallenge] Supabase client unavailable",
-    );
+    await expect(requireUserId()).rejects.toThrow("[FitChallenge] Supabase client unavailable");
   });
 
   it("getUserId throws when config is invalid", async () => {
     const { getUserId } = require("../supabase");
 
-    await expect(getUserId()).rejects.toThrow(
-      "[FitChallenge] Supabase client unavailable",
-    );
+    await expect(getUserId()).rejects.toThrow("[FitChallenge] Supabase client unavailable");
   });
 
   it("withAuth throws when config is invalid", async () => {

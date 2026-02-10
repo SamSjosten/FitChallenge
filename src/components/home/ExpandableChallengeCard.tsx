@@ -28,16 +28,10 @@ import { getDaysRemaining } from "@/lib/serverTime";
 import { ChevronDownIcon, ChevronUpIcon } from "react-native-heroicons/outline";
 import { PlusIcon } from "react-native-heroicons/solid";
 import type { ChallengeWithParticipation } from "@/services/challenges";
-import {
-  getActivityIcon,
-  type ActivityType,
-} from "@/components/icons/ActivityIcons";
+import { getActivityIcon, type ActivityType } from "@/components/icons/ActivityIcons";
 
 // Enable LayoutAnimation on Android
-if (
-  Platform.OS === "android" &&
-  UIManager.setLayoutAnimationEnabledExperimental
-) {
+if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
@@ -78,17 +72,12 @@ export function ExpandableChallengeCard({
 
   // Derived values
   const progress = challenge.my_participation?.current_progress || 0;
-  const progressPercent = Math.min(
-    (progress / challenge.goal_value) * 100,
-    100,
-  );
+  const progressPercent = Math.min((progress / challenge.goal_value) * 100, 100);
   const rank = challenge.my_rank || 1;
   const daysLeft = getDaysRemaining(challenge.end_date);
 
   // Get activity icon
-  const ActivityIcon = getActivityIcon(
-    challenge.challenge_type as ActivityType,
-  );
+  const ActivityIcon = getActivityIcon(challenge.challenge_type as ActivityType);
 
   // Navigation handlers
   const handleTitlePress = () => {
@@ -143,10 +132,7 @@ export function ExpandableChallengeCard({
             <View style={styles.titleContainer}>
               {/* Title - tappable to go to detail */}
               <TouchableOpacity onPress={handleTitlePress} activeOpacity={0.7}>
-                <Text
-                  style={[styles.title, { color: colors.textPrimary }]}
-                  numberOfLines={1}
-                >
+                <Text style={[styles.title, { color: colors.textPrimary }]} numberOfLines={1}>
                   {challenge.title}
                 </Text>
               </TouchableOpacity>
@@ -167,10 +153,7 @@ export function ExpandableChallengeCard({
               style={[
                 styles.rankBadge,
                 {
-                  backgroundColor:
-                    rank === 1
-                      ? "rgba(255, 215, 0, 0.15)"
-                      : `${colors.textMuted}15`,
+                  backgroundColor: rank === 1 ? "rgba(255, 215, 0, 0.15)" : `${colors.textMuted}15`,
                   borderRadius: radius.full,
                   paddingHorizontal: 10,
                   paddingVertical: 4,
@@ -193,9 +176,7 @@ export function ExpandableChallengeCard({
         {!isExpanded && (
           <View style={{ marginTop: spacing.sm }}>
             <View style={styles.progressRow}>
-              <Text
-                style={[styles.progressCurrent, { color: colors.textPrimary }]}
-              >
+              <Text style={[styles.progressCurrent, { color: colors.textPrimary }]}>
                 {progress.toLocaleString()}
               </Text>
               <Text style={[styles.progressGoal, { color: colors.textMuted }]}>
@@ -261,8 +242,7 @@ export function ExpandableChallengeCard({
             </TouchableOpacity>
 
             <Text style={[styles.goalText, { color: colors.textMuted }]}>
-              Goal: {challenge.goal_value.toLocaleString()}{" "}
-              {challenge.goal_unit}
+              Goal: {challenge.goal_value.toLocaleString()} {challenge.goal_unit}
             </Text>
           </View>
 

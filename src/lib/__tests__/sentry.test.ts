@@ -21,12 +21,7 @@ jest.mock("@/constants/config", () => ({
 }));
 
 import * as Sentry from "@sentry/react-native";
-import {
-  initSentry,
-  captureError,
-  setUserContext,
-  addBreadcrumb,
-} from "../sentry";
+import { initSentry, captureError, setUserContext, addBreadcrumb } from "../sentry";
 
 // =============================================================================
 // TESTS
@@ -105,10 +100,7 @@ describe("captureError", () => {
   describe("should capture unexpected errors", () => {
     it("should capture generic errors", () => {
       captureError(new Error("Something unexpected happened"));
-      expect(Sentry.captureException).toHaveBeenCalledWith(
-        expect.any(Error),
-        expect.any(Object),
-      );
+      expect(Sentry.captureException).toHaveBeenCalledWith(expect.any(Error), expect.any(Object));
     });
 
     it("should capture errors with context", () => {

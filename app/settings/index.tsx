@@ -63,8 +63,7 @@ export default function SettingsScreen() {
       icon: BellIcon,
       label: "Notifications",
       subtitle: "Push notifications, reminders",
-      onPress: () =>
-        Alert.alert("Coming Soon", "Notification settings coming soon"),
+      onPress: () => Alert.alert("Coming Soon", "Notification settings coming soon"),
     },
     {
       icon: ShieldCheckIcon,
@@ -114,10 +113,7 @@ export default function SettingsScreen() {
           backgroundColor: colors.surface,
         }}
       >
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={{ padding: spacing.xs }}
-        >
+        <TouchableOpacity onPress={() => router.back()} style={{ padding: spacing.xs }}>
           <ChevronLeftIcon size={24} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text

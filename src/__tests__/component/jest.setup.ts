@@ -71,8 +71,7 @@ jest.mock("react-native-reanimated", () => {
 // =============================================================================
 
 if (typeof globalThis.structuredClone === "undefined") {
-  (globalThis as any).structuredClone = <T>(obj: T): T =>
-    JSON.parse(JSON.stringify(obj));
+  (globalThis as any).structuredClone = <T>(obj: T): T => JSON.parse(JSON.stringify(obj));
 }
 
 if (typeof (globalThis as any).__ExpoImportMetaRegistry === "undefined") {
@@ -102,11 +101,7 @@ jest.mock("expo-linear-gradient", () => {
   const { View } = require("react-native");
   return {
     LinearGradient: ({ children, ...props }: any) =>
-      React.createElement(
-        View,
-        { ...props, testID: "linear-gradient" },
-        children,
-      ),
+      React.createElement(View, { ...props, testID: "linear-gradient" }, children),
   };
 });
 
@@ -216,15 +211,7 @@ jest.mock("expo-router", () => {
         callback();
       }, []);
     },
-    Link: ({
-      children,
-      href,
-      asChild,
-    }: {
-      children: any;
-      href: string;
-      asChild?: boolean;
-    }) => {
+    Link: ({ children, href, asChild }: { children: any; href: string; asChild?: boolean }) => {
       if (asChild) {
         return children;
       }
@@ -636,12 +623,7 @@ jest.mock("@/components/ui", () => {
 
   return {
     ScreenContainer: ({ children, header }: { children: any; header?: any }) =>
-      React.createElement(
-        View,
-        { testID: "screen-container" },
-        header,
-        children,
-      ),
+      React.createElement(View, { testID: "screen-container" }, header, children),
     ScreenHeader: ({ title, subtitle }: { title: string; subtitle?: string }) =>
       React.createElement(
         View,
@@ -666,24 +648,14 @@ jest.mock("@/components/ui", () => {
         testID: "progress-bar",
         accessibilityValue: { now: progress },
       }),
-    ErrorMessage: ({
-      message,
-      onRetry,
-    }: {
-      message: string;
-      onRetry?: () => void;
-    }) =>
+    ErrorMessage: ({ message, onRetry }: { message: string; onRetry?: () => void }) =>
       React.createElement(
         View,
         { testID: "error-message" },
         React.createElement(Text, {}, message),
       ),
     EmptyState: ({ message }: { message: string }) =>
-      React.createElement(
-        View,
-        { testID: "empty-state" },
-        React.createElement(Text, {}, message),
-      ),
+      React.createElement(View, { testID: "empty-state" }, React.createElement(Text, {}, message)),
     Avatar: ({ name, size }: { name: string; size?: string }) =>
       React.createElement(View, { testID: "avatar" }),
   };

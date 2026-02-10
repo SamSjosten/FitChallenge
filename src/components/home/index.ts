@@ -1,10 +1,7 @@
 // src/components/home/index.ts
 // Home screen components
 
-export {
-  LeaderboardPreview,
-  MAX_LEADERBOARD_PREVIEW,
-} from "./LeaderboardPreview";
+export { LeaderboardPreview, MAX_LEADERBOARD_PREVIEW } from "./LeaderboardPreview";
 export type { LeaderboardPreviewProps } from "./LeaderboardPreview";
 
 export { ExpandableChallengeCard } from "./ExpandableChallengeCard";

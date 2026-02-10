@@ -157,15 +157,11 @@ export const TestIDs = {
     leaderboardSection: "leaderboard-section",
     leaderboardLocked: "leaderboard-locked",
     leaderboardEntry: (index: number) => `leaderboard-entry-${index}`,
-    leaderboardEntryByUsername: (username: string) =>
-      `leaderboard-entry-${username}`,
-    leaderboardEntryHighlighted: (username: string) =>
-      `leaderboard-entry-${username}-highlighted`,
-    leaderboardEntryAvatar: (index: number) =>
-      `leaderboard-entry-${index}-avatar`,
+    leaderboardEntryByUsername: (username: string) => `leaderboard-entry-${username}`,
+    leaderboardEntryHighlighted: (username: string) => `leaderboard-entry-${username}-highlighted`,
+    leaderboardEntryAvatar: (index: number) => `leaderboard-entry-${index}-avatar`,
     leaderboardEntryRank: (index: number) => `leaderboard-entry-${index}-rank`,
-    leaderboardEntryProgress: (index: number) =>
-      `leaderboard-entry-${index}-progress`,
+    leaderboardEntryProgress: (index: number) => `leaderboard-entry-${index}-progress`,
 
     // Participants Section (for creator)
     participantsSection: "participants-section",

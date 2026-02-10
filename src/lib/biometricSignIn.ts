@@ -80,16 +80,11 @@ export async function checkBiometricCapability(): Promise<BiometricCapability> {
     }
 
     // Get supported authentication types
-    const supportedTypes =
-      await LocalAuthentication.supportedAuthenticationTypesAsync();
+    const supportedTypes = await LocalAuthentication.supportedAuthenticationTypesAsync();
     console.log(`${LOG} Supported types: ${JSON.stringify(supportedTypes)}`);
 
     // Determine biometric type
-    if (
-      supportedTypes.includes(
-        LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION,
-      )
-    ) {
+    if (supportedTypes.includes(LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION)) {
       const result = {
         isAvailable: true,
         biometricType: "face" as const,
@@ -99,11 +94,7 @@ export async function checkBiometricCapability(): Promise<BiometricCapability> {
       return result;
     }
 
-    if (
-      supportedTypes.includes(
-        LocalAuthentication.AuthenticationType.FINGERPRINT,
-      )
-    ) {
+    if (supportedTypes.includes(LocalAuthentication.AuthenticationType.FINGERPRINT)) {
       const result = {
         isAvailable: true,
         biometricType: "fingerprint" as const,
@@ -182,9 +173,7 @@ export async function setupBiometricSignIn(
       fallbackLabel: "Use Passcode",
     });
     const authError = "error" in authResult ? authResult.error : undefined;
-    console.log(
-      `${LOG} Auth result: success=${authResult.success}, error=${authError}`,
-    );
+    console.log(`${LOG} Auth result: success=${authResult.success}, error=${authError}`);
 
     if (!authResult.success) {
       console.log(`${LOG} ❌ Setup cancelled/failed: ${authError}`);
@@ -223,20 +212,14 @@ export async function setupBiometricSignIn(
     }
 
     // Store credentials with biometric protection
-    console.log(
-      `${LOG} Step 2: Storing credentials with requireAuthentication=true...`,
-    );
+    console.log(`${LOG} Step 2: Storing credentials with requireAuthentication=true...`);
     const credentials: StoredCredentials = { email, password };
 
-    await SecureStore.setItemAsync(
-      CREDENTIALS_KEY,
-      JSON.stringify(credentials),
-      {
-        keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
-        requireAuthentication: true,
-        authenticationPrompt: "Access your saved sign-in credentials",
-      },
-    );
+    await SecureStore.setItemAsync(CREDENTIALS_KEY, JSON.stringify(credentials), {
+      keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
+      requireAuthentication: true,
+      authenticationPrompt: "Access your saved sign-in credentials",
+    });
     console.log(`${LOG} ✅ Credentials stored`);
 
     // Mark as enabled
@@ -266,16 +249,11 @@ export async function disableBiometricSignIn(): Promise<void> {
   // Delete the enabled flag FIRST - this is what isBiometricSignInEnabled checks
   // Even if credential deletion fails, sign-in won't work without this flag
   try {
-    console.log(
-      `${LOG} Step 1: Deleting enabled flag (${BIOMETRIC_ENABLED_KEY})...`,
-    );
+    console.log(`${LOG} Step 1: Deleting enabled flag (${BIOMETRIC_ENABLED_KEY})...`);
     await SecureStore.deleteItemAsync(BIOMETRIC_ENABLED_KEY);
     console.log(`${LOG} ✅ Enabled flag deleted`);
   } catch (error: any) {
-    console.error(
-      `${LOG} ❌ Failed to delete enabled flag:`,
-      error?.message || error,
-    );
+    console.error(`${LOG} ❌ Failed to delete enabled flag:`, error?.message || error);
     // Continue anyway - try to delete credentials too
   }
 
@@ -289,10 +267,7 @@ export async function disableBiometricSignIn(): Promise<void> {
     // This can fail if the item was stored with requireAuthentication
     // and the OS requires auth to delete. That's OK - credentials are orphaned
     // and can't be used since the enabled flag is gone.
-    console.warn(
-      `${LOG} ⚠️ Credential deletion failed (safe to ignore):`,
-      error?.message || error,
-    );
+    console.warn(`${LOG} ⚠️ Credential deletion failed (safe to ignore):`, error?.message || error);
   }
 
   // Verify deletion worked
@@ -351,16 +326,12 @@ export async function performBiometricSignIn(
 
     // Retrieve credentials (this will trigger biometric prompt via SecureStore)
     // On iOS, SecureStore with requireAuthentication will automatically show Face ID
-    console.log(
-      `${LOG} Step 2: Retrieving credentials (will trigger Face ID)...`,
-    );
+    console.log(`${LOG} Step 2: Retrieving credentials (will trigger Face ID)...`);
     const credentialsJson = await SecureStore.getItemAsync(CREDENTIALS_KEY, {
       requireAuthentication: true,
       authenticationPrompt: "Sign in with Face ID",
     });
-    console.log(
-      `${LOG} Credentials retrieved: ${credentialsJson ? "yes" : "no"}`,
-    );
+    console.log(`${LOG} Credentials retrieved: ${credentialsJson ? "yes" : "no"}`);
 
     if (!credentialsJson) {
       // Credentials were deleted or corrupted
@@ -368,8 +339,7 @@ export async function performBiometricSignIn(
       await disableBiometricSignIn();
       return {
         success: false,
-        error:
-          "Saved credentials not found. Please sign in with your password.",
+        error: "Saved credentials not found. Please sign in with your password.",
       };
     }
 
@@ -385,14 +355,11 @@ export async function performBiometricSignIn(
       await disableBiometricSignIn();
       return {
         success: false,
-        error:
-          "Saved credentials are corrupted. Please sign in with your password.",
+        error: "Saved credentials are corrupted. Please sign in with your password.",
       };
     }
 
-    console.log(
-      `${LOG} Step 3: Signing in as ${credentials.email.substring(0, 3)}***...`,
-    );
+    console.log(`${LOG} Step 3: Signing in as ${credentials.email.substring(0, 3)}***...`);
 
     // Perform sign-in through AuthProvider for consistent state management
     // This ensures authActionHandledRef is set correctly, preventing the bug where
@@ -411,8 +378,7 @@ export async function performBiometricSignIn(
         await disableBiometricSignIn();
         return {
           success: false,
-          error:
-            "Your password has changed. Please sign in with your new password.",
+          error: "Your password has changed. Please sign in with your new password.",
         };
       }
       return {

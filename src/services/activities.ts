@@ -188,17 +188,14 @@ export const activityService = {
     // Online: call atomic RPC
     return withAuth(async () => {
       try {
-        const { data, error } = await (getSupabaseClient().rpc as Function)(
-          "log_workout",
-          {
-            p_challenge_id: input.challenge_id,
-            p_workout_type: input.workout_type,
-            p_duration_minutes: input.duration_minutes,
-            p_recorded_at: new Date().toISOString(),
-            p_source: "manual",
-            p_client_event_id: input.client_event_id,
-          },
-        );
+        const { data, error } = await (getSupabaseClient().rpc as Function)("log_workout", {
+          p_challenge_id: input.challenge_id,
+          p_workout_type: input.workout_type,
+          p_duration_minutes: input.duration_minutes,
+          p_recorded_at: new Date().toISOString(),
+          p_source: "manual",
+          p_client_event_id: input.client_event_id,
+        });
 
         if (error) {
           // Idempotency: duplicate key errors are safe to ignore
@@ -236,10 +233,7 @@ export const activityService = {
    * Get activity history for a challenge
    * CONTRACT: Only self-activities visible via RLS
    */
-  async getChallengeActivities(
-    challengeId: string,
-    limit = 50,
-  ): Promise<ActivityLog[]> {
+  async getChallengeActivities(challengeId: string, limit = 50): Promise<ActivityLog[]> {
     return withAuth(async (userId) => {
       const { data, error } = await getSupabaseClient()
         .from("activity_logs")
@@ -259,16 +253,11 @@ export const activityService = {
    * CONTRACT: Uses server-side aggregation via RPC (O(1) data transfer)
    * CONTRACT: RLS enforced in function - only returns current user's data
    */
-  async getChallengeActivitySummary(
-    challengeId: string,
-  ): Promise<ActivitySummary> {
+  async getChallengeActivitySummary(challengeId: string): Promise<ActivitySummary> {
     return withAuth(async () => {
-      const { data, error } = await getSupabaseClient().rpc(
-        "get_activity_summary",
-        {
-          p_challenge_id: challengeId,
-        },
-      );
+      const { data, error } = await getSupabaseClient().rpc("get_activity_summary", {
+        p_challenge_id: challengeId,
+      });
 
       if (error) throw error;
 
@@ -336,12 +325,7 @@ export const activityService = {
     const options = typeof arg === "number" ? { limit: arg } : (arg ?? {});
     const MAX_LIMIT = 100;
     const limit = Math.min(Math.max(1, options.limit ?? 20), MAX_LIMIT);
-    const {
-      challengeId,
-      beforeRecordedAt,
-      beforeId,
-      client: injectedClient,
-    } = options;
+    const { challengeId, beforeRecordedAt, beforeId, client: injectedClient } = options;
 
     // Validate cursor: both fields required together for stable pagination
     if (beforeRecordedAt && !beforeId) {
@@ -357,21 +341,15 @@ export const activityService = {
     // PostgREST .or() uses commas as delimiters, so periods in timestamps are safe
     if (
       beforeRecordedAt &&
-      !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?(Z|\+00:00)$/.test(
-        beforeRecordedAt,
-      )
+      !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?(Z|\+00:00)$/.test(beforeRecordedAt)
     ) {
-      throw new Error(
-        "beforeRecordedAt must be UTC ISO timestamp (use extractCursor helper)",
-      );
+      throw new Error("beforeRecordedAt must be UTC ISO timestamp (use extractCursor helper)");
     }
 
     // Validate UUID format for beforeId
     if (
       beforeId &&
-      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-        beforeId,
-      )
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(beforeId)
     ) {
       throw new Error("beforeId must be a valid UUID");
     }

@@ -9,14 +9,7 @@
 // - Empty states
 
 import React, { useState, useCallback } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  RefreshControl,
-  ScrollView,
-} from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, RefreshControl, ScrollView } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAppTheme } from "@/providers/ThemeProvider";
@@ -95,12 +88,8 @@ export default function ChallengesScreenV2() {
         style={[styles.container, { backgroundColor: colors.background }]}
         edges={["top"]}
       >
-        <View
-          style={[styles.headerContainer, { backgroundColor: colors.surface }]}
-        >
-          <Text style={[styles.title, { color: colors.textPrimary }]}>
-            Challenges
-          </Text>
+        <View style={[styles.headerContainer, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.title, { color: colors.textPrimary }]}>Challenges</Text>
         </View>
         <LoadingState variant="content" message="Loading challenges..." />
       </SafeAreaView>
@@ -118,12 +107,8 @@ export default function ChallengesScreenV2() {
       testID={TestIDs.screensV2?.challenges || "challenges-screen-v2"}
     >
       {/* Header */}
-      <View
-        style={[styles.headerContainer, { backgroundColor: colors.surface }]}
-      >
-        <Text style={[styles.title, { color: colors.textPrimary }]}>
-          Challenges
-        </Text>
+      <View style={[styles.headerContainer, { backgroundColor: colors.surface }]}>
+        <Text style={[styles.title, { color: colors.textPrimary }]}>Challenges</Text>
       </View>
 
       {/* Tabs */}
@@ -152,10 +137,7 @@ export default function ChallengesScreenV2() {
             style={[
               styles.tabText,
               {
-                color:
-                  activeTab === "active"
-                    ? colors.primary.main
-                    : colors.textMuted,
+                color: activeTab === "active" ? colors.primary.main : colors.textMuted,
               },
             ]}
           >
@@ -178,10 +160,7 @@ export default function ChallengesScreenV2() {
             style={[
               styles.tabText,
               {
-                color:
-                  activeTab === "completed"
-                    ? colors.primary.main
-                    : colors.textMuted,
+                color: activeTab === "completed" ? colors.primary.main : colors.textMuted,
               },
             ]}
           >
@@ -205,9 +184,7 @@ export default function ChallengesScreenV2() {
         {activeTab === "active" && pendingCount > 0 && (
           <View style={[styles.section, { marginBottom: spacing.xl }]}>
             <View style={styles.sectionHeader}>
-              <Text
-                style={[styles.sectionTitle, { color: colors.textSecondary }]}
-              >
+              <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
                 PENDING INVITES ({pendingCount})
               </Text>
             </View>
@@ -216,9 +193,7 @@ export default function ChallengesScreenV2() {
                 <InviteRow
                   key={invite.challenge.id}
                   invite={invite}
-                  onPress={() =>
-                    router.push(`/challenge/${invite.challenge.id}`)
-                  }
+                  onPress={() => router.push(`/challenge/${invite.challenge.id}`)}
                 />
               ))}
             </View>
@@ -260,10 +235,7 @@ export default function ChallengesScreenV2() {
             ) : (
               <View style={{ gap: spacing.sm }}>
                 {completedChallenges?.map((challenge) => (
-                  <CompletedChallengeRow
-                    key={challenge.id}
-                    challenge={challenge}
-                  />
+                  <CompletedChallengeRow key={challenge.id} challenge={challenge} />
                 ))}
               </View>
             )}

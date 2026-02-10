@@ -54,11 +54,7 @@ export function LeaderboardPreview({
   const currentUserId = user?.id;
 
   // Calculate max progress for relative bar widths (use goal or max progress)
-  const maxProgress = Math.max(
-    goalValue,
-    ...entries.map((e) => e.current_progress),
-    1,
-  );
+  const maxProgress = Math.max(goalValue, ...entries.map((e) => e.current_progress), 1);
 
   // Limit entries for preview
   const displayEntries = entries.slice(0, MAX_LEADERBOARD_PREVIEW);
@@ -90,9 +86,7 @@ export function LeaderboardPreview({
   if (entries.length === 0) {
     return (
       <View style={[styles.emptyContainer, { paddingVertical: spacing.md }]}>
-        <Text style={[styles.emptyText, { color: colors.textMuted }]}>
-          No participants yet
-        </Text>
+        <Text style={[styles.emptyText, { color: colors.textMuted }]}>No participants yet</Text>
       </View>
     );
   }
@@ -102,10 +96,7 @@ export function LeaderboardPreview({
       {/* Leaderboard rows */}
       {displayEntries.map((entry) => {
         const isCurrentUser = entry.user_id === currentUserId;
-        const progressPercent = Math.min(
-          (entry.current_progress / maxProgress) * 100,
-          100,
-        );
+        const progressPercent = Math.min((entry.current_progress / maxProgress) * 100, 100);
         const displayName = isCurrentUser
           ? "You"
           : entry.profile.display_name || entry.profile.username;
@@ -116,9 +107,7 @@ export function LeaderboardPreview({
             style={[
               styles.entryRow,
               {
-                backgroundColor: isCurrentUser
-                  ? `${colors.primary.main}12`
-                  : "transparent",
+                backgroundColor: isCurrentUser ? `${colors.primary.main}12` : "transparent",
                 borderRadius: radius.sm,
                 paddingVertical: 6,
                 paddingHorizontal: spacing.sm,
@@ -131,8 +120,7 @@ export function LeaderboardPreview({
               style={[
                 styles.rankText,
                 {
-                  color:
-                    entry.rank <= 3 ? colors.textPrimary : colors.textMuted,
+                  color: entry.rank <= 3 ? colors.textPrimary : colors.textMuted,
                   fontWeight: entry.rank <= 3 ? "600" : "400",
                 },
               ]}
@@ -145,9 +133,7 @@ export function LeaderboardPreview({
               style={[
                 styles.nameText,
                 {
-                  color: isCurrentUser
-                    ? colors.primary.main
-                    : colors.textSecondary,
+                  color: isCurrentUser ? colors.primary.main : colors.textSecondary,
                   fontWeight: isCurrentUser ? "700" : "500",
                 },
               ]}
@@ -204,9 +190,7 @@ export function LeaderboardPreview({
           activeOpacity={0.7}
         >
           <Text style={[styles.viewAllText, { color: colors.primary.main }]}>
-            {hasMore
-              ? `View all ${totalParticipants} participants →`
-              : "View full leaderboard →"}
+            {hasMore ? `View all ${totalParticipants} participants →` : "View full leaderboard →"}
           </Text>
         </TouchableOpacity>
       )}

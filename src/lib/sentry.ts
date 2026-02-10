@@ -158,10 +158,7 @@ export function initSentry(): void {
  * - Auth/validation errors (expected, not bugs)
  * - Network errors (transient)
  */
-export function captureError(
-  error: unknown,
-  context?: Record<string, string>,
-): void {
+export function captureError(error: unknown, context?: Record<string, string>): void {
   // Skip ignored errors
   if (shouldIgnoreError(error)) {
     return;
@@ -211,10 +208,7 @@ export function setUserContext(user: { id: string } | null): void {
  * addBreadcrumb('challenge_created', { challengeId: '...' });
  * ```
  */
-export function addBreadcrumb(
-  message: string,
-  data?: Record<string, string>,
-): void {
+export function addBreadcrumb(message: string, data?: Record<string, string>): void {
   if (!Config.sentryDsn) return;
 
   Sentry.addBreadcrumb({

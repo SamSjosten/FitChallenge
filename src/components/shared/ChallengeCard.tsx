@@ -16,18 +16,11 @@ import { router } from "expo-router";
 import { useAppTheme } from "@/providers/ThemeProvider";
 import { ProgressBar } from "@/components/shared";
 import { getDaysRemaining } from "@/lib/serverTime";
-import {
-  ChevronDownIcon,
-  ChevronUpIcon,
-  UsersIcon,
-} from "react-native-heroicons/outline";
+import { ChevronDownIcon, ChevronUpIcon, UsersIcon } from "react-native-heroicons/outline";
 import type { ChallengeWithParticipation } from "@/services/challenges";
 
 // Enable LayoutAnimation on Android
-if (
-  Platform.OS === "android" &&
-  UIManager.setLayoutAnimationEnabledExperimental
-) {
+if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
@@ -51,19 +44,12 @@ function getRankMedal(rank: number): string {
   return "";
 }
 
-export function ChallengeCard({
-  challenge,
-  defaultExpanded = false,
-  onPress,
-}: ChallengeCardProps) {
+export function ChallengeCard({ challenge, defaultExpanded = false, onPress }: ChallengeCardProps) {
   const { colors, spacing, radius } = useAppTheme();
   const [expanded, setExpanded] = useState(defaultExpanded);
 
   const progress = challenge.my_participation?.current_progress || 0;
-  const progressPercent = Math.min(
-    (progress / challenge.goal_value) * 100,
-    100,
-  );
+  const progressPercent = Math.min((progress / challenge.goal_value) * 100, 100);
   const rank = challenge.my_rank || 1;
   const participantCount = challenge.participant_count || 1;
   const friendCount = Math.max(0, participantCount - 1);
@@ -122,19 +108,14 @@ export function ChallengeCard({
         activeOpacity={0.7}
       >
         <View style={styles.headerContent}>
-          <Text
-            style={[styles.title, { color: colors.textPrimary }]}
-            numberOfLines={1}
-          >
+          <Text style={[styles.title, { color: colors.textPrimary }]} numberOfLines={1}>
             {challenge.title}
           </Text>
           <View style={styles.metaRow}>
             <View style={styles.metaItem}>
               <UsersIcon size={12} color={colors.textMuted} />
               <Text style={[styles.metaText, { color: colors.textMuted }]}>
-                {friendCount > 0
-                  ? `vs ${friendCount} friend${friendCount > 1 ? "s" : ""}`
-                  : "Solo"}
+                {friendCount > 0 ? `vs ${friendCount} friend${friendCount > 1 ? "s" : ""}` : "Solo"}
               </Text>
             </View>
             <Text style={[styles.metaDot, { color: colors.textMuted }]}>•</Text>
@@ -145,9 +126,7 @@ export function ChallengeCard({
         </View>
 
         <View style={styles.headerRight}>
-          <Text style={[styles.rankText, { color: rankColor }]}>
-            {getRankText(rank)}
-          </Text>
+          <Text style={[styles.rankText, { color: rankColor }]}>{getRankText(rank)}</Text>
           {expanded ? (
             <ChevronUpIcon size={16} color={colors.textMuted} />
           ) : (
@@ -181,9 +160,7 @@ export function ChallengeCard({
                 },
               ]}
             >
-              {rank <= 3 && (
-                <Text style={styles.rankMedal}>{getRankMedal(rank)}</Text>
-              )}
+              {rank <= 3 && <Text style={styles.rankMedal}>{getRankMedal(rank)}</Text>}
               <Text style={styles.rankBadgeText}>{getRankText(rank)}</Text>
             </View>
           </View>
@@ -191,23 +168,12 @@ export function ChallengeCard({
           {/* Progress */}
           <View style={{ marginBottom: spacing.lg }}>
             <View style={styles.progressHeader}>
-              <Text
-                style={[styles.progressLabel, { color: colors.textSecondary }]}
-              >
-                Progress
-              </Text>
-              <Text
-                style={[styles.progressValue, { color: colors.primary.main }]}
-              >
-                {progress.toLocaleString()} /{" "}
-                {challenge.goal_value.toLocaleString()}
+              <Text style={[styles.progressLabel, { color: colors.textSecondary }]}>Progress</Text>
+              <Text style={[styles.progressValue, { color: colors.primary.main }]}>
+                {progress.toLocaleString()} / {challenge.goal_value.toLocaleString()}
               </Text>
             </View>
-            <ProgressBar
-              progress={progressPercent}
-              variant="primary"
-              size="large"
-            />
+            <ProgressBar progress={progressPercent} variant="primary" size="large" />
           </View>
 
           {/* View button */}
@@ -237,10 +203,7 @@ export interface CompletedChallengeRowProps {
   onPress?: () => void;
 }
 
-export function CompletedChallengeRow({
-  challenge,
-  onPress,
-}: CompletedChallengeRowProps) {
+export function CompletedChallengeRow({ challenge, onPress }: CompletedChallengeRowProps) {
   const { colors, spacing, radius } = useAppTheme();
   const rank = challenge.my_rank || 1;
   const participantCount = challenge.participant_count || 1;
@@ -284,26 +247,17 @@ export function CompletedChallengeRow({
       onPress={handlePress}
       activeOpacity={0.7}
     >
-      <Text style={styles.completedMedal}>
-        {rank <= 3 ? getRankMedal(rank) : rank}
-      </Text>
+      <Text style={styles.completedMedal}>{rank <= 3 ? getRankMedal(rank) : rank}</Text>
       <View style={styles.completedContent}>
-        <Text
-          style={[styles.completedTitle, { color: colors.textPrimary }]}
-          numberOfLines={1}
-        >
+        <Text style={[styles.completedTitle, { color: colors.textPrimary }]} numberOfLines={1}>
           {challenge.title}
         </Text>
         <Text style={[styles.completedMeta, { color: colors.textMuted }]}>
           Ended {endDateStr} •{" "}
-          {friendCount > 0
-            ? `${friendCount} friend${friendCount > 1 ? "s" : ""}`
-            : "Solo"}
+          {friendCount > 0 ? `${friendCount} friend${friendCount > 1 ? "s" : ""}` : "Solo"}
         </Text>
       </View>
-      <Text style={[styles.completedRank, { color: rankColor }]}>
-        {getRankText(rank)}
-      </Text>
+      <Text style={[styles.completedRank, { color: rankColor }]}>{getRankText(rank)}</Text>
     </TouchableOpacity>
   );
 }

@@ -66,11 +66,7 @@ export function OfflineIndicator({ compact = false }: OfflineIndicatorProps) {
           { backgroundColor: colors.warning },
         ]}
       >
-        <CloudIcon
-          size={compact ? 14 : 16}
-          color={colors.textPrimary}
-          strokeWidth={2}
-        />
+        <CloudIcon size={compact ? 14 : 16} color={colors.textPrimary} strokeWidth={2} />
         {!compact && (
           <Text style={[styles.text, { color: colors.textPrimary }]}>
             Offline
@@ -94,11 +90,7 @@ export function OfflineIndicator({ compact = false }: OfflineIndicatorProps) {
         ]}
       >
         <Animated.View style={{ transform: [{ rotate: spin }] }}>
-          <CloudIcon
-            size={compact ? 14 : 16}
-            color={colors.textInverse}
-            strokeWidth={2}
-          />
+          <CloudIcon size={compact ? 14 : 16} color={colors.textInverse} strokeWidth={2} />
         </Animated.View>
         {!compact && (
           <Text style={[styles.text, { color: colors.textInverse }]}>

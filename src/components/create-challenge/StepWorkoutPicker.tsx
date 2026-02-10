@@ -3,13 +3,7 @@
 // Only shown when challengeType === 'workouts'
 
 import React, { useMemo, useCallback } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Pressable,
-} from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, Pressable } from "react-native";
 import { useAppTheme } from "@/providers/ThemeProvider";
 import { CheckCircleIcon } from "react-native-heroicons/solid";
 import {
@@ -37,13 +31,7 @@ const CATEGORIES: {
 // MULTIPLIER BADGE
 // =============================================================================
 
-function MultiplierBadge({
-  multiplier,
-  color,
-}: {
-  multiplier: number;
-  color: string;
-}) {
+function MultiplierBadge({ multiplier, color }: { multiplier: number; color: string }) {
   if (multiplier === 1.0) return null;
 
   const label = multiplier > 1.0 ? `${multiplier}×` : `${multiplier}×`;
@@ -150,15 +138,11 @@ export function StepWorkoutPicker({
     (categoryId: string) => {
       const categoryTypes = grouped.get(categoryId) || [];
       const categoryIds = categoryTypes.map((e) => e.id);
-      const allCatSelected = categoryIds.every((id) =>
-        selectedWorkoutTypes.includes(id),
-      );
+      const allCatSelected = categoryIds.every((id) => selectedWorkoutTypes.includes(id));
 
       if (allCatSelected) {
         // Deselect all in this category
-        setSelectedWorkoutTypes(
-          selectedWorkoutTypes.filter((t) => !categoryIds.includes(t)),
-        );
+        setSelectedWorkoutTypes(selectedWorkoutTypes.filter((t) => !categoryIds.includes(t)));
       } else {
         // Select all in this category
         const newSet = new Set([...selectedWorkoutTypes, ...categoryIds]);
@@ -170,12 +154,10 @@ export function StepWorkoutPicker({
 
   return (
     <View style={styles.container}>
-      <Text style={[styles.heading, { color: colors.textPrimary }]}>
-        Which exercises count?
-      </Text>
+      <Text style={[styles.heading, { color: colors.textPrimary }]}>Which exercises count?</Text>
       <Text style={[styles.subheading, { color: colors.textSecondary }]}>
-        Select the workout types allowed in this challenge. Different types earn
-        different point multipliers.
+        Select the workout types allowed in this challenge. Different types earn different point
+        multipliers.
       </Text>
 
       {/* Select All Toggle */}
@@ -194,18 +176,14 @@ export function StepWorkoutPicker({
             styles.selectAllCheck,
             {
               borderColor: allSelected ? colors.primary.main : colors.border,
-              backgroundColor: allSelected
-                ? colors.primary.main
-                : "transparent",
+              backgroundColor: allSelected ? colors.primary.main : "transparent",
               borderRadius: 6,
             },
           ]}
         >
           {allSelected && <CheckCircleIcon size={16} color="#FFFFFF" />}
         </View>
-        <Text style={[styles.selectAllText, { color: colors.textPrimary }]}>
-          All Workout Types
-        </Text>
+        <Text style={[styles.selectAllText, { color: colors.textPrimary }]}>All Workout Types</Text>
         <Text style={[styles.countBadge, { color: colors.textSecondary }]}>
           {selectedWorkoutTypes.length}/{allTypeIds.length}
         </Text>
@@ -217,12 +195,9 @@ export function StepWorkoutPicker({
         if (entries.length === 0) return null;
 
         const catIds = entries.map((e) => e.id);
-        const catAllSelected = catIds.every((id) =>
-          selectedWorkoutTypes.includes(id),
-        );
+        const catAllSelected = catIds.every((id) => selectedWorkoutTypes.includes(id));
         const catSomeSelected =
-          !catAllSelected &&
-          catIds.some((id) => selectedWorkoutTypes.includes(id));
+          !catAllSelected && catIds.some((id) => selectedWorkoutTypes.includes(id));
 
         return (
           <View
@@ -242,17 +217,9 @@ export function StepWorkoutPicker({
               style={styles.categoryHeader}
             >
               <Text style={styles.categoryEmoji}>{cat.emoji}</Text>
-              <Text
-                style={[styles.categoryLabel, { color: colors.textPrimary }]}
-              >
-                {cat.label}
-              </Text>
+              <Text style={[styles.categoryLabel, { color: colors.textPrimary }]}>{cat.label}</Text>
               <Text style={[styles.categoryCount, { color: colors.textMuted }]}>
-                {
-                  catIds.filter((id) => selectedWorkoutTypes.includes(id))
-                    .length
-                }
-                /{catIds.length}
+                {catIds.filter((id) => selectedWorkoutTypes.includes(id)).length}/{catIds.length}
               </Text>
             </TouchableOpacity>
 

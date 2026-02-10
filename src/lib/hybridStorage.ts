@@ -86,11 +86,9 @@ const memoryStorage = new Map<string, string>();
 const statusListeners = new Set<HybridStorageStatusListener>();
 
 // Promise that resolves when initialization completes
-export const hybridStorageReady: Promise<HybridStorageStatus> = new Promise(
-  (resolve) => {
-    statusResolver = resolve;
-  },
-);
+export const hybridStorageReady: Promise<HybridStorageStatus> = new Promise((resolve) => {
+  statusResolver = resolve;
+});
 
 // =============================================================================
 // CRYPTO UTILITIES (AES-256-CTR via aes-js)
@@ -142,10 +140,7 @@ function encrypt(plaintext: string, keyBytes: Uint8Array): string {
   const counter = generateCounter();
 
   // Create AES-CTR cipher
-  const aesCtr = new aesjs.ModeOfOperation.ctr(
-    keyBytes,
-    new aesjs.Counter(counter),
-  );
+  const aesCtr = new aesjs.ModeOfOperation.ctr(keyBytes, new aesjs.Counter(counter));
 
   // Encrypt
   const encryptedBytes = aesCtr.encrypt(textBytes);
@@ -171,10 +166,7 @@ function decrypt(encryptedHex: string, keyBytes: Uint8Array): string {
   const ciphertext = hexToUint8Array(ciphertextHex);
 
   // Create AES-CTR cipher with same counter
-  const aesCtr = new aesjs.ModeOfOperation.ctr(
-    keyBytes,
-    new aesjs.Counter(counter),
-  );
+  const aesCtr = new aesjs.ModeOfOperation.ctr(keyBytes, new aesjs.Counter(counter));
 
   // Decrypt
   const decryptedBytes = aesCtr.decrypt(ciphertext);
@@ -270,9 +262,7 @@ async function probeLocalStorage(): Promise<boolean> {
  * Check for and migrate legacy Supabase session from old storage format
  * Returns the migrated value if found, null otherwise
  */
-async function migrateLegacySession(
-  originalKey: string,
-): Promise<string | null> {
+async function migrateLegacySession(originalKey: string): Promise<string | null> {
   // Only attempt migration for Supabase auth keys
   if (!originalKey.startsWith(LEGACY_PREFIX)) {
     return null;
@@ -282,9 +272,7 @@ async function migrateLegacySession(
     // Try to read from SecureStore (old format)
     const legacyValue = await SecureStore.getItemAsync(originalKey);
     if (legacyValue) {
-      console.log(
-        "[HybridStorage] Found legacy session in SecureStore, migrating...",
-      );
+      console.log("[HybridStorage] Found legacy session in SecureStore, migrating...");
 
       // Clear the legacy key (best effort)
       try {
@@ -299,17 +287,13 @@ async function migrateLegacySession(
     // Also check AsyncStorage (might have been demoted previously)
     const asyncValue = await AsyncStorage.getItem(originalKey);
     if (asyncValue) {
-      console.log(
-        "[HybridStorage] Found legacy session in AsyncStorage, migrating...",
-      );
+      console.log("[HybridStorage] Found legacy session in AsyncStorage, migrating...");
 
       // Clear the legacy key
       try {
         await AsyncStorage.removeItem(originalKey);
       } catch {
-        console.warn(
-          "[HybridStorage] Could not delete legacy AsyncStorage key",
-        );
+        console.warn("[HybridStorage] Could not delete legacy AsyncStorage key");
       }
 
       return asyncValue;
@@ -328,10 +312,7 @@ async function migrateLegacySession(
 /**
  * Store a value using hybrid AES-encrypted storage
  */
-async function setItemHybridEncrypted(
-  key: string,
-  value: string,
-): Promise<void> {
+async function setItemHybridEncrypted(key: string, value: string): Promise<void> {
   const encKeyName = getEncKeyName(key);
   const payloadKeyName = getPayloadKeyName(key);
 
@@ -416,10 +397,7 @@ async function removeItemHybrid(key: string): Promise<void> {
 /**
  * Store a value in AsyncStorage (unencrypted fallback)
  */
-async function setItemAsyncUnencrypted(
-  key: string,
-  value: string,
-): Promise<void> {
+async function setItemAsyncUnencrypted(key: string, value: string): Promise<void> {
   const payloadKeyName = getPayloadKeyName(key);
   await AsyncStorage.setItem(payloadKeyName, value);
 }
@@ -515,13 +493,9 @@ async function startInitialization(): Promise<void> {
     if (status.mode === "hybrid-encrypted") {
       console.log("[HybridStorage] Using AES-256-CTR encrypted storage");
     } else if (status.isPersistent) {
-      console.warn(
-        `[HybridStorage] Using ${status.mode}: ${status.error || "no encryption"}`,
-      );
+      console.warn(`[HybridStorage] Using ${status.mode}: ${status.error || "no encryption"}`);
     } else {
-      console.error(
-        `[HybridStorage] Using memory only: ${status.error || "no persistence"}`,
-      );
+      console.error(`[HybridStorage] Using memory only: ${status.error || "no persistence"}`);
     }
 
     statusResolver?.(status);
@@ -562,9 +536,7 @@ export function isHybridStorageReady(): boolean {
 /**
  * Subscribe to storage status changes
  */
-export function subscribeToHybridStorageStatus(
-  listener: HybridStorageStatusListener,
-): () => void {
+export function subscribeToHybridStorageStatus(listener: HybridStorageStatusListener): () => void {
   statusListeners.add(listener);
   return () => {
     statusListeners.delete(listener);
@@ -587,10 +559,7 @@ function notifyStatusListeners(status: HybridStorageStatus): void {
 /**
  * Demote from hybrid-encrypted to async-unencrypted after failures
  */
-async function demoteToUnencrypted(
-  key: string,
-  value: string,
-): Promise<boolean> {
+async function demoteToUnencrypted(key: string, value: string): Promise<boolean> {
   try {
     // Verify AsyncStorage works
     const asyncWorks = await probeAsyncStorage();
@@ -732,9 +701,7 @@ export function createHybridStorageAdapter(): StorageAdapter {
           storageStatus?.mode === "hybrid-encrypted" &&
           consecutiveFailures >= FAILURE_THRESHOLD
         ) {
-          console.warn(
-            `[HybridStorage] Encryption failed ${consecutiveFailures} times, demoting`,
-          );
+          console.warn(`[HybridStorage] Encryption failed ${consecutiveFailures} times, demoting`);
           const demoted = await demoteToUnencrypted(key, value);
           if (demoted) {
             consecutiveFailures = 0;
@@ -796,9 +763,7 @@ export function __resetHybridStorageForTesting(): void {
 /**
  * Set storage status directly - FOR TESTING ONLY
  */
-export function __setHybridStorageStatusForTesting(
-  status: HybridStorageStatus,
-): void {
+export function __setHybridStorageStatusForTesting(status: HybridStorageStatus): void {
   storageStatus = status;
 }
 

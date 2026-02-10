@@ -146,10 +146,7 @@ describe("splitChallengesByStatus", () => {
         end_date: "2025-02-15T23:59:59Z",
       });
 
-      const result = splitChallengesByStatus(
-        [upcoming1, active1, upcoming2, active2],
-        USER_ID,
-      );
+      const result = splitChallengesByStatus([upcoming1, active1, upcoming2, active2], USER_ID);
 
       expect(result.startingSoon).toHaveLength(2);
       expect(result.inProgress).toHaveLength(2);
@@ -209,10 +206,7 @@ describe("splitChallengesByStatus", () => {
         start_date: "2025-01-01T00:00:00Z",
       });
 
-      const result = splitChallengesByStatus(
-        [myUpcoming, othersActive],
-        USER_ID,
-      );
+      const result = splitChallengesByStatus([myUpcoming, othersActive], USER_ID);
 
       expect(result.startingSoon?.[0]?.is_creator).toBe(true);
       expect(result.inProgress?.[0]?.is_creator).toBe(false);
@@ -244,11 +238,7 @@ describe("splitChallengesByStatus", () => {
       // Pass in unsorted order
       const result = splitChallengesByStatus([later, sooner, middle], USER_ID);
 
-      expect(result.startingSoon?.map((c) => c.id)).toEqual([
-        "sooner",
-        "middle",
-        "later",
-      ]);
+      expect(result.startingSoon?.map((c) => c.id)).toEqual(["sooner", "middle", "later"]);
     });
 
     test("does not change order of inProgress challenges", () => {

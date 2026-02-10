@@ -101,10 +101,7 @@ export function splitChallengesByStatus(
   }
 
   // Sort starting soon by start_date ascending (soonest first)
-  startingSoon.sort(
-    (a, b) =>
-      new Date(a.start_date).getTime() - new Date(b.start_date).getTime(),
-  );
+  startingSoon.sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
 
   return { inProgress, startingSoon };
 }
@@ -122,11 +119,10 @@ export function useHomeScreenData(): HomeScreenData {
 
   // Derive startingSoon and inProgress from the single query
   // Uses server-managed status column (not client time) to avoid drift issues
-  const { inProgress: activeChallenges, startingSoon: startingSoonChallenges } =
-    useMemo(
-      () => splitChallengesByStatus(allActiveChallenges, user?.id),
-      [allActiveChallenges, user?.id],
-    );
+  const { inProgress: activeChallenges, startingSoon: startingSoonChallenges } = useMemo(
+    () => splitChallengesByStatus(allActiveChallenges, user?.id),
+    [allActiveChallenges, user?.id],
+  );
 
   const {
     data: pendingInvites,
@@ -134,11 +130,9 @@ export function useHomeScreenData(): HomeScreenData {
     refetch: refetchPending,
   } = usePendingInvites();
 
-  const { data: completedChallenges, refetch: refetchCompleted } =
-    useCompletedChallenges();
+  const { data: completedChallenges, refetch: refetchCompleted } = useCompletedChallenges();
 
-  const { data: recentActivities, refetch: refetchActivities } =
-    useRecentActivities(5);
+  const { data: recentActivities, refetch: refetchActivities } = useRecentActivities(5);
 
   const { data: unreadCount } = useUnreadNotificationCount();
 
@@ -167,12 +161,7 @@ export function useHomeScreenData(): HomeScreenData {
   // Manual refresh handler
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
-    await Promise.all([
-      refetchActive(),
-      refetchPending(),
-      refetchCompleted(),
-      refetchActivities(),
-    ]);
+    await Promise.all([refetchActive(), refetchPending(), refetchCompleted(), refetchActivities()]);
     setRefreshing(false);
   }, [refetchActive, refetchPending, refetchCompleted, refetchActivities]);
 

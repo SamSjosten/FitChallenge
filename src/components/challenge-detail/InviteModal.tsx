@@ -48,10 +48,7 @@ export function InviteModal({
       const results = await authService.searchUsers(searchQuery);
 
       // Filter out current user AND existing participants (fixes U2)
-      const excludeIds = new Set([
-        ...(profile?.id ? [profile.id] : []),
-        ...existingParticipantIds,
-      ]);
+      const excludeIds = new Set([...(profile?.id ? [profile.id] : []), ...existingParticipantIds]);
       setSearchResults(results.filter((r) => !excludeIds.has(r.id)));
     } catch (err) {
       console.error("Search failed:", err);
@@ -210,13 +207,11 @@ export function InviteModal({
             </View>
           )}
 
-          {!searching &&
-            searchResults.length === 0 &&
-            searchQuery.length >= 2 && (
-              <View style={{ padding: spacing.md, alignItems: "center" }}>
-                <Text style={{ color: colors.textMuted }}>No users found</Text>
-              </View>
-            )}
+          {!searching && searchResults.length === 0 && searchQuery.length >= 2 && (
+            <View style={{ padding: spacing.md, alignItems: "center" }}>
+              <Text style={{ color: colors.textMuted }}>No users found</Text>
+            </View>
+          )}
 
           {searchResults.map((user) => {
             const isInviting = invitingUserId === user.id;

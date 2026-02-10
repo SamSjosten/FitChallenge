@@ -50,48 +50,13 @@ export function FootprintsIcon({ size = 24, color = "#000" }: IconProps) {
 export function DumbbellIcon({ size = 24, color = "#000" }: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path
-        d="M6.5 6.5V17.5"
-        stroke={color}
-        strokeWidth={1.5}
-        strokeLinecap="round"
-      />
-      <Path
-        d="M17.5 6.5V17.5"
-        stroke={color}
-        strokeWidth={1.5}
-        strokeLinecap="round"
-      />
-      <Path
-        d="M6.5 12H17.5"
-        stroke={color}
-        strokeWidth={1.5}
-        strokeLinecap="round"
-      />
-      <Path
-        d="M3 8V16"
-        stroke={color}
-        strokeWidth={1.5}
-        strokeLinecap="round"
-      />
-      <Path
-        d="M21 8V16"
-        stroke={color}
-        strokeWidth={1.5}
-        strokeLinecap="round"
-      />
-      <Path
-        d="M4.5 7V17"
-        stroke={color}
-        strokeWidth={2}
-        strokeLinecap="round"
-      />
-      <Path
-        d="M19.5 7V17"
-        stroke={color}
-        strokeWidth={2}
-        strokeLinecap="round"
-      />
+      <Path d="M6.5 6.5V17.5" stroke={color} strokeWidth={1.5} strokeLinecap="round" />
+      <Path d="M17.5 6.5V17.5" stroke={color} strokeWidth={1.5} strokeLinecap="round" />
+      <Path d="M6.5 12H17.5" stroke={color} strokeWidth={1.5} strokeLinecap="round" />
+      <Path d="M3 8V16" stroke={color} strokeWidth={1.5} strokeLinecap="round" />
+      <Path d="M21 8V16" stroke={color} strokeWidth={1.5} strokeLinecap="round" />
+      <Path d="M4.5 7V17" stroke={color} strokeWidth={2} strokeLinecap="round" />
+      <Path d="M19.5 7V17" stroke={color} strokeWidth={2} strokeLinecap="round" />
     </Svg>
   );
 }
@@ -139,12 +104,7 @@ export function CyclingIcon({ size = 24, color = "#000" }: IconProps) {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      <Path
-        d="M12 17.5V9.5"
-        stroke={color}
-        strokeWidth={1.5}
-        strokeLinecap="round"
-      />
+      <Path d="M12 17.5V9.5" stroke={color} strokeWidth={1.5} strokeLinecap="round" />
       <Circle cx="15" cy="6" r="2" stroke={color} strokeWidth={1.5} />
     </Svg>
   );
@@ -155,24 +115,9 @@ export function YogaIcon({ size = 24, color = "#000" }: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Circle cx="12" cy="5" r="2" stroke={color} strokeWidth={1.5} />
-      <Path
-        d="M12 7V13"
-        stroke={color}
-        strokeWidth={1.5}
-        strokeLinecap="round"
-      />
-      <Path
-        d="M12 13L7 18"
-        stroke={color}
-        strokeWidth={1.5}
-        strokeLinecap="round"
-      />
-      <Path
-        d="M12 13L17 18"
-        stroke={color}
-        strokeWidth={1.5}
-        strokeLinecap="round"
-      />
+      <Path d="M12 7V13" stroke={color} strokeWidth={1.5} strokeLinecap="round" />
+      <Path d="M12 13L7 18" stroke={color} strokeWidth={1.5} strokeLinecap="round" />
+      <Path d="M12 13L17 18" stroke={color} strokeWidth={1.5} strokeLinecap="round" />
       <Path
         d="M8 9L12 11L16 9"
         stroke={color}
@@ -253,9 +198,7 @@ export type ActivityType =
   | "swimming"
   | "custom";
 
-export function getActivityIcon(
-  type: ActivityType,
-): React.ComponentType<IconProps> {
+export function getActivityIcon(type: ActivityType): React.ComponentType<IconProps> {
   const iconMap: Record<ActivityType, React.ComponentType<IconProps>> = {
     steps: FootprintsIcon,
     walking: FootprintsIcon,
@@ -276,10 +219,7 @@ export function getActivityIcon(
 }
 
 // Activity type colors for backgrounds
-export const activityColors: Record<
-  ActivityType,
-  { text: string; bg: string }
-> = {
+export const activityColors: Record<ActivityType, { text: string; bg: string }> = {
   steps: { text: "#3B82F6", bg: "#DBEAFE" }, // Blue
   walking: { text: "#10B981", bg: "#D1FAE5" }, // Emerald
   workouts: { text: "#8B5CF6", bg: "#EDE9FE" }, // Purple

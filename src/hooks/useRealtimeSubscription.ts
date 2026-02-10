@@ -40,9 +40,7 @@ export function useRealtimeSubscription() {
   const { user } = useAuth();
 
   // Stable reference to throttled invalidator
-  const throttledInvalidateRef = useRef<ReturnType<
-    typeof createThrottledInvalidator
-  > | null>(null);
+  const throttledInvalidateRef = useRef<ReturnType<typeof createThrottledInvalidator> | null>(null);
 
   // Track channel for cleanup
   const channelRef = useRef<RealtimeChannel | null>(null);

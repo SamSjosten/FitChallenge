@@ -4,23 +4,11 @@
 // Flow: Welcome → Auth (signup/signin) → Onboarding → Home
 
 import React, { useEffect, useRef, useState, useCallback } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  Pressable,
-  Animated,
-  Dimensions,
-} from "react-native";
+import { View, Text, StyleSheet, Pressable, Animated, Dimensions } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAppTheme } from "@/providers/ThemeProvider";
-import {
-  TrophyIcon,
-  UsersIcon,
-  FireIcon,
-  StarIcon,
-} from "react-native-heroicons/solid";
+import { TrophyIcon, UsersIcon, FireIcon, StarIcon } from "react-native-heroicons/solid";
 import { Feather } from "@expo/vector-icons";
 
 const { width } = Dimensions.get("window");
@@ -257,10 +245,7 @@ export default function WelcomeScreenV2() {
 
       {/* White Bottom Card */}
       <Animated.View
-        style={[
-          styles.bottomCard,
-          { backgroundColor: colors.surface, opacity: cardFadeAnim },
-        ]}
+        style={[styles.bottomCard, { backgroundColor: colors.surface, opacity: cardFadeAnim }]}
       >
         <Text style={[styles.headline, { color: colors.textPrimary }]}>
           Your Fitness Journey,{"\n"}Together
@@ -273,14 +258,10 @@ export default function WelcomeScreenV2() {
         <View style={styles.featuresRow}>
           {welcomeFeatures.map((item, i) => (
             <View key={i} style={styles.featureItem}>
-              <View
-                style={[styles.featureIcon, { backgroundColor: item.bgColor }]}
-              >
+              <View style={[styles.featureIcon, { backgroundColor: item.bgColor }]}>
                 <FeatureIcon item={item} />
               </View>
-              <Text style={[styles.featureLabel, { color: colors.textMuted }]}>
-                {item.label}
-              </Text>
+              <Text style={[styles.featureLabel, { color: colors.textMuted }]}>{item.label}</Text>
             </View>
           ))}
         </View>
@@ -306,9 +287,7 @@ export default function WelcomeScreenV2() {
         <Pressable onPress={handleSignIn} style={styles.signInLink}>
           <Text style={[styles.signInText, { color: colors.textMuted }]}>
             Already have an account?{" "}
-            <Text style={{ color: colors.primary.main, fontWeight: "600" }}>
-              Sign in
-            </Text>
+            <Text style={{ color: colors.primary.main, fontWeight: "600" }}>Sign in</Text>
           </Text>
         </Pressable>
       </Animated.View>

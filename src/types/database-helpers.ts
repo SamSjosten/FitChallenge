@@ -23,15 +23,13 @@ import type { Database } from "./database";
 export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 
 /** User's public identity (global read via RLS) */
-export type ProfilePublic =
-  Database["public"]["Tables"]["profiles_public"]["Row"];
+export type ProfilePublic = Database["public"]["Tables"]["profiles_public"]["Row"];
 
 /** Challenge definition */
 export type Challenge = Database["public"]["Tables"]["challenges"]["Row"];
 
 /** Challenge participant record */
-export type ChallengeParticipant =
-  Database["public"]["Tables"]["challenge_participants"]["Row"];
+export type ChallengeParticipant = Database["public"]["Tables"]["challenge_participants"]["Row"];
 
 /** Activity log entry (immutable) */
 export type ActivityLog = Database["public"]["Tables"]["activity_logs"]["Row"];
@@ -49,41 +47,34 @@ export type Notification = Database["public"]["Tables"]["notifications"]["Row"];
 export type Achievement = Database["public"]["Tables"]["achievements"]["Row"];
 
 /** Consent record (GDPR) */
-export type ConsentRecord =
-  Database["public"]["Tables"]["consent_records"]["Row"];
+export type ConsentRecord = Database["public"]["Tables"]["consent_records"]["Row"];
 
 /** Audit log entry */
 export type AuditLog = Database["public"]["Tables"]["audit_log"]["Row"];
 
 /** Health provider connection */
-export type HealthConnection =
-  Database["public"]["Tables"]["health_connections"]["Row"];
+export type HealthConnection = Database["public"]["Tables"]["health_connections"]["Row"];
 
 /** Health sync log entry */
-export type HealthSyncLog =
-  Database["public"]["Tables"]["health_sync_logs"]["Row"];
+export type HealthSyncLog = Database["public"]["Tables"]["health_sync_logs"]["Row"];
 
 // =============================================================================
 // TABLE INSERT TYPES (Create)
 // =============================================================================
 
-export type ChallengeInsert =
-  Database["public"]["Tables"]["challenges"]["Insert"];
+export type ChallengeInsert = Database["public"]["Tables"]["challenges"]["Insert"];
 export type ChallengeParticipantInsert =
   Database["public"]["Tables"]["challenge_participants"]["Insert"];
-export type ActivityLogInsert =
-  Database["public"]["Tables"]["activity_logs"]["Insert"];
+export type ActivityLogInsert = Database["public"]["Tables"]["activity_logs"]["Insert"];
 export type FriendInsert = Database["public"]["Tables"]["friends"]["Insert"];
-export type NotificationInsert =
-  Database["public"]["Tables"]["notifications"]["Insert"];
+export type NotificationInsert = Database["public"]["Tables"]["notifications"]["Insert"];
 
 // =============================================================================
 // TABLE UPDATE TYPES (Modify)
 // =============================================================================
 
 export type ProfileUpdate = Database["public"]["Tables"]["profiles"]["Update"];
-export type ChallengeUpdate =
-  Database["public"]["Tables"]["challenges"]["Update"];
+export type ChallengeUpdate = Database["public"]["Tables"]["challenges"]["Update"];
 export type ChallengeParticipantUpdate =
   Database["public"]["Tables"]["challenge_participants"]["Update"];
 

@@ -85,10 +85,7 @@ export function CompletedBanner({
             marginRight: spacing.sm,
           }}
         >
-          <TrophyIcon
-            size={22}
-            color={isCurrentUserWinner ? "#00D26A" : "#FFD700"}
-          />
+          <TrophyIcon size={22} color={isCurrentUserWinner ? "#00D26A" : "#FFD700"} />
         </View>
 
         <View style={{ flex: 1 }}>
@@ -109,8 +106,7 @@ export function CompletedBanner({
                 marginTop: 2,
               }}
             >
-              {winner.current_progress.toLocaleString()} total •{" "}
-              {participantCount} participant
+              {winner.current_progress.toLocaleString()} total • {participantCount} participant
               {participantCount === 1 ? "" : "s"}
             </Text>
           )}

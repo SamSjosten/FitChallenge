@@ -21,22 +21,12 @@ import type {
   LogHealthActivityResult,
 } from "./types";
 import { HealthKitProvider, MockHealthProvider } from "./providers";
-import {
-  transformSamples,
-  assignChallengesToActivities,
-  calculateSyncDateRange,
-} from "./utils";
+import { transformSamples, assignChallengesToActivities, calculateSyncDateRange } from "./utils";
 
 const DEFAULT_SYNC_OPTIONS: Required<SyncOptions> = {
   syncType: "manual",
   lookbackDays: 7,
-  activityTypes: [
-    "steps",
-    "active_minutes",
-    "calories",
-    "distance",
-    "workouts",
-  ],
+  activityTypes: ["steps", "active_minutes", "calories", "distance", "workouts"],
   force: false,
 };
 
@@ -103,18 +93,14 @@ export class HealthService implements IHealthService {
       return {
         status: "syncing",
         connection: connection as HealthConnection,
-        lastSync: connection.last_sync_at
-          ? new Date(connection.last_sync_at)
-          : null,
+        lastSync: connection.last_sync_at ? new Date(connection.last_sync_at) : null,
       };
     }
 
     return {
       status: connection.is_active ? "connected" : "disconnected",
       connection: connection as HealthConnection,
-      lastSync: connection.last_sync_at
-        ? new Date(connection.last_sync_at)
-        : null,
+      lastSync: connection.last_sync_at ? new Date(connection.last_sync_at) : null,
     };
   }
 
@@ -126,20 +112,16 @@ export class HealthService implements IHealthService {
       throw new Error(`${this.providerType} is not available on this device`);
     }
 
-    const permissionResult =
-      await this.provider.requestAuthorization(permissions);
+    const permissionResult = await this.provider.requestAuthorization(permissions);
 
     if (permissionResult.granted.length === 0) {
       throw new Error("No health permissions were granted");
     }
 
-    const { data: connectionId, error } = await supabase.rpc(
-      "connect_health_provider",
-      {
-        p_provider: this.providerType,
-        p_permissions: permissionResult.granted,
-      },
-    );
+    const { data: connectionId, error } = await supabase.rpc("connect_health_provider", {
+      p_provider: this.providerType,
+      p_permissions: permissionResult.granted,
+    });
 
     if (error) {
       throw new Error(`Failed to save health connection: ${error.message}`);
@@ -188,13 +170,10 @@ export class HealthService implements IHealthService {
       }
     }
 
-    const { data: syncLogId, error: logError } = await supabase.rpc(
-      "start_health_sync",
-      {
-        p_provider: this.providerType,
-        p_sync_type: opts.syncType,
-      },
-    );
+    const { data: syncLogId, error: logError } = await supabase.rpc("start_health_sync", {
+      p_provider: this.providerType,
+      p_sync_type: opts.syncType,
+    });
 
     if (logError || !syncLogId) {
       throw new Error(`Failed to start sync log: ${logError?.message}`);
@@ -203,11 +182,7 @@ export class HealthService implements IHealthService {
     try {
       const { startDate, endDate } = calculateSyncDateRange(opts.lookbackDays);
 
-      const samples = await this.provider.fetchSamples(
-        startDate,
-        endDate,
-        opts.activityTypes,
-      );
+      const samples = await this.provider.fetchSamples(startDate, endDate, opts.activityTypes);
 
       if (samples.length === 0) {
         await this.completeSyncLog(syncLogId, "completed", 0, 0, 0);
@@ -224,9 +199,7 @@ export class HealthService implements IHealthService {
 
       const activities = await transformSamples(samples, this.providerType);
 
-      const { data: challenges } = await supabase.rpc(
-        "get_challenges_for_health_sync",
-      );
+      const { data: challenges } = await supabase.rpc("get_challenges_for_health_sync");
 
       const assignedActivities = assignChallengesToActivities(
         activities,
@@ -241,9 +214,7 @@ export class HealthService implements IHealthService {
         result.total_processed,
         result.inserted,
         result.deduplicated,
-        result.errors.length > 0
-          ? result.errors.map((e) => e.error).join("; ")
-          : null,
+        result.errors.length > 0 ? result.errors.map((e) => e.error).join("; ") : null,
       );
 
       return {
@@ -343,10 +314,7 @@ export class HealthService implements IHealthService {
     return data as HealthSyncLog[];
   }
 
-  async getRecentActivities(
-    limit = 50,
-    offset = 0,
-  ): Promise<ProcessedActivity[]> {
+  async getRecentActivities(limit = 50, offset = 0): Promise<ProcessedActivity[]> {
     const { data, error } = await supabase.rpc("get_recent_health_activities", {
       p_limit: limit,
       p_offset: offset,
@@ -374,8 +342,6 @@ export function resetHealthService(): void {
   healthServiceInstance = null;
 }
 
-export function createMockHealthService(
-  mockProvider: IHealthProvider,
-): HealthService {
+export function createMockHealthService(mockProvider: IHealthProvider): HealthService {
   return new HealthService(mockProvider);
 }

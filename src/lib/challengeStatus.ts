@@ -8,12 +8,7 @@
 
 import { getServerNow } from "./serverTime";
 
-export type EffectiveStatus =
-  | "upcoming"
-  | "active"
-  | "completed"
-  | "cancelled"
-  | "archived";
+export type EffectiveStatus = "upcoming" | "active" | "completed" | "cancelled" | "archived";
 
 /**
  * Get effective challenge status from time bounds

@@ -2,12 +2,7 @@
 // Component tests for the Home/Dashboard screen
 
 import React from "react";
-import {
-  render,
-  screen,
-  fireEvent,
-  waitFor,
-} from "@testing-library/react-native";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react-native";
 import HomeScreen from "@/app/(tabs)/index";
 import { mockChallengesState, mockRouter } from "./jest.setup";
 import { createMockChallenge, createMockInvite } from "../factories/index";
@@ -167,9 +162,7 @@ describe("HomeScreen", () => {
     it("displays challenge rank correctly", () => {
       // Arrange
       setupHomeScreen();
-      mockChallengesState.activeChallenges.data = [
-        createMockChallenge({ my_rank: 1 }),
-      ];
+      mockChallengesState.activeChallenges.data = [createMockChallenge({ my_rank: 1 })];
 
       // Act
       render(<HomeScreen />);
@@ -182,9 +175,7 @@ describe("HomeScreen", () => {
     it("navigates to challenge detail when View Challenge is pressed", async () => {
       // Arrange
       setupHomeScreen();
-      mockChallengesState.activeChallenges.data = [
-        createMockChallenge({ id: "challenge-123" }),
-      ];
+      mockChallengesState.activeChallenges.data = [createMockChallenge({ id: "challenge-123" })];
 
       // Act
       render(<HomeScreen />);
@@ -246,9 +237,7 @@ describe("HomeScreen", () => {
 
       // Assert
       await waitFor(() => {
-        expect(
-          mockChallengesState.respondToInvite.mutateAsync,
-        ).toHaveBeenCalledWith({
+        expect(mockChallengesState.respondToInvite.mutateAsync).toHaveBeenCalledWith({
           challenge_id: "invite-1",
           response: "accepted",
         });
@@ -268,9 +257,7 @@ describe("HomeScreen", () => {
 
       // Assert
       await waitFor(() => {
-        expect(
-          mockChallengesState.respondToInvite.mutateAsync,
-        ).toHaveBeenCalledWith({
+        expect(mockChallengesState.respondToInvite.mutateAsync).toHaveBeenCalledWith({
           challenge_id: "invite-1",
           response: "declined",
         });

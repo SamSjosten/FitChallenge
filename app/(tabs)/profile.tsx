@@ -3,13 +3,7 @@
 // Phase 2B will add: stats cards, achievements
 
 import React from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-} from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { useAppTheme } from "@/providers/ThemeProvider";
@@ -74,9 +68,7 @@ export default function ProfileScreenV2() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.textPrimary }]}>
-            Profile
-          </Text>
+          <Text style={[styles.title, { color: colors.textPrimary }]}>Profile</Text>
           <TouchableOpacity onPress={() => router.push("/settings")}>
             <Cog6ToothIcon size={24} color={colors.textSecondary} />
           </TouchableOpacity>
@@ -99,12 +91,7 @@ export default function ProfileScreenV2() {
             name={profile?.display_name || profile?.username || "User"}
             size="xl"
           />
-          <Text
-            style={[
-              styles.displayName,
-              { color: colors.textPrimary, marginTop: spacing.md },
-            ]}
-          >
+          <Text style={[styles.displayName, { color: colors.textPrimary, marginTop: spacing.md }]}>
             {profile?.display_name || profile?.username || "User"}
           </Text>
           <Text style={[styles.username, { color: colors.textSecondary }]}>
@@ -128,19 +115,13 @@ export default function ProfileScreenV2() {
             >
               <stat.icon size={24} color={colors.primary.main} />
               <Text
-                style={[
-                  styles.statValue,
-                  { color: colors.textPrimary, marginTop: spacing.sm },
-                ]}
+                style={[styles.statValue, { color: colors.textPrimary, marginTop: spacing.sm }]}
               >
                 {stat.value}
                 {stat.suffix ? ` ${stat.suffix}` : ""}
               </Text>
               <Text
-                style={[
-                  styles.statLabel,
-                  { color: colors.textSecondary, marginTop: spacing.xs },
-                ]}
+                style={[styles.statLabel, { color: colors.textSecondary, marginTop: spacing.xs }]}
               >
                 {stat.label}
               </Text>
@@ -151,10 +132,7 @@ export default function ProfileScreenV2() {
         {/* Quick Actions */}
         <View style={{ marginTop: spacing.xl }}>
           <Text
-            style={[
-              styles.sectionTitle,
-              { color: colors.textSecondary, marginBottom: spacing.md },
-            ]}
+            style={[styles.sectionTitle, { color: colors.textSecondary, marginBottom: spacing.md }]}
           >
             QUICK ACTIONS
           </Text>
@@ -172,17 +150,10 @@ export default function ProfileScreenV2() {
             ]}
             onPress={() => router.push("/settings")}
           >
-            <View
-              style={[
-                styles.actionIcon,
-                { backgroundColor: colors.primary.subtle },
-              ]}
-            >
+            <View style={[styles.actionIcon, { backgroundColor: colors.primary.subtle }]}>
               <Cog6ToothIcon size={20} color={colors.primary.main} />
             </View>
-            <Text style={[styles.actionLabel, { color: colors.textPrimary }]}>
-              Settings
-            </Text>
+            <Text style={[styles.actionLabel, { color: colors.textPrimary }]}>Settings</Text>
           </TouchableOpacity>
 
           {/* Developer Settings (dev only) */}
@@ -199,12 +170,7 @@ export default function ProfileScreenV2() {
               ]}
               onPress={() => router.push("/settings/developer")}
             >
-              <View
-                style={[
-                  styles.actionIcon,
-                  { backgroundColor: colors.energy.subtle },
-                ]}
-              >
+              <View style={[styles.actionIcon, { backgroundColor: colors.energy.subtle }]}>
                 <BeakerIcon size={20} color={colors.energy.main} />
               </View>
               <Text style={[styles.actionLabel, { color: colors.textPrimary }]}>
@@ -228,9 +194,7 @@ export default function ProfileScreenV2() {
             <View style={[styles.actionIcon, { backgroundColor: "#FEE2E2" }]}>
               <ArrowRightOnRectangleIcon size={20} color={colors.error} />
             </View>
-            <Text style={[styles.actionLabel, { color: colors.error }]}>
-              Sign Out
-            </Text>
+            <Text style={[styles.actionLabel, { color: colors.error }]}>Sign Out</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

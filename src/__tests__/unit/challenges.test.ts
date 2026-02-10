@@ -228,9 +228,7 @@ describe("challengeService.getPendingInvites", () => {
         select: jest.fn().mockReturnThis(),
         in: jest
           .fn()
-          .mockImplementation(() =>
-            Promise.resolve({ data: mockCreators, error: null }),
-          ),
+          .mockImplementation(() => Promise.resolve({ data: mockCreators, error: null })),
       };
 
       const queriedTables: string[] = [];

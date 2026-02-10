@@ -21,14 +21,7 @@
 //   Q6: computedValues null guard → early return, no non-null assertion
 
 import React, { useState, useEffect, useMemo } from "react";
-import {
-  View,
-  Text,
-  ScrollView,
-  RefreshControl,
-  TouchableOpacity,
-  Alert,
-} from "react-native";
+import { View, Text, ScrollView, RefreshControl, TouchableOpacity, Alert } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/hooks/useAuth";
@@ -49,16 +42,9 @@ import { useLeaderboardSubscription } from "@/hooks/useRealtimeSubscription";
 import { LoadingState, ErrorState } from "@/components/shared";
 import { useAppTheme } from "@/providers/ThemeProvider";
 import { getEffectiveStatus, canLogActivity } from "@/lib/challengeStatus";
-import {
-  getServerNow,
-  syncServerTime,
-  getDaysRemaining,
-} from "@/lib/serverTime";
+import { getServerNow, syncServerTime, getDaysRemaining } from "@/lib/serverTime";
 import { TestIDs } from "@/constants/testIDs";
-import {
-  ChevronLeftIcon,
-  EllipsisVerticalIcon,
-} from "react-native-heroicons/outline";
+import { ChevronLeftIcon, EllipsisVerticalIcon } from "react-native-heroicons/outline";
 
 // Sub-components
 import { HeaderCard } from "./HeaderCard";
@@ -85,22 +71,14 @@ export interface ChallengeDetailScreenProps {
 // MAIN COMPONENT (ORCHESTRATOR)
 // =============================================================================
 
-export function ChallengeDetailScreen({
-  challengeId,
-}: ChallengeDetailScreenProps) {
+export function ChallengeDetailScreen({ challengeId }: ChallengeDetailScreenProps) {
   const { colors, spacing } = useAppTheme();
   const insets = useSafeAreaInsets();
   const { profile } = useAuth();
 
   // Data fetching
-  const {
-    data: challenge,
-    isLoading,
-    error,
-    refetch,
-  } = useChallenge(challengeId);
-  const { data: leaderboard, refetch: refetchLeaderboard } =
-    useLeaderboard(challengeId);
+  const { data: challenge, isLoading, error, refetch } = useChallenge(challengeId);
+  const { data: leaderboard, refetch: refetchLeaderboard } = useLeaderboard(challengeId);
   const { data: recentActivities } = useChallengeActivities(challengeId, 5);
 
   // Realtime subscription
@@ -173,25 +151,19 @@ export function ChallengeDetailScreen({
     const daysLeft = getDaysRemaining(challenge.end_date);
     const daysElapsed = getDaysElapsed(challenge.start_date, serverNow);
 
-    const myLeaderboardEntry = leaderboard?.find(
-      (e) => e.user_id === profile?.id,
-    );
+    const myLeaderboardEntry = leaderboard?.find((e) => e.user_id === profile?.id);
     const myRank = myLeaderboardEntry?.rank || 0;
     const todayProgress = myLeaderboardEntry?.today_change || 0;
     const participantCount = leaderboard?.length || 1;
 
-    const avgPerDay =
-      daysElapsed > 0 ? Math.round(myProgress / daysElapsed) : myProgress;
+    const avgPerDay = daysElapsed > 0 ? Math.round(myProgress / daysElapsed) : myProgress;
 
     const totalDays = daysElapsed + daysLeft;
     const showTrend = daysElapsed >= TREND_THRESHOLD_DAYS && totalDays > 0;
     let trend = 0;
     if (showTrend) {
       const expectedByNow = (daysElapsed / totalDays) * goalValue;
-      trend =
-        expectedByNow > 0
-          ? Math.round((myProgress / expectedByNow - 1) * 100)
-          : 0;
+      trend = expectedByNow > 0 ? Math.round((myProgress / expectedByNow - 1) * 100) : 0;
     }
 
     return {
@@ -211,9 +183,7 @@ export function ChallengeDetailScreen({
 
   // Can log?
   const canLog =
-    viewerRole === "accepted" &&
-    challenge != null &&
-    canLogActivity(challenge, serverNow);
+    viewerRole === "accepted" && challenge != null && canLogActivity(challenge, serverNow);
 
   // Existing participant IDs (for invite filtering)
   const existingParticipantIds = useMemo(
@@ -241,10 +211,7 @@ export function ChallengeDetailScreen({
     }
   };
 
-  const handleLogWorkout = async (
-    workoutType: string,
-    durationMinutes: number,
-  ) => {
+  const handleLogWorkout = async (workoutType: string, durationMinutes: number) => {
     if (!challenge) return;
     const client_event_id = generateClientEventId();
     try {
@@ -331,25 +298,21 @@ export function ChallengeDetailScreen({
 
   const handleCancelChallenge = () => {
     if (!challenge) return;
-    Alert.alert(
-      "Cancel Challenge",
-      "This will end the challenge for all participants.",
-      [
-        { text: "Keep Challenge", style: "cancel" },
-        {
-          text: "Cancel Challenge",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await cancelChallenge.mutateAsync(challenge.id);
-              handleBack();
-            } catch (err: any) {
-              Alert.alert("Error", err.message || "Failed to cancel challenge");
-            }
-          },
+    Alert.alert("Cancel Challenge", "This will end the challenge for all participants.", [
+      { text: "Keep Challenge", style: "cancel" },
+      {
+        text: "Cancel Challenge",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await cancelChallenge.mutateAsync(challenge.id);
+            handleBack();
+          } catch (err: any) {
+            Alert.alert("Error", err.message || "Failed to cancel challenge");
+          }
         },
-      ],
-    );
+      },
+    ]);
   };
 
   const handleRematch = () => {
@@ -395,13 +358,7 @@ export function ChallengeDetailScreen({
     return <LoadingState message="Loading challenge..." />;
   }
 
-  if (
-    error ||
-    !challenge ||
-    !effectiveStatus ||
-    !computedValues ||
-    !viewerRole
-  ) {
+  if (error || !challenge || !effectiveStatus || !computedValues || !viewerRole) {
     return (
       <ErrorState
         title="Couldn't load challenge"
@@ -503,9 +460,7 @@ export function ChallengeDetailScreen({
 
       {/* Content */}
       <ScrollView
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         contentContainerStyle={{ paddingBottom: insets.bottom + spacing.xl }}
       >
         <View style={{ padding: spacing.md, paddingTop: spacing.xs }}>
@@ -530,9 +485,7 @@ export function ChallengeDetailScreen({
                 currentUserId={profile?.id || ""}
                 viewerRole={viewerRole}
                 showAll={showAllLeaderboard}
-                onToggleShowAll={() =>
-                  setShowAllLeaderboard(!showAllLeaderboard)
-                }
+                onToggleShowAll={() => setShowAllLeaderboard(!showAllLeaderboard)}
               />
             </View>
 
@@ -544,10 +497,7 @@ export function ChallengeDetailScreen({
                 paddingVertical: spacing.sm,
               }}
             >
-              <ChallengeInfoSection
-                challenge={challenge}
-                status={effectiveStatus}
-              />
+              <ChallengeInfoSection challenge={challenge} status={effectiveStatus} />
             </View>
 
             {/* Your Activity Section */}

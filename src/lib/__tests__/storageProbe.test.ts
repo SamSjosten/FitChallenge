@@ -37,9 +37,7 @@ jest.mock("react-native-get-random-values", () => {
     (global as any).crypto = {};
   }
   if (typeof global.crypto.getRandomValues !== "function") {
-    (global.crypto as any).getRandomValues = <T extends ArrayBufferView>(
-      array: T,
-    ): T => {
+    (global.crypto as any).getRandomValues = <T extends ArrayBufferView>(array: T): T => {
       if (array instanceof Uint8Array) {
         for (let i = 0; i < array.length; i++) {
           array[i] = Math.floor(Math.random() * 256);
@@ -151,10 +149,7 @@ describe("storageProbe", () => {
       secureStoreWorks = true;
       asyncStorageWorks = true;
 
-      const {
-        storageProbePromise,
-        getStorageStatus,
-      } = require("../storageProbe");
+      const { storageProbePromise, getStorageStatus } = require("../storageProbe");
       const status = await storageProbePromise;
 
       // hybrid-encrypted maps to "secure" for backward compatibility
@@ -229,10 +224,7 @@ describe("storageProbe", () => {
     });
 
     it("waits for probe before storage operations", async () => {
-      const {
-        createResilientStorageAdapter,
-        storageProbePromise,
-      } = require("../storageProbe");
+      const { createResilientStorageAdapter, storageProbePromise } = require("../storageProbe");
       const adapter = createResilientStorageAdapter();
 
       // Wait for probe to complete first
@@ -247,10 +239,7 @@ describe("storageProbe", () => {
     });
 
     it("stores and retrieves values correctly", async () => {
-      const {
-        createResilientStorageAdapter,
-        storageProbePromise,
-      } = require("../storageProbe");
+      const { createResilientStorageAdapter, storageProbePromise } = require("../storageProbe");
       await storageProbePromise;
 
       const adapter = createResilientStorageAdapter();
@@ -262,10 +251,7 @@ describe("storageProbe", () => {
     });
 
     it("removes values correctly", async () => {
-      const {
-        createResilientStorageAdapter,
-        storageProbePromise,
-      } = require("../storageProbe");
+      const { createResilientStorageAdapter, storageProbePromise } = require("../storageProbe");
       await storageProbePromise;
 
       const adapter = createResilientStorageAdapter();
@@ -279,10 +265,7 @@ describe("storageProbe", () => {
 
     it("falls back gracefully on runtime errors", async () => {
       // Start with working storage
-      const {
-        createResilientStorageAdapter,
-        storageProbePromise,
-      } = require("../storageProbe");
+      const { createResilientStorageAdapter, storageProbePromise } = require("../storageProbe");
       await storageProbePromise;
 
       const adapter = createResilientStorageAdapter();
@@ -317,10 +300,7 @@ describe("storageProbe", () => {
     });
 
     it("isStorageProbeComplete returns false initially, true after probe", async () => {
-      const {
-        isStorageProbeComplete,
-        storageProbePromise,
-      } = require("../storageProbe");
+      const { isStorageProbeComplete, storageProbePromise } = require("../storageProbe");
 
       // Wait for probe
       await storageProbePromise;
@@ -332,10 +312,7 @@ describe("storageProbe", () => {
       secureStoreWorks = true;
       asyncStorageWorks = true;
 
-      const {
-        storageProbePromise,
-        getStorageStatus,
-      } = require("../storageProbe");
+      const { storageProbePromise, getStorageStatus } = require("../storageProbe");
       await storageProbePromise;
 
       const status = getStorageStatus();
@@ -348,10 +325,7 @@ describe("storageProbe", () => {
       secureStoreWorks = false;
       asyncStorageWorks = true;
 
-      const {
-        storageProbePromise,
-        getStorageStatus,
-      } = require("../storageProbe");
+      const { storageProbePromise, getStorageStatus } = require("../storageProbe");
       await storageProbePromise;
 
       const status = getStorageStatus();
@@ -364,10 +338,7 @@ describe("storageProbe", () => {
       secureStoreWorks = false;
       asyncStorageWorks = false;
 
-      const {
-        storageProbePromise,
-        getStorageStatus,
-      } = require("../storageProbe");
+      const { storageProbePromise, getStorageStatus } = require("../storageProbe");
       await storageProbePromise;
 
       const status = getStorageStatus();

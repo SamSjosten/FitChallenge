@@ -53,11 +53,7 @@ export default function FriendsScreenV2() {
   const [searching, setSearching] = useState(false);
   const [sentRequests, setSentRequests] = useState<Set<string>>(new Set());
 
-  const {
-    data: friends,
-    isLoading: loadingFriends,
-    refetch: refetchFriends,
-  } = useFriends();
+  const { data: friends, isLoading: loadingFriends, refetch: refetchFriends } = useFriends();
 
   const {
     data: pendingRequests,
@@ -93,12 +89,8 @@ export default function FriendsScreenV2() {
       const results = await authService.searchUsers(searchQuery);
       // Filter out existing friends and pending requests
       const friendIds = new Set(friends?.map((f) => f.friend_profile.id) || []);
-      const pendingIds = new Set(
-        pendingRequests?.map((r) => r.requester.id) || [],
-      );
-      setSearchResults(
-        results.filter((r) => !friendIds.has(r.id) && !pendingIds.has(r.id)),
-      );
+      const pendingIds = new Set(pendingRequests?.map((r) => r.requester.id) || []);
+      setSearchResults(results.filter((r) => !friendIds.has(r.id) && !pendingIds.has(r.id)));
     } catch (err) {
       console.error("Search failed:", err);
     } finally {
@@ -144,12 +136,8 @@ export default function FriendsScreenV2() {
         style={[styles.container, { backgroundColor: colors.background }]}
         edges={["top"]}
       >
-        <View
-          style={[styles.headerContainer, { backgroundColor: colors.surface }]}
-        >
-          <Text style={[styles.title, { color: colors.textPrimary }]}>
-            Friends
-          </Text>
+        <View style={[styles.headerContainer, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.title, { color: colors.textPrimary }]}>Friends</Text>
         </View>
         <LoadingState variant="content" message="Loading friends..." />
       </SafeAreaView>
@@ -167,12 +155,8 @@ export default function FriendsScreenV2() {
       testID={TestIDs.screensV2?.friends || "friends-screen-v2"}
     >
       {/* Header */}
-      <View
-        style={[styles.headerContainer, { backgroundColor: colors.surface }]}
-      >
-        <Text style={[styles.title, { color: colors.textPrimary }]}>
-          Friends
-        </Text>
+      <View style={[styles.headerContainer, { backgroundColor: colors.surface }]}>
+        <Text style={[styles.title, { color: colors.textPrimary }]}>Friends</Text>
       </View>
 
       {/* Search Bar */}
@@ -221,26 +205,17 @@ export default function FriendsScreenV2() {
       {isSearchActive ? (
         // Search Results
         <ScrollView
-          contentContainerStyle={[
-            styles.scrollContent,
-            { padding: spacing.lg },
-          ]}
+          contentContainerStyle={[styles.scrollContent, { padding: spacing.lg }]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
           {searching ? (
             <LoadingState variant="inline" message="Searching..." />
           ) : searchResults.length === 0 ? (
-            <EmptyState
-              variant="search"
-              compact
-              message={`No users found for "${searchQuery}"`}
-            />
+            <EmptyState variant="search" compact message={`No users found for "${searchQuery}"`} />
           ) : (
             <View style={{ gap: spacing.sm }}>
-              <Text
-                style={[styles.sectionTitle, { color: colors.textSecondary }]}
-              >
+              <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
                 SEARCH RESULTS ({searchResults.length})
               </Text>
               {searchResults.map((user) => (
@@ -284,10 +259,7 @@ export default function FriendsScreenV2() {
                 style={[
                   styles.tabText,
                   {
-                    color:
-                      activeTab === "friends"
-                        ? colors.primary.main
-                        : colors.textMuted,
+                    color: activeTab === "friends" ? colors.primary.main : colors.textMuted,
                   },
                 ]}
               >
@@ -310,10 +282,7 @@ export default function FriendsScreenV2() {
                 style={[
                   styles.tabText,
                   {
-                    color:
-                      activeTab === "requests"
-                        ? colors.primary.main
-                        : colors.textMuted,
+                    color: activeTab === "requests" ? colors.primary.main : colors.textMuted,
                   },
                 ]}
               >
@@ -323,10 +292,7 @@ export default function FriendsScreenV2() {
           </View>
 
           <ScrollView
-            contentContainerStyle={[
-              styles.scrollContent,
-              { padding: spacing.lg },
-            ]}
+            contentContainerStyle={[styles.scrollContent, { padding: spacing.lg }]}
             showsVerticalScrollIndicator={false}
             refreshControl={
               <RefreshControl
@@ -370,9 +336,7 @@ export default function FriendsScreenV2() {
                         request={request}
                         onAccept={handleAccept}
                         onDecline={handleDecline}
-                        loading={
-                          acceptRequest.isPending || declineRequest.isPending
-                        }
+                        loading={acceptRequest.isPending || declineRequest.isPending}
                       />
                     ))}
                   </View>

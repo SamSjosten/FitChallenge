@@ -191,9 +191,7 @@ describe("Challenge Service (RPC-based)", () => {
       });
 
       const { challengeService } = require("@/services/challenges");
-      const result = await challengeService.getLeaderboard(
-        TEST_UUIDS.challenge123,
-      );
+      const result = await challengeService.getLeaderboard(TEST_UUIDS.challenge123);
 
       expect(mockRpc).toHaveBeenCalledWith("get_leaderboard", {
         p_challenge_id: TEST_UUIDS.challenge123,
@@ -220,9 +218,7 @@ describe("Challenge Service (RPC-based)", () => {
       });
 
       const { challengeService } = require("@/services/challenges");
-      const result = await challengeService.getLeaderboard(
-        TEST_UUIDS.challenge123,
-      );
+      const result = await challengeService.getLeaderboard(TEST_UUIDS.challenge123);
 
       expect(result[0]).toEqual({
         user_id: TEST_UUIDS.userA,
@@ -245,9 +241,7 @@ describe("Challenge Service (RPC-based)", () => {
       mockRpc.mockResolvedValue({ data: [], error: null });
 
       const { challengeService } = require("@/services/challenges");
-      const result = await challengeService.getLeaderboard(
-        TEST_UUIDS.challenge456,
-      );
+      const result = await challengeService.getLeaderboard(TEST_UUIDS.challenge456);
 
       expect(result).toEqual([]);
     });
@@ -291,9 +285,7 @@ describe("Challenge Service (RPC-based)", () => {
       });
 
       const { challengeService } = require("@/services/challenges");
-      const result = await challengeService.getLeaderboard(
-        TEST_UUIDS.challenge123,
-      );
+      const result = await challengeService.getLeaderboard(TEST_UUIDS.challenge123);
 
       // Verify ranks are passed through from server
       expect(result[0].rank).toBe(1);
@@ -309,9 +301,9 @@ describe("Challenge Service (RPC-based)", () => {
 
       const { challengeService } = require("@/services/challenges");
 
-      await expect(
-        challengeService.getLeaderboard(TEST_UUIDS.challenge123),
-      ).rejects.toEqual({ message: "Database error" });
+      await expect(challengeService.getLeaderboard(TEST_UUIDS.challenge123)).rejects.toEqual({
+        message: "Database error",
+      });
     });
   });
 
@@ -352,9 +344,7 @@ describe("Challenge Service (RPC-based)", () => {
 
       const { challengeService } = require("@/services/challenges");
 
-      await expect(
-        challengeService.getLeaderboard(TEST_UUIDS.challenge123),
-      ).rejects.toThrow();
+      await expect(challengeService.getLeaderboard(TEST_UUIDS.challenge123)).rejects.toThrow();
     });
   });
 });

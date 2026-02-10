@@ -129,9 +129,7 @@ export function createMockChallenge(
  * Structure matches usePendingInvites() hook response
  */
 export function createMockInvite(
-  overrides: Partial<
-    Omit<MockInvite, "challenge" | "creator" | "my_participation">
-  > & {
+  overrides: Partial<Omit<MockInvite, "challenge" | "creator" | "my_participation">> & {
     challenge?: Partial<MockInvite["challenge"]>;
     creator?: Partial<MockInvite["creator"]>;
     my_participation?: Partial<MockInvite["my_participation"]>;

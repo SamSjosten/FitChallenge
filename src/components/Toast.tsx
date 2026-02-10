@@ -10,21 +10,9 @@
 // - Uses theme tokens
 
 import React, { useEffect, useRef } from "react";
-import {
-  Animated,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Animated, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import {
-  typography,
-  spacing,
-  radius,
-  zIndex,
-  animation,
-} from "@/constants/theme";
+import { typography, spacing, radius, zIndex, animation } from "@/constants/theme";
 import { useAppTheme } from "@/providers/ThemeProvider";
 
 // =============================================================================
@@ -168,15 +156,8 @@ export function Toast({
     return (
       <Animated.View style={containerStyle}>
         <View style={styles.content}>
-          {vs.icon && (
-            <Text style={[styles.icon, { color: vs.iconColor }]}>
-              {vs.icon}
-            </Text>
-          )}
-          <Text
-            style={[styles.message, { color: vs.textColor }]}
-            numberOfLines={3}
-          >
+          {vs.icon && <Text style={[styles.icon, { color: vs.iconColor }]}>{vs.icon}</Text>}
+          <Text style={[styles.message, { color: vs.textColor }]} numberOfLines={3}>
             {message}
           </Text>
           <TouchableOpacity
@@ -186,14 +167,9 @@ export function Toast({
             }}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <Text style={[styles.actionButton, { color: vs.textColor }]}>
-              {actionLabel}
-            </Text>
+            <Text style={[styles.actionButton, { color: vs.textColor }]}>{actionLabel}</Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            onPress={onDismiss}
-            hitSlop={{ top: 8, bottom: 8, left: 4, right: 8 }}
-          >
+          <TouchableOpacity onPress={onDismiss} hitSlop={{ top: 8, bottom: 8, left: 4, right: 8 }}>
             <Text style={[styles.dismiss, { color: vs.textColor }]}>✕</Text>
           </TouchableOpacity>
         </View>
@@ -204,18 +180,9 @@ export function Toast({
   // Simple toast: tap anywhere to dismiss
   return (
     <Animated.View style={containerStyle} pointerEvents="box-none">
-      <TouchableOpacity
-        style={styles.content}
-        onPress={onDismiss}
-        activeOpacity={0.8}
-      >
-        {vs.icon && (
-          <Text style={[styles.icon, { color: vs.iconColor }]}>{vs.icon}</Text>
-        )}
-        <Text
-          style={[styles.message, { color: vs.textColor }]}
-          numberOfLines={3}
-        >
+      <TouchableOpacity style={styles.content} onPress={onDismiss} activeOpacity={0.8}>
+        {vs.icon && <Text style={[styles.icon, { color: vs.iconColor }]}>{vs.icon}</Text>}
+        <Text style={[styles.message, { color: vs.textColor }]} numberOfLines={3}>
           {message}
         </Text>
         <Text style={[styles.dismiss, { color: vs.textColor }]}>✕</Text>

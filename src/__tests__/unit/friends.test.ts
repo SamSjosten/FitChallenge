@@ -30,10 +30,7 @@ const mockEq = jest.fn();
 const mockFrom = jest.fn();
 
 // Chain mock for fluent Supabase API
-const createChainMock = (
-  finalData: unknown = null,
-  finalError: unknown = null,
-) => {
+const createChainMock = (finalData: unknown = null, finalError: unknown = null) => {
   const chain = {
     insert: mockInsert.mockReturnThis(),
     update: mockUpdate.mockReturnThis(),
@@ -71,8 +68,7 @@ jest.mock("@/lib/supabase", () => {
 // =============================================================================
 
 // Get mock client from the mocked module
-const getMockClient = () =>
-  require("@/lib/supabase").__mockClient as { from: jest.Mock };
+const getMockClient = () => require("@/lib/supabase").__mockClient as { from: jest.Mock };
 
 function setAuthenticatedUser(userId: string) {
   __mockAuthUserId = userId;
@@ -115,18 +111,14 @@ describe("friendsService", () => {
           fail("Should have thrown ValidationError");
         } catch (error) {
           expect(error).toBeInstanceOf(ValidationError);
-          expect((error as { firstError: string }).firstError).toBe(
-            "Invalid ID format",
-          );
+          expect((error as { firstError: string }).firstError).toBe("Invalid ID format");
         }
       });
 
       it("should reject missing target_user_id", async () => {
         const { friendsService } = require("@/services/friends");
 
-        await expect(friendsService.sendRequest({})).rejects.toThrow(
-          "Validation failed",
-        );
+        await expect(friendsService.sendRequest({})).rejects.toThrow("Validation failed");
       });
 
       it("should reject null input", async () => {
@@ -177,9 +169,9 @@ describe("friendsService", () => {
         setAuthenticatedUser(userId);
         const { friendsService } = require("@/services/friends");
 
-        await expect(
-          friendsService.sendRequest({ target_user_id: userId }),
-        ).rejects.toThrow("Cannot send friend request to yourself");
+        await expect(friendsService.sendRequest({ target_user_id: userId })).rejects.toThrow(
+          "Cannot send friend request to yourself",
+        );
       });
     });
 
@@ -218,18 +210,14 @@ describe("friendsService", () => {
           fail("Should have thrown ValidationError");
         } catch (error) {
           expect(error).toBeInstanceOf(ValidationError);
-          expect((error as { firstError: string }).firstError).toBe(
-            "Invalid ID format",
-          );
+          expect((error as { firstError: string }).firstError).toBe("Invalid ID format");
         }
       });
 
       it("should reject missing friendship_id", async () => {
         const { friendsService } = require("@/services/friends");
 
-        await expect(friendsService.acceptRequest({})).rejects.toThrow(
-          "Validation failed",
-        );
+        await expect(friendsService.acceptRequest({})).rejects.toThrow("Validation failed");
       });
 
       it("should accept valid UUID", async () => {
@@ -246,9 +234,9 @@ describe("friendsService", () => {
         clearAuthenticatedUser();
         const { friendsService } = require("@/services/friends");
 
-        await expect(
-          friendsService.acceptRequest({ friendship_id: VALID_UUID }),
-        ).rejects.toThrow("Authentication required");
+        await expect(friendsService.acceptRequest({ friendship_id: VALID_UUID })).rejects.toThrow(
+          "Authentication required",
+        );
       });
 
       it("should not call database when unauthenticated", async () => {
@@ -297,9 +285,7 @@ describe("friendsService", () => {
           fail("Should have thrown ValidationError");
         } catch (error) {
           expect(error).toBeInstanceOf(ValidationError);
-          expect((error as { firstError: string }).firstError).toBe(
-            "Invalid ID format",
-          );
+          expect((error as { firstError: string }).firstError).toBe("Invalid ID format");
         }
       });
 
@@ -312,9 +298,7 @@ describe("friendsService", () => {
           fail("Should have thrown ValidationError");
         } catch (error) {
           expect(error).toBeInstanceOf(ValidationError);
-          expect((error as { firstError: string }).firstError).toBe(
-            "Invalid ID format",
-          );
+          expect((error as { firstError: string }).firstError).toBe("Invalid ID format");
         }
       });
 
@@ -332,9 +316,9 @@ describe("friendsService", () => {
         clearAuthenticatedUser();
         const { friendsService } = require("@/services/friends");
 
-        await expect(
-          friendsService.declineRequest({ friendship_id: VALID_UUID }),
-        ).rejects.toThrow("Authentication required");
+        await expect(friendsService.declineRequest({ friendship_id: VALID_UUID })).rejects.toThrow(
+          "Authentication required",
+        );
       });
 
       it("should not call database when unauthenticated", async () => {
@@ -383,9 +367,7 @@ describe("friendsService", () => {
           fail("Should have thrown ValidationError");
         } catch (error) {
           expect(error).toBeInstanceOf(ValidationError);
-          expect((error as { firstError: string }).firstError).toBe(
-            "Invalid ID format",
-          );
+          expect((error as { firstError: string }).firstError).toBe("Invalid ID format");
         }
       });
 
@@ -409,9 +391,9 @@ describe("friendsService", () => {
         clearAuthenticatedUser();
         const { friendsService } = require("@/services/friends");
 
-        await expect(
-          friendsService.removeFriend({ friendship_id: VALID_UUID }),
-        ).rejects.toThrow("Authentication required");
+        await expect(friendsService.removeFriend({ friendship_id: VALID_UUID })).rejects.toThrow(
+          "Authentication required",
+        );
       });
 
       it("should not call database when unauthenticated", async () => {
@@ -459,9 +441,9 @@ describe("friendsService", () => {
         fail("Should have thrown");
       } catch (error) {
         expect(error).toBeInstanceOf(ValidationError);
-        expect(
-          (error as { errors: Array<{ field: string }> }).errors[0].field,
-        ).toBe("target_user_id");
+        expect((error as { errors: Array<{ field: string }> }).errors[0].field).toBe(
+          "target_user_id",
+        );
       }
     });
   });

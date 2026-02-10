@@ -8,13 +8,7 @@
 // - Hooks handle data consistency with optimistic updates + rollback
 
 import React from "react";
-import {
-  View,
-  Text,
-  ScrollView,
-  RefreshControl,
-  TouchableOpacity,
-} from "react-native";
+import { View, Text, ScrollView, RefreshControl, TouchableOpacity } from "react-native";
 import { router, Stack, useFocusEffect } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAppTheme } from "@/providers/ThemeProvider";
@@ -45,8 +39,7 @@ export function NotificationsScreen() {
   const { colors, spacing, radius } = useAppTheme();
   const { showToast } = useToast();
   const [refreshing, setRefreshing] = React.useState(false);
-  const [activeFilter, setActiveFilter] =
-    React.useState<NotificationFilterType>("unread"); // Default to unread
+  const [activeFilter, setActiveFilter] = React.useState<NotificationFilterType>("unread"); // Default to unread
 
   // Undo toast state - stores what action was taken so we can reverse it
   const [undoState, setUndoState] = React.useState<{
@@ -56,12 +49,7 @@ export function NotificationsScreen() {
     action: "archive" | "restore" | null;
   }>({ visible: false, message: "", notificationId: null, action: null });
 
-  const {
-    data: notifications,
-    isLoading,
-    isError: isQueryError,
-    refetch,
-  } = useNotifications();
+  const { data: notifications, isLoading, isError: isQueryError, refetch } = useNotifications();
 
   useUnreadNotificationCount(); // Keep subscription active for background polling
   const markRead = useMarkNotificationAsRead();
@@ -116,14 +104,10 @@ export function NotificationsScreen() {
         return notifications.filter((n) => !n.dismissed_at);
       case "social":
         // Social notifications (not archived)
-        return notifications.filter(
-          (n) => !n.dismissed_at && SOCIAL_TYPES.includes(n.type),
-        );
+        return notifications.filter((n) => !n.dismissed_at && SOCIAL_TYPES.includes(n.type));
       case "challenges":
         // Challenge notifications (not archived)
-        return notifications.filter(
-          (n) => !n.dismissed_at && CHALLENGE_TYPES.includes(n.type),
-        );
+        return notifications.filter((n) => !n.dismissed_at && CHALLENGE_TYPES.includes(n.type));
       case "archived":
         // Only archived
         return notifications.filter((n) => n.dismissed_at);
@@ -142,12 +126,9 @@ export function NotificationsScreen() {
     return {
       unread: notifications.filter((n) => !n.read_at && !n.dismissed_at).length,
       all: notifications.filter((n) => !n.dismissed_at).length,
-      social: notifications.filter(
-        (n) => !n.dismissed_at && SOCIAL_TYPES.includes(n.type),
-      ).length,
-      challenges: notifications.filter(
-        (n) => !n.dismissed_at && CHALLENGE_TYPES.includes(n.type),
-      ).length,
+      social: notifications.filter((n) => !n.dismissed_at && SOCIAL_TYPES.includes(n.type)).length,
+      challenges: notifications.filter((n) => !n.dismissed_at && CHALLENGE_TYPES.includes(n.type))
+        .length,
       archived: notifications.filter((n) => n.dismissed_at).length,
     };
   }, [notifications]);
@@ -321,10 +302,7 @@ export function NotificationsScreen() {
 
   if (isLoading && !notifications) {
     return (
-      <SafeAreaView
-        style={{ flex: 1, backgroundColor: colors.background }}
-        edges={["top"]}
-      >
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={["top"]}>
         <Stack.Screen options={{ headerShown: false }} />
         <LoadingState variant="content" message="Loading notifications..." />
       </SafeAreaView>
@@ -335,10 +313,7 @@ export function NotificationsScreen() {
   const emptyState = getEmptyStateMessage();
 
   return (
-    <SafeAreaView
-      style={{ flex: 1, backgroundColor: colors.background }}
-      edges={["top"]}
-    >
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={["top"]}>
       <Stack.Screen options={{ headerShown: false }} />
 
       {/* Header */}
@@ -374,9 +349,7 @@ export function NotificationsScreen() {
         counts={filterCounts}
       />
 
-      {filteredNotifications.length > 0 && (
-        <SwipeHint isArchiveTab={activeFilter === "archived"} />
-      )}
+      {filteredNotifications.length > 0 && <SwipeHint isArchiveTab={activeFilter === "archived"} />}
 
       <ScrollView
         contentContainerStyle={{ flexGrow: 1 }}

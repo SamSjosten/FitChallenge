@@ -100,9 +100,7 @@ describe("SignupScreen Integration", () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText(
-            "Must be 8+ characters with uppercase, lowercase, and number",
-          ),
+          screen.getByText("Must be 8+ characters with uppercase, lowercase, and number"),
         ).toBeTruthy();
       });
     });
@@ -130,9 +128,7 @@ describe("SignupScreen Integration", () => {
       await waitFor(() => {
         expect(screen.getByPlaceholderText("yourname")).toBeTruthy();
         expect(screen.getByPlaceholderText("your@email.com")).toBeTruthy();
-        expect(
-          screen.getByPlaceholderText("8+ chars, upper, lower, number"),
-        ).toBeTruthy();
+        expect(screen.getByPlaceholderText("8+ chars, upper, lower, number")).toBeTruthy();
       });
     });
   });

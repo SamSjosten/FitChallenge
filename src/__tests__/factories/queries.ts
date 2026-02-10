@@ -80,10 +80,7 @@ export function findButtonByText(
  * Count elements matching text
  * Useful for assertions like "should show 3 challenge cards"
  */
-export function countByText(
-  renderResult: RenderAPI,
-  text: string | RegExp,
-): number {
+export function countByText(renderResult: RenderAPI, text: string | RegExp): number {
   try {
     return renderResult.getAllByText(text).length;
   } catch {

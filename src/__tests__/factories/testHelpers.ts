@@ -146,14 +146,12 @@ export function setupHomeScreen(
   const profile = setupAuthenticatedUser({ current_streak: userStreak });
 
   // Set up active challenges
-  const activeChallenges = Array.from(
-    { length: activeChallengesCount },
-    (_, i) =>
-      createMockChallenge({
-        id: `active-${i + 1}`,
-        title: `Active Challenge ${i + 1}`,
-        my_rank: i + 1,
-      }),
+  const activeChallenges = Array.from({ length: activeChallengesCount }, (_, i) =>
+    createMockChallenge({
+      id: `active-${i + 1}`,
+      title: `Active Challenge ${i + 1}`,
+      my_rank: i + 1,
+    }),
   );
   mockChallengesState.activeChallenges.data = activeChallenges;
   mockChallengesState.activeChallenges.isLoading = false;
@@ -168,14 +166,12 @@ export function setupHomeScreen(
   mockChallengesState.pendingInvites.isLoading = false;
 
   // Set up completed challenges
-  const completedChallenges = Array.from(
-    { length: completedChallengesCount },
-    (_, i) =>
-      createMockChallenge({
-        id: `completed-${i + 1}`,
-        title: `Completed Challenge ${i + 1}`,
-        status: "completed",
-      }),
+  const completedChallenges = Array.from({ length: completedChallengesCount }, (_, i) =>
+    createMockChallenge({
+      id: `completed-${i + 1}`,
+      title: `Completed Challenge ${i + 1}`,
+      status: "completed",
+    }),
   );
   mockChallengesState.completedChallenges.data = completedChallenges;
   mockChallengesState.completedChallenges.isLoading = false;
@@ -247,9 +243,7 @@ export function setupMutationFailure(
   >,
   errorMessage: string = "Mutation failed",
 ): void {
-  mockChallengesState[mutation].mutateAsync.mockRejectedValue(
-    new Error(errorMessage),
-  );
+  mockChallengesState[mutation].mutateAsync.mockRejectedValue(new Error(errorMessage));
 }
 
 /**

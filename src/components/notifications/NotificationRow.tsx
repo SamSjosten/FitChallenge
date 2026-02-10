@@ -9,14 +9,7 @@
 // - Pure gesture logic extracted to utils/gestureUtils.ts for testability
 
 import React, { useRef, useEffect, useCallback } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Dimensions,
-  PixelRatio,
-} from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions, PixelRatio } from "react-native";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -206,10 +199,7 @@ export function NotificationRow({
       translateX.value = clampTranslation(event.translationX);
 
       // Trigger haptic when crossing threshold (once per gesture)
-      if (
-        shouldDismiss(event.translationX, SWIPE_THRESHOLD) &&
-        !hapticTriggered.value
-      ) {
+      if (shouldDismiss(event.translationX, SWIPE_THRESHOLD) && !hapticTriggered.value) {
         hapticTriggered.value = true;
         runOnJS(fireHaptic)();
       }
@@ -217,11 +207,7 @@ export function NotificationRow({
     .onEnd((event) => {
       "worklet";
       // Use exported pure function for dismiss decision
-      const result = calculateFinalPosition(
-        event.translationX,
-        SWIPE_THRESHOLD,
-        SCREEN_WIDTH,
-      );
+      const result = calculateFinalPosition(event.translationX, SWIPE_THRESHOLD, SCREEN_WIDTH);
 
       if (result.shouldDismiss) {
         // Animate off screen then call dismiss
@@ -267,20 +253,14 @@ export function NotificationRow({
   return (
     <Animated.View style={[styles.container, containerStyle]}>
       {/* Action background - reveals as user swipes */}
-      <Animated.View
-        style={[styles.actionBackground, { backgroundColor }, backgroundStyle]}
-      >
+      <Animated.View style={[styles.actionBackground, { backgroundColor }, backgroundStyle]}>
         <ArchiveBoxIcon size={24} color="#FFFFFF" />
       </Animated.View>
 
       {/* Notification content - swipeable */}
       <GestureDetector gesture={panGesture}>
         <Animated.View
-          style={[
-            styles.contentContainer,
-            { backgroundColor: colors.surface },
-            contentStyle,
-          ]}
+          style={[styles.contentContainer, { backgroundColor: colors.surface }, contentStyle]}
         >
           <TouchableOpacity
             onPress={onPress}
@@ -298,17 +278,12 @@ export function NotificationRow({
               style={[
                 styles.iconContainer,
                 {
-                  backgroundColor: getNotificationIconBg(
-                    notification.type as NotificationType,
-                  ),
+                  backgroundColor: getNotificationIconBg(notification.type as NotificationType),
                   borderRadius: radius.md,
                 },
               ]}
             >
-              {getNotificationIcon(
-                notification.type as NotificationType,
-                isRead,
-              )}
+              {getNotificationIcon(notification.type as NotificationType, isRead)}
             </View>
 
             {/* Text content */}
@@ -325,10 +300,7 @@ export function NotificationRow({
               >
                 {notification.title}
               </Text>
-              <Text
-                style={[styles.body, { color: colors.textSecondary }]}
-                numberOfLines={2}
-              >
+              <Text style={[styles.body, { color: colors.textSecondary }]} numberOfLines={2}>
                 {notification.body}
               </Text>
             </View>
@@ -339,12 +311,7 @@ export function NotificationRow({
                 {formatTimeAgo(notification.created_at)}
               </Text>
               {!isRead && (
-                <View
-                  style={[
-                    styles.unreadDot,
-                    { backgroundColor: colors.primary.main },
-                  ]}
-                />
+                <View style={[styles.unreadDot, { backgroundColor: colors.primary.main }]} />
               )}
             </View>
           </TouchableOpacity>
@@ -363,10 +330,7 @@ export interface NotificationRowCompactProps {
   onPress?: () => void;
 }
 
-export function NotificationRowCompact({
-  notification,
-  onPress,
-}: NotificationRowCompactProps) {
+export function NotificationRowCompact({ notification, onPress }: NotificationRowCompactProps) {
   const { colors, spacing, radius } = useAppTheme();
   const isRead = !!notification.read_at;
 
@@ -387,9 +351,7 @@ export function NotificationRowCompact({
         style={[
           styles.compactIcon,
           {
-            backgroundColor: getNotificationIconBg(
-              notification.type as NotificationType,
-            ),
+            backgroundColor: getNotificationIconBg(notification.type as NotificationType),
             borderRadius: radius.sm,
           },
         ]}
@@ -409,10 +371,7 @@ export function NotificationRowCompact({
         >
           {notification.title}
         </Text>
-        <Text
-          style={[styles.compactBody, { color: colors.textSecondary }]}
-          numberOfLines={1}
-        >
+        <Text style={[styles.compactBody, { color: colors.textSecondary }]} numberOfLines={1}>
           {notification.body}
         </Text>
       </View>

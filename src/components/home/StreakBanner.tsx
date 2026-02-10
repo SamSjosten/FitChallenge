@@ -31,11 +31,7 @@ export interface StreakBannerProps {
   showUndoToast?: (onUndo: () => void) => void;
 }
 
-export function StreakBanner({
-  streak,
-  onDismiss,
-  showUndoToast,
-}: StreakBannerProps) {
+export function StreakBanner({ streak, onDismiss, showUndoToast }: StreakBannerProps) {
   const { colors, spacing, radius } = useAppTheme();
   const [isVisible, setIsVisible] = useState(true);
   const [isDismissedToday, setIsDismissedToday] = useState(false);
@@ -88,19 +84,13 @@ export function StreakBanner({
     if (!isVisible || isDismissedToday) return;
 
     flameScale.value = withRepeat(
-      withSequence(
-        withTiming(1.15, { duration: 1000 }),
-        withTiming(1, { duration: 1000 }),
-      ),
+      withSequence(withTiming(1.15, { duration: 1000 }), withTiming(1, { duration: 1000 })),
       -1, // infinite
       false,
     );
 
     flameRotation.value = withRepeat(
-      withSequence(
-        withTiming(5, { duration: 1000 }),
-        withTiming(0, { duration: 1000 }),
-      ),
+      withSequence(withTiming(5, { duration: 1000 }), withTiming(0, { duration: 1000 })),
       -1,
       false,
     );
@@ -168,22 +158,15 @@ export function StreakBanner({
     .failOffsetY([-25, 25]) // Fail if vertical exceeds 25px (let scroll take over)
     .onUpdate((event) => {
       translateX.value = event.translationX;
-      opacity.value = Math.max(
-        0,
-        1 - Math.abs(event.translationX) / (SCREEN_WIDTH * 0.5),
-      );
+      opacity.value = Math.max(0, 1 - Math.abs(event.translationX) / (SCREEN_WIDTH * 0.5));
     })
     .onEnd((event) => {
       if (Math.abs(event.translationX) > SWIPE_THRESHOLD) {
         // Animate off screen
         const direction = event.translationX > 0 ? 1 : -1;
-        translateX.value = withTiming(
-          direction * SCREEN_WIDTH,
-          { duration: 200 },
-          () => {
-            runOnJS(handleDismiss)();
-          },
-        );
+        translateX.value = withTiming(direction * SCREEN_WIDTH, { duration: 200 }, () => {
+          runOnJS(handleDismiss)();
+        });
         opacity.value = withTiming(0, { duration: 200 });
       } else {
         // Spring back
@@ -199,10 +182,7 @@ export function StreakBanner({
   }));
 
   const flameStyle = useAnimatedStyle(() => ({
-    transform: [
-      { scale: flameScale.value },
-      { rotate: `${flameRotation.value}deg` },
-    ],
+    transform: [{ scale: flameScale.value }, { rotate: `${flameRotation.value}deg` }],
   }));
 
   // Shimmer overlay style - diagonal gradient that sweeps across
@@ -256,9 +236,7 @@ export function StreakBanner({
             {/* Text Content */}
             <View style={styles.textContainer}>
               <Text style={styles.streakText}>{streak} Day Streak</Text>
-              <Text style={styles.subtitleText}>
-                Keep it going! Log activity today.
-              </Text>
+              <Text style={styles.subtitleText}>Keep it going! Log activity today.</Text>
             </View>
           </View>
 

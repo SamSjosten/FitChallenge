@@ -24,19 +24,13 @@ export function generateClientEventId(): string {
 
   // Option 2: Web Crypto API (browsers, Node.js 19+)
   // Fallback for web builds or test environments
-  if (
-    typeof crypto !== "undefined" &&
-    typeof crypto.randomUUID === "function"
-  ) {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
     return crypto.randomUUID();
   }
 
   // Option 3: crypto.getRandomValues fallback
   // For older environments with partial Web Crypto support
-  if (
-    typeof crypto !== "undefined" &&
-    typeof crypto.getRandomValues === "function"
-  ) {
+  if (typeof crypto !== "undefined" && typeof crypto.getRandomValues === "function") {
     const bytes = new Uint8Array(16);
     crypto.getRandomValues(bytes);
 
@@ -51,7 +45,7 @@ export function generateClientEventId(): string {
 
     return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(
       12,
-      16
+      16,
     )}-${hex.slice(16, 20)}-${hex.slice(20)}`;
   }
 
@@ -59,6 +53,6 @@ export function generateClientEventId(): string {
   throw new Error(
     "No secure random source available. " +
       "Ensure expo-crypto is installed for React Native, " +
-      "or run in an environment with Web Crypto API support."
+      "or run in an environment with Web Crypto API support.",
   );
 }

@@ -48,7 +48,7 @@ describe("Friends RLS Integration Tests", () => {
       .from("friends")
       .delete()
       .or(
-        `and(requested_by.eq.${user1.id},requested_to.eq.${user2.id}),and(requested_by.eq.${user2.id},requested_to.eq.${user1.id})`
+        `and(requested_by.eq.${user1.id},requested_to.eq.${user2.id}),and(requested_by.eq.${user2.id},requested_to.eq.${user1.id})`,
       );
   });
 
@@ -149,13 +149,11 @@ describe("Friends RLS Integration Tests", () => {
       friendshipId = first?.id ?? null;
 
       // User2 tries to send request to user1 (reverse direction)
-      const { error: reverseError } = await user2.client
-        .from("friends")
-        .insert({
-          requested_by: user2.id,
-          requested_to: user1.id,
-          status: "pending",
-        });
+      const { error: reverseError } = await user2.client.from("friends").insert({
+        requested_by: user2.id,
+        requested_to: user1.id,
+        status: "pending",
+      });
 
       expect(reverseError).not.toBeNull();
       // Should fail due to friends_unique_pair_bidirectional index
@@ -190,11 +188,7 @@ describe("Friends RLS Integration Tests", () => {
       expect(error).toBeNull();
 
       // Verify the update
-      const { data } = await user2.client
-        .from("friends")
-        .select()
-        .eq("id", id)
-        .single();
+      const { data } = await user2.client.from("friends").select().eq("id", id).single();
 
       expect(data?.status).toBe("accepted");
     });
@@ -210,11 +204,7 @@ describe("Friends RLS Integration Tests", () => {
 
       // RLS should reject this - only recipient can update
       // The update should either fail or have no effect
-      const { data } = await user1.client
-        .from("friends")
-        .select()
-        .eq("id", id)
-        .single();
+      const { data } = await user1.client.from("friends").select().eq("id", id).single();
 
       // Status should still be pending (update had no effect due to RLS)
       expect(data?.status).toBe("pending");
@@ -230,11 +220,7 @@ describe("Friends RLS Integration Tests", () => {
 
       expect(error).toBeNull();
 
-      const { data } = await user2.client
-        .from("friends")
-        .select()
-        .eq("id", id)
-        .single();
+      const { data } = await user2.client.from("friends").select().eq("id", id).single();
 
       expect(data?.status).toBe("blocked");
     });
@@ -259,28 +245,18 @@ describe("Friends RLS Integration Tests", () => {
       const id = requireId(friendshipId);
 
       // Accept it
-      await user2.client
-        .from("friends")
-        .update({ status: "accepted" })
-        .eq("id", id);
+      await user2.client.from("friends").update({ status: "accepted" }).eq("id", id);
     });
 
     it("should allow requester to delete friendship", async () => {
       const id = requireId(friendshipId);
 
-      const { error } = await user1.client
-        .from("friends")
-        .delete()
-        .eq("id", id);
+      const { error } = await user1.client.from("friends").delete().eq("id", id);
 
       expect(error).toBeNull();
 
       // Verify deleted
-      const { data } = await user1.client
-        .from("friends")
-        .select()
-        .eq("id", id)
-        .maybeSingle();
+      const { data } = await user1.client.from("friends").select().eq("id", id).maybeSingle();
 
       expect(data).toBeNull();
       friendshipId = null; // Prevent afterEach cleanup
@@ -289,19 +265,12 @@ describe("Friends RLS Integration Tests", () => {
     it("should allow recipient to delete friendship", async () => {
       const id = requireId(friendshipId);
 
-      const { error } = await user2.client
-        .from("friends")
-        .delete()
-        .eq("id", id);
+      const { error } = await user2.client.from("friends").delete().eq("id", id);
 
       expect(error).toBeNull();
 
       // Verify deleted
-      const { data } = await user2.client
-        .from("friends")
-        .select()
-        .eq("id", id)
-        .maybeSingle();
+      const { data } = await user2.client.from("friends").select().eq("id", id).maybeSingle();
 
       expect(data).toBeNull();
       friendshipId = null;
@@ -325,18 +294,12 @@ describe("Friends RLS Integration Tests", () => {
       const id = requireId(friendshipId);
 
       // User1 should see it
-      const { data: user1Friends } = await user1.client
-        .from("friends")
-        .select()
-        .eq("id", id);
+      const { data: user1Friends } = await user1.client.from("friends").select().eq("id", id);
 
       expect(user1Friends?.length).toBe(1);
 
       // User2 should see it
-      const { data: user2Friends } = await user2.client
-        .from("friends")
-        .select()
-        .eq("id", id);
+      const { data: user2Friends } = await user2.client.from("friends").select().eq("id", id);
 
       expect(user2Friends?.length).toBe(1);
     });

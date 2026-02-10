@@ -14,8 +14,7 @@
 // Jest 30 has strict scope checking that conflicts with expo's lazy loading.
 
 if (typeof globalThis.structuredClone === "undefined") {
-  (globalThis as any).structuredClone = <T>(obj: T): T =>
-    JSON.parse(JSON.stringify(obj));
+  (globalThis as any).structuredClone = <T>(obj: T): T => JSON.parse(JSON.stringify(obj));
 }
 
 if (typeof (globalThis as any).__ExpoImportMetaRegistry === "undefined") {
@@ -151,9 +150,7 @@ jest.mock("expo-crypto", () => ({
   randomUUID: jest.fn(() => "00000000-0000-0000-0000-000000000000"),
   digestStringAsync: jest
     .fn()
-    .mockResolvedValue(
-      "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    ),
+    .mockResolvedValue("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"),
   CryptoDigestAlgorithm: {
     SHA256: "SHA-256",
   },
@@ -175,8 +172,7 @@ import {
 } from "./mockSupabaseClient";
 
 // Create the mock client instance - this is THE source of truth
-export const mockSupabaseClient: MockSupabaseClient =
-  createMockSupabaseClient();
+export const mockSupabaseClient: MockSupabaseClient = createMockSupabaseClient();
 
 // Store reference in a mutable container that the hoisted mock can access
 const mockClientRef = { current: mockSupabaseClient };
@@ -203,9 +199,7 @@ jest.mock("@/lib/supabase", () => {
       const { data } = await client.auth.getUser();
       return data.user?.id ?? null;
     },
-    withAuth: async <T>(
-      operation: (userId: string) => Promise<T>,
-    ): Promise<T> => {
+    withAuth: async <T>(operation: (userId: string) => Promise<T>): Promise<T> => {
       const client = getMockClient();
       const { data } = await client.auth.getUser();
       if (!data.user) throw new Error("Authentication required");
@@ -273,13 +267,8 @@ jest.mock("react-native-safe-area-context", () => {
 
   return {
     SafeAreaProvider: ({ children }: { children: React.ReactNode }) => children,
-    SafeAreaView: ({
-      children,
-      style,
-    }: {
-      children: React.ReactNode;
-      style?: any;
-    }) => React.createElement(View, { style }, children),
+    SafeAreaView: ({ children, style }: { children: React.ReactNode; style?: any }) =>
+      React.createElement(View, { style }, children),
     useSafeAreaInsets: () => ({
       top: 44,
       bottom: 34,
@@ -362,15 +351,7 @@ jest.mock("expo-router", () => {
         callback();
       }, []);
     },
-    Link: ({
-      children,
-      href,
-      asChild,
-    }: {
-      children: any;
-      href: string;
-      asChild?: boolean;
-    }) => {
+    Link: ({ children, href, asChild }: { children: any; href: string; asChild?: boolean }) => {
       if (asChild) {
         return children;
       }
@@ -431,11 +412,7 @@ export function TestWrapper({ children, queryClient }: TestWrapperProps) {
   return React.createElement(
     QueryClientProvider,
     { client },
-    React.createElement(
-      ThemeProvider,
-      null,
-      React.createElement(AuthProvider, null, children),
-    ),
+    React.createElement(ThemeProvider, null, React.createElement(AuthProvider, null, children)),
   );
 }
 

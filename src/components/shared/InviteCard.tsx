@@ -5,12 +5,7 @@
 import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { useAppTheme } from "@/providers/ThemeProvider";
-import {
-  CheckIcon,
-  XMarkIcon,
-  UserIcon,
-  ChevronRightIcon,
-} from "react-native-heroicons/outline";
+import { CheckIcon, XMarkIcon, UserIcon, ChevronRightIcon } from "react-native-heroicons/outline";
 import type { PendingInvite } from "@/services/challenges";
 
 export interface InviteCardProps {
@@ -30,8 +25,7 @@ export function InviteCard({
 }: InviteCardProps) {
   const { colors, spacing, radius } = useAppTheme();
 
-  const creatorName =
-    invite.creator?.display_name || invite.creator?.username || "Someone";
+  const creatorName = invite.creator?.display_name || invite.creator?.username || "Someone";
 
   const formatChallengeType = (type: string) => {
     return type.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
@@ -48,10 +42,7 @@ export function InviteCard({
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerContent}>
-          <Text
-            style={[styles.title, { color: colors.textPrimary }]}
-            numberOfLines={1}
-          >
+          <Text style={[styles.title, { color: colors.textPrimary }]} numberOfLines={1}>
             {invite.challenge.title}
           </Text>
           <View style={styles.metaRow}>
@@ -67,9 +58,7 @@ export function InviteCard({
               ]}
             >
               <UserIcon size={12} color={colors.textSecondary} />
-              <Text
-                style={[styles.creatorText, { color: colors.textSecondary }]}
-              >
+              <Text style={[styles.creatorText, { color: colors.textSecondary }]}>
                 {creatorName}
               </Text>
             </View>
@@ -97,12 +86,9 @@ export function InviteCard({
 
       {/* Goal info */}
       <View style={[styles.goalRow, { marginTop: spacing.sm }]}>
-        <Text style={[styles.goalLabel, { color: colors.textSecondary }]}>
-          Goal:
-        </Text>
+        <Text style={[styles.goalLabel, { color: colors.textSecondary }]}>Goal:</Text>
         <Text style={[styles.goalValue, { color: colors.textPrimary }]}>
-          {invite.challenge.goal_value.toLocaleString()}{" "}
-          {invite.challenge.goal_unit}
+          {invite.challenge.goal_value.toLocaleString()} {invite.challenge.goal_unit}
         </Text>
         {onPress && (
           <TouchableOpacity
@@ -110,9 +96,7 @@ export function InviteCard({
             onPress={handleCardPress}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            <Text
-              style={[styles.viewDetailsText, { color: colors.primary.main }]}
-            >
+            <Text style={[styles.viewDetailsText, { color: colors.primary.main }]}>
               View details
             </Text>
             <ChevronRightIcon size={14} color={colors.primary.main} />
@@ -138,9 +122,7 @@ export function InviteCard({
       {cardContent}
 
       {/* Actions */}
-      <View
-        style={[styles.actions, { marginTop: spacing.md, gap: spacing.sm }]}
-      >
+      <View style={[styles.actions, { marginTop: spacing.md, gap: spacing.sm }]}>
         <TouchableOpacity
           style={[
             styles.actionButton,
@@ -157,9 +139,7 @@ export function InviteCard({
           activeOpacity={0.7}
         >
           <XMarkIcon size={18} color={colors.textSecondary} />
-          <Text style={[styles.declineText, { color: colors.textSecondary }]}>
-            Decline
-          </Text>
+          <Text style={[styles.declineText, { color: colors.textSecondary }]}>Decline</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -192,8 +172,7 @@ export interface InviteRowProps {
 export function InviteRow({ invite, onPress }: InviteRowProps) {
   const { colors, spacing, radius } = useAppTheme();
 
-  const creatorName =
-    invite.creator?.display_name || invite.creator?.username || "Someone";
+  const creatorName = invite.creator?.display_name || invite.creator?.username || "Someone";
 
   return (
     <TouchableOpacity
@@ -211,10 +190,7 @@ export function InviteRow({ invite, onPress }: InviteRowProps) {
       activeOpacity={0.7}
     >
       <View style={styles.rowContent}>
-        <Text
-          style={[styles.rowTitle, { color: colors.textPrimary }]}
-          numberOfLines={1}
-        >
+        <Text style={[styles.rowTitle, { color: colors.textPrimary }]} numberOfLines={1}>
           {invite.challenge.title}
         </Text>
         <Text style={[styles.rowMeta, { color: colors.energy.dark }]}>

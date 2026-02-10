@@ -49,9 +49,7 @@ interface Notification {
   push_sent_at: string | null;
 }
 
-const createMockNotification = (
-  overrides: Partial<Notification> = {},
-): Notification => ({
+const createMockNotification = (overrides: Partial<Notification> = {}): Notification => ({
   id: `notif-${Math.random().toString(36).slice(2)}`,
   user_id: "user-1",
   type: "challenge_invite_received",
@@ -98,30 +96,23 @@ describe("Notifications Optimistic Update Logic", () => {
       const previousNotifications = queryClient.getQueryData<Notification[]>(
         notificationsKeys.list(),
       );
-      const previousUnreadCount = queryClient.getQueryData<number>(
-        notificationsKeys.unreadCount(),
-      );
+      const previousUnreadCount = queryClient.getQueryData<number>(notificationsKeys.unreadCount());
 
       // Check if notification was actually unread
-      const wasUnread = previousNotifications?.some(
-        (n) => n.id === "notif-1" && !n.read_at,
-      );
+      const wasUnread = previousNotifications?.some((n) => n.id === "notif-1" && !n.read_at);
 
       // Apply optimistic update
       queryClient.setQueryData<Notification[]>(
         notificationsKeys.list(),
         (old) =>
           old?.map((n) =>
-            n.id === "notif-1"
-              ? { ...n, read_at: n.read_at ?? new Date().toISOString() }
-              : n,
+            n.id === "notif-1" ? { ...n, read_at: n.read_at ?? new Date().toISOString() } : n,
           ) ?? [],
       );
 
       if (wasUnread) {
-        queryClient.setQueryData<number>(
-          notificationsKeys.unreadCount(),
-          (old) => Math.max(0, (old ?? 0) - 1),
+        queryClient.setQueryData<number>(notificationsKeys.unreadCount(), (old) =>
+          Math.max(0, (old ?? 0) - 1),
         );
       }
 
@@ -129,9 +120,7 @@ describe("Notifications Optimistic Update Logic", () => {
       const updatedNotifications = queryClient.getQueryData<Notification[]>(
         notificationsKeys.list(),
       );
-      const updatedUnreadCount = queryClient.getQueryData<number>(
-        notificationsKeys.unreadCount(),
-      );
+      const updatedUnreadCount = queryClient.getQueryData<number>(notificationsKeys.unreadCount());
 
       expect(updatedNotifications?.[0].read_at).not.toBeNull();
       expect(updatedUnreadCount).toBe(0);
@@ -156,34 +145,27 @@ describe("Notifications Optimistic Update Logic", () => {
       );
 
       // Check if notification was actually unread
-      const wasUnread = previousNotifications?.some(
-        (n) => n.id === "notif-1" && !n.read_at,
-      );
+      const wasUnread = previousNotifications?.some((n) => n.id === "notif-1" && !n.read_at);
 
       // Optimistic update preserves existing read_at
       queryClient.setQueryData<Notification[]>(
         notificationsKeys.list(),
         (old) =>
           old?.map((n) =>
-            n.id === "notif-1"
-              ? { ...n, read_at: n.read_at ?? new Date().toISOString() }
-              : n,
+            n.id === "notif-1" ? { ...n, read_at: n.read_at ?? new Date().toISOString() } : n,
           ) ?? [],
       );
 
       // Only decrement if was actually unread
       if (wasUnread) {
-        queryClient.setQueryData<number>(
-          notificationsKeys.unreadCount(),
-          (old) => Math.max(0, (old ?? 0) - 1),
+        queryClient.setQueryData<number>(notificationsKeys.unreadCount(), (old) =>
+          Math.max(0, (old ?? 0) - 1),
         );
       }
 
       // Assert: Count stays at 0, not -1
       expect(wasUnread).toBe(false);
-      const updatedUnreadCount = queryClient.getQueryData<number>(
-        notificationsKeys.unreadCount(),
-      );
+      const updatedUnreadCount = queryClient.getQueryData<number>(notificationsKeys.unreadCount());
       expect(updatedUnreadCount).toBe(0);
 
       // read_at is preserved, not overwritten
@@ -206,19 +188,14 @@ describe("Notifications Optimistic Update Logic", () => {
       const previousNotifications = queryClient.getQueryData<Notification[]>(
         notificationsKeys.list(),
       );
-      const previousUnreadCount = queryClient.getQueryData<number>(
-        notificationsKeys.unreadCount(),
-      );
+      const previousUnreadCount = queryClient.getQueryData<number>(notificationsKeys.unreadCount());
 
       // Apply optimistic update
       queryClient.setQueryData<Notification[]>(
         notificationsKeys.list(),
         (old) =>
-          old?.map((n) =>
-            n.id === "notif-1"
-              ? { ...n, read_at: new Date().toISOString() }
-              : n,
-          ) ?? [],
+          old?.map((n) => (n.id === "notif-1" ? { ...n, read_at: new Date().toISOString() } : n)) ??
+          [],
       );
       queryClient.setQueryData<number>(notificationsKeys.unreadCount(), (old) =>
         Math.max(0, (old ?? 0) - 1),
@@ -226,16 +203,12 @@ describe("Notifications Optimistic Update Logic", () => {
 
       // Verify optimistic state
       expect(
-        queryClient.getQueryData<Notification[]>(notificationsKeys.list())?.[0]
-          .read_at,
+        queryClient.getQueryData<Notification[]>(notificationsKeys.list())?.[0].read_at,
       ).not.toBeNull();
 
       // Action: Simulate error - rollback (simulating onError)
       queryClient.setQueryData(notificationsKeys.list(), previousNotifications);
-      queryClient.setQueryData(
-        notificationsKeys.unreadCount(),
-        previousUnreadCount,
-      );
+      queryClient.setQueryData(notificationsKeys.unreadCount(), previousUnreadCount);
 
       // Assert: Cache is rolled back to original state
       const rolledBackNotifications = queryClient.getQueryData<Notification[]>(
@@ -268,8 +241,7 @@ describe("Notifications Optimistic Update Logic", () => {
       const now = new Date().toISOString();
       queryClient.setQueryData<Notification[]>(
         notificationsKeys.list(),
-        (old) =>
-          old?.map((n) => (n.read_at ? n : { ...n, read_at: now })) ?? [],
+        (old) => old?.map((n) => (n.read_at ? n : { ...n, read_at: now })) ?? [],
       );
       queryClient.setQueryData<number>(notificationsKeys.unreadCount(), 0);
 
@@ -277,9 +249,7 @@ describe("Notifications Optimistic Update Logic", () => {
       const updatedNotifications = queryClient.getQueryData<Notification[]>(
         notificationsKeys.list(),
       );
-      const updatedUnreadCount = queryClient.getQueryData<number>(
-        notificationsKeys.unreadCount(),
-      );
+      const updatedUnreadCount = queryClient.getQueryData<number>(notificationsKeys.unreadCount());
 
       expect(updatedNotifications?.every((n) => n.read_at !== null)).toBe(true);
       expect(updatedUnreadCount).toBe(0);
@@ -301,9 +271,7 @@ describe("Notifications Optimistic Update Logic", () => {
       const previousNotifications = queryClient.getQueryData<Notification[]>(
         notificationsKeys.list(),
       );
-      const previousUnreadCount = queryClient.getQueryData<number>(
-        notificationsKeys.unreadCount(),
-      );
+      const previousUnreadCount = queryClient.getQueryData<number>(notificationsKeys.unreadCount());
 
       // Apply optimistic update
       const now = new Date().toISOString();
@@ -315,10 +283,7 @@ describe("Notifications Optimistic Update Logic", () => {
 
       // Simulate error - rollback
       queryClient.setQueryData(notificationsKeys.list(), previousNotifications);
-      queryClient.setQueryData(
-        notificationsKeys.unreadCount(),
-        previousUnreadCount,
-      );
+      queryClient.setQueryData(notificationsKeys.unreadCount(), previousUnreadCount);
 
       // Assert: All notifications rolled back
       const rolledBackNotifications = queryClient.getQueryData<Notification[]>(
@@ -328,9 +293,7 @@ describe("Notifications Optimistic Update Logic", () => {
         notificationsKeys.unreadCount(),
       );
 
-      expect(rolledBackNotifications?.every((n) => n.read_at === null)).toBe(
-        true,
-      );
+      expect(rolledBackNotifications?.every((n) => n.read_at === null)).toBe(true);
       expect(rolledBackUnreadCount).toBe(2);
     });
   });
@@ -353,16 +316,12 @@ describe("Notifications Optimistic Update Logic", () => {
       queryClient.setQueryData<Notification[]>(
         notificationsKeys.list(),
         (old) =>
-          old?.map((n) =>
-            n.id === "notif-1"
-              ? { ...n, read_at: new Date().toISOString() }
-              : n,
-          ) ?? [],
+          old?.map((n) => (n.id === "notif-1" ? { ...n, read_at: new Date().toISOString() } : n)) ??
+          [],
       );
       if (wasUnread1) {
-        queryClient.setQueryData<number>(
-          notificationsKeys.unreadCount(),
-          (old) => Math.max(0, (old ?? 0) - 1),
+        queryClient.setQueryData<number>(notificationsKeys.unreadCount(), (old) =>
+          Math.max(0, (old ?? 0) - 1),
         );
       }
 
@@ -374,26 +333,18 @@ describe("Notifications Optimistic Update Logic", () => {
       queryClient.setQueryData<Notification[]>(
         notificationsKeys.list(),
         (old) =>
-          old?.map((n) =>
-            n.id === "notif-2"
-              ? { ...n, read_at: new Date().toISOString() }
-              : n,
-          ) ?? [],
+          old?.map((n) => (n.id === "notif-2" ? { ...n, read_at: new Date().toISOString() } : n)) ??
+          [],
       );
       if (wasUnread2) {
-        queryClient.setQueryData<number>(
-          notificationsKeys.unreadCount(),
-          (old) => Math.max(0, (old ?? 0) - 1),
+        queryClient.setQueryData<number>(notificationsKeys.unreadCount(), (old) =>
+          Math.max(0, (old ?? 0) - 1),
         );
       }
 
       // Assert: Both mutations correctly applied, count is 0
-      const finalNotifications = queryClient.getQueryData<Notification[]>(
-        notificationsKeys.list(),
-      );
-      const finalUnreadCount = queryClient.getQueryData<number>(
-        notificationsKeys.unreadCount(),
-      );
+      const finalNotifications = queryClient.getQueryData<Notification[]>(notificationsKeys.list());
+      const finalUnreadCount = queryClient.getQueryData<number>(notificationsKeys.unreadCount());
 
       expect(finalNotifications?.every((n) => n.read_at !== null)).toBe(true);
       expect(finalUnreadCount).toBe(0);
@@ -428,14 +379,12 @@ describe("Notifications Optimistic Update Logic", () => {
       queryClient.setQueryData<Notification[]>(
         notificationsKeys.list(),
         (old) =>
-          old?.map((n) =>
-            n.id === "notif-1" ? { ...n, read_at: "2024-01-01T10:00:00Z" } : n,
-          ) ?? [],
+          old?.map((n) => (n.id === "notif-1" ? { ...n, read_at: "2024-01-01T10:00:00Z" } : n)) ??
+          [],
       );
       if (wasUnreadA) {
-        queryClient.setQueryData<number>(
-          notificationsKeys.unreadCount(),
-          (old) => Math.max(0, (old ?? 0) - 1),
+        queryClient.setQueryData<number>(notificationsKeys.unreadCount(), (old) =>
+          Math.max(0, (old ?? 0) - 1),
         );
       }
 
@@ -448,21 +397,17 @@ describe("Notifications Optimistic Update Logic", () => {
       queryClient.setQueryData<Notification[]>(
         notificationsKeys.list(),
         (old) =>
-          old?.map((n) =>
-            n.id === "notif-2" ? { ...n, read_at: "2024-01-01T10:00:01Z" } : n,
-          ) ?? [],
+          old?.map((n) => (n.id === "notif-2" ? { ...n, read_at: "2024-01-01T10:00:01Z" } : n)) ??
+          [],
       );
       if (wasUnreadB) {
-        queryClient.setQueryData<number>(
-          notificationsKeys.unreadCount(),
-          (old) => Math.max(0, (old ?? 0) - 1),
+        queryClient.setQueryData<number>(notificationsKeys.unreadCount(), (old) =>
+          Math.max(0, (old ?? 0) - 1),
         );
       }
 
       // Verify: Both notifications are now read, count is 0
-      expect(
-        queryClient.getQueryData<Notification[]>(notificationsKeys.list()),
-      ).toEqual(
+      expect(queryClient.getQueryData<Notification[]>(notificationsKeys.list())).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
             id: "notif-1",
@@ -474,16 +419,13 @@ describe("Notifications Optimistic Update Logic", () => {
           }),
         ]),
       );
-      expect(
-        queryClient.getQueryData<number>(notificationsKeys.unreadCount()),
-      ).toBe(0);
+      expect(queryClient.getQueryData<number>(notificationsKeys.unreadCount())).toBe(0);
 
       // Mutation A fails - SURGICAL ROLLBACK (restore only notif-1)
       if (notificationA) {
         queryClient.setQueryData<Notification[]>(
           notificationsKeys.list(),
-          (current) =>
-            current?.map((n) => (n.id === "notif-1" ? notificationA : n)) ?? [],
+          (current) => current?.map((n) => (n.id === "notif-1" ? notificationA : n)) ?? [],
         );
       }
       if (wasUnreadA) {
@@ -494,16 +436,10 @@ describe("Notifications Optimistic Update Logic", () => {
       }
 
       // Assert: notif-1 is rolled back to unread, notif-2 STAYS read
-      const finalNotifications = queryClient.getQueryData<Notification[]>(
-        notificationsKeys.list(),
-      );
-      const finalUnreadCount = queryClient.getQueryData<number>(
-        notificationsKeys.unreadCount(),
-      );
+      const finalNotifications = queryClient.getQueryData<Notification[]>(notificationsKeys.list());
+      const finalUnreadCount = queryClient.getQueryData<number>(notificationsKeys.unreadCount());
 
-      expect(
-        finalNotifications?.find((n) => n.id === "notif-1")?.read_at,
-      ).toBeNull();
+      expect(finalNotifications?.find((n) => n.id === "notif-1")?.read_at).toBeNull();
       expect(finalNotifications?.find((n) => n.id === "notif-2")?.read_at).toBe(
         "2024-01-01T10:00:01Z",
       );
@@ -528,22 +464,17 @@ describe("Notifications Optimistic Update Logic", () => {
         notificationsKeys.list(),
         (old) =>
           old?.map((n) =>
-            n.id === "notif-1"
-              ? { ...n, read_at: n.read_at ?? "2024-01-01T00:00:00Z" }
-              : n,
+            n.id === "notif-1" ? { ...n, read_at: n.read_at ?? "2024-01-01T00:00:00Z" } : n,
           ) ?? [],
       );
       if (wasUnread1) {
-        queryClient.setQueryData<number>(
-          notificationsKeys.unreadCount(),
-          (old) => Math.max(0, (old ?? 0) - 1),
+        queryClient.setQueryData<number>(notificationsKeys.unreadCount(), (old) =>
+          Math.max(0, (old ?? 0) - 1),
         );
       }
 
       expect(wasUnread1).toBe(true);
-      expect(
-        queryClient.getQueryData<number>(notificationsKeys.unreadCount()),
-      ).toBe(0);
+      expect(queryClient.getQueryData<number>(notificationsKeys.unreadCount())).toBe(0);
 
       // Second tap: same notification (double-tap)
       const wasUnread2 = queryClient
@@ -554,28 +485,21 @@ describe("Notifications Optimistic Update Logic", () => {
         notificationsKeys.list(),
         (old) =>
           old?.map((n) =>
-            n.id === "notif-1"
-              ? { ...n, read_at: n.read_at ?? new Date().toISOString() }
-              : n,
+            n.id === "notif-1" ? { ...n, read_at: n.read_at ?? new Date().toISOString() } : n,
           ) ?? [],
       );
       if (wasUnread2) {
-        queryClient.setQueryData<number>(
-          notificationsKeys.unreadCount(),
-          (old) => Math.max(0, (old ?? 0) - 1),
+        queryClient.setQueryData<number>(notificationsKeys.unreadCount(), (old) =>
+          Math.max(0, (old ?? 0) - 1),
         );
       }
 
       // Assert: wasUnread2 is false, count stays at 0 (not -1)
       expect(wasUnread2).toBe(false);
-      expect(
-        queryClient.getQueryData<number>(notificationsKeys.unreadCount()),
-      ).toBe(0);
+      expect(queryClient.getQueryData<number>(notificationsKeys.unreadCount())).toBe(0);
 
       // read_at is preserved from first tap
-      const finalNotifications = queryClient.getQueryData<Notification[]>(
-        notificationsKeys.list(),
-      );
+      const finalNotifications = queryClient.getQueryData<Notification[]>(notificationsKeys.list());
       expect(finalNotifications?.[0].read_at).toBe("2024-01-01T00:00:00Z");
     });
   });
@@ -605,19 +529,13 @@ describe("Notifications Optimistic Update Logic", () => {
       queryClient.setQueryData<Notification[]>(
         notificationsKeys.list(),
         (old) =>
-          old?.map((n) =>
-            n.id === "notif-1" ? { ...n, read_at: "2024-01-01T10:00:00Z" } : n,
-          ) ?? [],
+          old?.map((n) => (n.id === "notif-1" ? { ...n, read_at: "2024-01-01T10:00:00Z" } : n)) ??
+          [],
       );
-      queryClient.setQueryData<number>(
-        notificationsKeys.unreadCount(),
-        (old) => (old ?? 0) - 1,
-      );
+      queryClient.setQueryData<number>(notificationsKeys.unreadCount(), (old) => (old ?? 0) - 1);
 
       // Step 2: markAllAsRead (captures unread IDs at THIS moment)
-      const currentList = queryClient.getQueryData<Notification[]>(
-        notificationsKeys.list(),
-      );
+      const currentList = queryClient.getQueryData<Notification[]>(notificationsKeys.list());
       const unreadNotificationIds = new Set(
         currentList?.filter((n) => !n.read_at).map((n) => n.id) ?? [],
       );
@@ -631,10 +549,7 @@ describe("Notifications Optimistic Update Logic", () => {
       // Apply markAllAsRead optimistic update
       queryClient.setQueryData<Notification[]>(
         notificationsKeys.list(),
-        (old) =>
-          old?.map((n) =>
-            n.read_at ? n : { ...n, read_at: "2024-01-01T10:00:01Z" },
-          ) ?? [],
+        (old) => old?.map((n) => (n.read_at ? n : { ...n, read_at: "2024-01-01T10:00:01Z" })) ?? [],
       );
       queryClient.setQueryData<number>(notificationsKeys.unreadCount(), 0);
 
@@ -650,9 +565,8 @@ describe("Notifications Optimistic Update Logic", () => {
       queryClient.setQueryData<Notification[]>(
         notificationsKeys.list(),
         (current) =>
-          current?.map((n) =>
-            unreadNotificationIds.has(n.id) ? { ...n, read_at: null } : n,
-          ) ?? [],
+          current?.map((n) => (unreadNotificationIds.has(n.id) ? { ...n, read_at: null } : n)) ??
+          [],
       );
       queryClient.setQueryData<number>(
         notificationsKeys.unreadCount(),
@@ -660,22 +574,14 @@ describe("Notifications Optimistic Update Logic", () => {
       );
 
       // Assert: notif-1 stays read, notif-2 and notif-3 are unread
-      const finalNotifications = queryClient.getQueryData<Notification[]>(
-        notificationsKeys.list(),
-      );
-      const finalUnreadCount = queryClient.getQueryData<number>(
-        notificationsKeys.unreadCount(),
-      );
+      const finalNotifications = queryClient.getQueryData<Notification[]>(notificationsKeys.list());
+      const finalUnreadCount = queryClient.getQueryData<number>(notificationsKeys.unreadCount());
 
       expect(finalNotifications?.find((n) => n.id === "notif-1")?.read_at).toBe(
         "2024-01-01T10:00:00Z",
       );
-      expect(
-        finalNotifications?.find((n) => n.id === "notif-2")?.read_at,
-      ).toBeNull();
-      expect(
-        finalNotifications?.find((n) => n.id === "notif-3")?.read_at,
-      ).toBeNull();
+      expect(finalNotifications?.find((n) => n.id === "notif-2")?.read_at).toBeNull();
+      expect(finalNotifications?.find((n) => n.id === "notif-3")?.read_at).toBeNull();
       expect(finalUnreadCount).toBe(2);
     });
   });
@@ -716,9 +622,8 @@ describe("Notifications Optimistic Update Logic", () => {
       queryClient.setQueryData<Notification[]>(
         notificationsKeys.list(),
         (old) =>
-          old?.map((n) =>
-            n.id === "notif-1" ? { ...n, read_at: "2024-01-01T10:00:00Z" } : n,
-          ) ?? [],
+          old?.map((n) => (n.id === "notif-1" ? { ...n, read_at: "2024-01-01T10:00:00Z" } : n)) ??
+          [],
       );
       queryClient.setQueryData<number>(notificationsKeys.unreadCount(), (old) =>
         Math.max(0, (old ?? 0) - 1),
@@ -730,9 +635,7 @@ describe("Notifications Optimistic Update Logic", () => {
       const currentNotifications = queryClient.getQueryData<Notification[]>(
         notificationsKeys.list(),
       );
-      const currentUnreadCount = queryClient.getQueryData<number>(
-        notificationsKeys.unreadCount(),
-      );
+      const currentUnreadCount = queryClient.getQueryData<number>(notificationsKeys.unreadCount());
 
       // The optimistic update should still be in place
       expect(currentNotifications?.[0].read_at).toBe("2024-01-01T10:00:00Z");
@@ -748,9 +651,7 @@ describe("Notifications Optimistic Update Logic", () => {
       // Setup: Cache is undefined (never fetched)
       // This can happen if user navigates directly to notification action
       // without ever viewing the notifications list
-      expect(
-        queryClient.getQueryData(notificationsKeys.list()),
-      ).toBeUndefined();
+      expect(queryClient.getQueryData(notificationsKeys.list())).toBeUndefined();
 
       // Simulate: The hook's onMutate behavior when cache is undefined
       const currentNotifications = queryClient.getQueryData<Notification[]>(
@@ -761,9 +662,7 @@ describe("Notifications Optimistic Update Logic", () => {
       if (!currentNotifications) {
         // Don't do optimistic update - cache stays undefined
         // onSettled will refetch anyway
-        expect(
-          queryClient.getQueryData(notificationsKeys.list()),
-        ).toBeUndefined();
+        expect(queryClient.getQueryData(notificationsKeys.list())).toBeUndefined();
         return;
       }
 
@@ -773,9 +672,7 @@ describe("Notifications Optimistic Update Logic", () => {
 
     it("does not set cache to empty array when markAllAsRead with undefined cache", () => {
       // Setup: Cache is undefined
-      expect(
-        queryClient.getQueryData(notificationsKeys.list()),
-      ).toBeUndefined();
+      expect(queryClient.getQueryData(notificationsKeys.list())).toBeUndefined();
 
       // Simulate: The fix returns early when cache is undefined
       const currentNotifications = queryClient.getQueryData<Notification[]>(
@@ -794,9 +691,7 @@ describe("Notifications Optimistic Update Logic", () => {
         expect(context.previousUnreadCount).toBe(0);
 
         // Cache should still be undefined, not []
-        expect(
-          queryClient.getQueryData(notificationsKeys.list()),
-        ).toBeUndefined();
+        expect(queryClient.getQueryData(notificationsKeys.list())).toBeUndefined();
         return;
       }
 
@@ -821,12 +716,8 @@ describe("Notifications Optimistic Update Logic", () => {
       expect(currentNotifications).not.toBeUndefined();
 
       // Apply optimistic update (using the FIXED pattern - no ?? [])
-      queryClient.setQueryData<Notification[]>(
-        notificationsKeys.list(),
-        (old) =>
-          old?.map((n) =>
-            n.id === "notif-1" ? { ...n, read_at: "2024-01-01T10:00:00Z" } : n,
-          ),
+      queryClient.setQueryData<Notification[]>(notificationsKeys.list(), (old) =>
+        old?.map((n) => (n.id === "notif-1" ? { ...n, read_at: "2024-01-01T10:00:00Z" } : n)),
       );
       queryClient.setQueryData<number>(notificationsKeys.unreadCount(), (old) =>
         Math.max(0, (old ?? 0) - 1),
@@ -837,9 +728,7 @@ describe("Notifications Optimistic Update Logic", () => {
         notificationsKeys.list(),
       );
       expect(updatedNotifications?.[0].read_at).toBe("2024-01-01T10:00:00Z");
-      expect(
-        queryClient.getQueryData<number>(notificationsKeys.unreadCount()),
-      ).toBe(0);
+      expect(queryClient.getQueryData<number>(notificationsKeys.unreadCount())).toBe(0);
     });
   });
 });
@@ -859,18 +748,10 @@ describe("NotificationRow Gesture Behavior", () => {
 
   describe("calculateSwipeThreshold", () => {
     it("returns value within valid range", () => {
-      expect(calculateSwipeThreshold(1)).toBeGreaterThanOrEqual(
-        MIN_SWIPE_THRESHOLD,
-      );
-      expect(calculateSwipeThreshold(1)).toBeLessThanOrEqual(
-        MAX_SWIPE_THRESHOLD,
-      );
-      expect(calculateSwipeThreshold(3)).toBeGreaterThanOrEqual(
-        MIN_SWIPE_THRESHOLD,
-      );
-      expect(calculateSwipeThreshold(3)).toBeLessThanOrEqual(
-        MAX_SWIPE_THRESHOLD,
-      );
+      expect(calculateSwipeThreshold(1)).toBeGreaterThanOrEqual(MIN_SWIPE_THRESHOLD);
+      expect(calculateSwipeThreshold(1)).toBeLessThanOrEqual(MAX_SWIPE_THRESHOLD);
+      expect(calculateSwipeThreshold(3)).toBeGreaterThanOrEqual(MIN_SWIPE_THRESHOLD);
+      expect(calculateSwipeThreshold(3)).toBeLessThanOrEqual(MAX_SWIPE_THRESHOLD);
     });
 
     it("clamps low values to MIN_SWIPE_THRESHOLD", () => {
@@ -907,11 +788,7 @@ describe("NotificationRow Gesture Behavior", () => {
 
   describe("calculateFinalPosition", () => {
     it("returns off-screen position when dismiss triggered", () => {
-      const result = calculateFinalPosition(
-        -100,
-        SWIPE_THRESHOLD,
-        SCREEN_WIDTH,
-      );
+      const result = calculateFinalPosition(-100, SWIPE_THRESHOLD, SCREEN_WIDTH);
       expect(result.position).toBe(-SCREEN_WIDTH);
       expect(result.shouldDismiss).toBe(true);
     });
@@ -926,14 +803,12 @@ describe("NotificationRow Gesture Behavior", () => {
       const justUnder = -SWIPE_THRESHOLD + 1;
       const justOver = -SWIPE_THRESHOLD - 1;
 
-      expect(
-        calculateFinalPosition(justUnder, SWIPE_THRESHOLD, SCREEN_WIDTH)
-          .shouldDismiss,
-      ).toBe(false);
-      expect(
-        calculateFinalPosition(justOver, SWIPE_THRESHOLD, SCREEN_WIDTH)
-          .shouldDismiss,
-      ).toBe(true);
+      expect(calculateFinalPosition(justUnder, SWIPE_THRESHOLD, SCREEN_WIDTH).shouldDismiss).toBe(
+        false,
+      );
+      expect(calculateFinalPosition(justOver, SWIPE_THRESHOLD, SCREEN_WIDTH).shouldDismiss).toBe(
+        true,
+      );
     });
   });
 
@@ -1004,11 +879,7 @@ describe("NotificationRow Gesture Behavior", () => {
 
       // Simulate: threshold exceeded
       const translationX = -100;
-      const result = calculateFinalPosition(
-        translationX,
-        SWIPE_THRESHOLD,
-        SCREEN_WIDTH,
-      );
+      const result = calculateFinalPosition(translationX, SWIPE_THRESHOLD, SCREEN_WIDTH);
       expect(result.shouldDismiss).toBe(true);
 
       // At this point, animation would START but callback NOT YET invoked

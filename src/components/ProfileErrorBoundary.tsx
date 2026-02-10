@@ -2,13 +2,7 @@
 // Handles profile loading failures gracefully with retry capability
 
 import React from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ActivityIndicator,
-} from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -55,7 +49,7 @@ export function ProfileErrorBoundary({
           <Ionicons name="cloud-offline-outline" size={64} color="#9CA3AF" />
         </View>
 
-        <Text style={styles.title}>Couldn't Load Profile</Text>
+        <Text style={styles.title}>Couldn{"'"}t Load Profile</Text>
 
         <Text style={styles.message}>
           {error.message.includes("timeout")
@@ -78,9 +72,7 @@ export function ProfileErrorBoundary({
           )}
         </TouchableOpacity>
 
-        <Text style={styles.hint}>
-          If this keeps happening, try closing and reopening the app.
-        </Text>
+        <Text style={styles.hint}>If this keeps happening, try closing and reopening the app.</Text>
       </View>
     </SafeAreaView>
   );

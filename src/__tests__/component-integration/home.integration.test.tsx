@@ -25,8 +25,7 @@ function createMockProfile(overrides: Partial<MockProfile> = {}): MockProfile {
   return {
     id: overrides.id ?? "user-1",
     username: overrides.username ?? "testuser",
-    display_name:
-      "display_name" in overrides ? overrides.display_name! : "Test User",
+    display_name: "display_name" in overrides ? overrides.display_name! : "Test User",
     avatar_url: "avatar_url" in overrides ? overrides.avatar_url! : null,
     xp_total: overrides.xp_total ?? 1000,
     current_streak: overrides.current_streak ?? 5,
@@ -176,10 +175,7 @@ describe("HomeScreen Integration", () => {
 
       // Make RPC take time to respond
       mockSupabaseClient.rpc.mockImplementation(
-        () =>
-          new Promise((resolve) =>
-            setTimeout(() => resolve({ data: [], error: null }), 100),
-          ),
+        () => new Promise((resolve) => setTimeout(() => resolve({ data: [], error: null }), 100)),
       );
 
       // Act
@@ -190,8 +186,7 @@ describe("HomeScreen Integration", () => {
         // Either loading or content should be visible
         const hasLoading = screen.queryByTestId("loading-screen") !== null;
         const hasContent =
-          screen.queryByText(/Hello/) !== null ||
-          screen.queryByText("FitChallenge") !== null;
+          screen.queryByText(/Hello/) !== null || screen.queryByText("FitChallenge") !== null;
         expect(hasLoading || hasContent).toBe(true);
       });
     });

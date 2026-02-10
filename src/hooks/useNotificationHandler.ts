@@ -23,19 +23,18 @@ export function useNotificationHandler() {
 
   useEffect(() => {
     // Handle notification taps (foreground + background)
-    responseListener.current =
-      Notifications.addNotificationResponseReceivedListener((response) => {
-        const data = response.notification.request.content.data;
+    responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response.notification.request.content.data;
 
-        if (data?.challenge_id) {
-          router.push({
-            pathname: "/challenge/[id]",
-            params: { id: data.challenge_id as string },
-          });
-        } else if (data?.notification_type === "friend_request_received") {
-          router.push("/(tabs)/friends");
-        }
-      });
+      if (data?.challenge_id) {
+        router.push({
+          pathname: "/challenge/[id]",
+          params: { id: data.challenge_id as string },
+        });
+      } else if (data?.notification_type === "friend_request_received") {
+        router.push("/(tabs)/friends");
+      }
+    });
 
     // Handle tap from killed state (queued notification response)
     Notifications.getLastNotificationResponseAsync().then((response) => {

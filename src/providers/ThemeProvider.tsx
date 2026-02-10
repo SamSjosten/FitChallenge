@@ -2,12 +2,7 @@
 // Theme provider with font loading and dark mode support
 
 import React, { createContext, useContext, ReactNode } from "react";
-import {
-  useColorScheme,
-  View,
-  ActivityIndicator,
-  StyleSheet,
-} from "react-native";
+import { useColorScheme, View, ActivityIndicator, StyleSheet } from "react-native";
 import {
   useFonts,
   PlusJakartaSans_400Regular,
@@ -144,17 +139,13 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
   // Show loading screen while fonts load
   if (!fontsLoaded) {
     return (
-      <View
-        style={[styles.loading, { backgroundColor: themeColors.background }]}
-      >
+      <View style={[styles.loading, { backgroundColor: themeColors.background }]}>
         <ActivityIndicator size="large" color={themeColors.primary.main} />
       </View>
     );
   }
 
-  return (
-    <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
-  );
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
 
 // =============================================================================

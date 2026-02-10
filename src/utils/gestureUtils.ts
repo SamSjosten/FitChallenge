@@ -46,10 +46,7 @@ export function calculateSwipeThreshold(pixelRatio: number): number {
  * @param translationX - Current horizontal translation (negative = left)
  * @param threshold - Minimum distance to trigger dismiss
  */
-export function shouldDismiss(
-  translationX: number,
-  threshold: number,
-): boolean {
+export function shouldDismiss(translationX: number, threshold: number): boolean {
   "worklet";
   return translationX < -threshold;
 }

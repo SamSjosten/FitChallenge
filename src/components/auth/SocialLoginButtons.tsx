@@ -12,10 +12,7 @@ interface SocialLoginButtonsProps {
   disabled?: boolean;
 }
 
-export function SocialLoginButtons({
-  onSocialLogin,
-  disabled = false,
-}: SocialLoginButtonsProps) {
+export function SocialLoginButtons({ onSocialLogin, disabled = false }: SocialLoginButtonsProps) {
   return (
     <>
       {/* Divider */}

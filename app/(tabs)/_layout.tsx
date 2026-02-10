@@ -35,21 +35,10 @@ import {
 // TAB ICON COMPONENT
 // =============================================================================
 
-function TabIcon({
-  name,
-  focused,
-  color,
-}: {
-  name: string;
-  focused: boolean;
-  color: string;
-}) {
+function TabIcon({ name, focused, color }: { name: string; focused: boolean; color: string }) {
   const iconSize = 24; // Larger for v2
 
-  const icons: Record<
-    string,
-    { outline: React.ReactNode; solid: React.ReactNode }
-  > = {
+  const icons: Record<string, { outline: React.ReactNode; solid: React.ReactNode }> = {
     home: {
       outline: <HomeIcon size={iconSize} color={color} />,
       solid: <HomeIconSolid size={iconSize} color={color} />,
@@ -71,24 +60,14 @@ function TabIcon({
   const icon = icons[name];
   if (!icon) return null;
 
-  return (
-    <View style={styles.tabIconContainer}>
-      {focused ? icon.solid : icon.outline}
-    </View>
-  );
+  return <View style={styles.tabIconContainer}>{focused ? icon.solid : icon.outline}</View>;
 }
 
 // =============================================================================
 // TAB BAR BUTTON
 // =============================================================================
 
-function TabBarButton({
-  testID,
-  props,
-}: {
-  testID: string;
-  props: BottomTabBarButtonProps;
-}) {
+function TabBarButton({ testID, props }: { testID: string; props: BottomTabBarButtonProps }) {
   const { children, onPress, accessibilityState, style } = props;
 
   return (
@@ -124,9 +103,7 @@ function NotificationBell() {
           testID={TestIDs.nav.notificationBadge}
           style={[styles.notificationBadge, { backgroundColor: colors.error }]}
         >
-          <Text style={styles.notificationBadgeText}>
-            {unreadCount > 9 ? "9+" : unreadCount}
-          </Text>
+          <Text style={styles.notificationBadgeText}>{unreadCount > 9 ? "9+" : unreadCount}</Text>
         </View>
       )}
     </Pressable>
@@ -170,9 +147,7 @@ export default function TabLayoutV2() {
 
   // Clear navigation lock on mount - this ensures auth screen's lock is released
   // once we've actually navigated to tabs (deterministic, no timing hacks)
-  const setAuthHandlingNavigation = useNavigationStore(
-    (state) => state.setAuthHandlingNavigation,
-  );
+  const setAuthHandlingNavigation = useNavigationStore((state) => state.setAuthHandlingNavigation);
 
   useEffect(() => {
     // Clear any navigation lock from auth flow
@@ -216,9 +191,7 @@ export default function TabLayoutV2() {
         name="index"
         options={{
           title: "Home",
-          tabBarButton: (props) => (
-            <TabBarButton testID={TestIDs.nav.tabHome} props={props} />
-          ),
+          tabBarButton: (props) => <TabBarButton testID={TestIDs.nav.tabHome} props={props} />,
           tabBarIcon: ({ focused, color }) => (
             <TabIcon name="home" focused={focused} color={color} />
           ),
@@ -255,9 +228,7 @@ export default function TabLayoutV2() {
         name="friends"
         options={{
           title: "Friends",
-          tabBarButton: (props) => (
-            <TabBarButton testID={TestIDs.nav.tabFriends} props={props} />
-          ),
+          tabBarButton: (props) => <TabBarButton testID={TestIDs.nav.tabFriends} props={props} />,
           tabBarIcon: ({ focused, color }) => (
             <TabIcon name="friends" focused={focused} color={color} />
           ),
@@ -268,9 +239,7 @@ export default function TabLayoutV2() {
         name="profile"
         options={{
           title: "Profile",
-          tabBarButton: (props) => (
-            <TabBarButton testID={TestIDs.nav.tabProfile} props={props} />
-          ),
+          tabBarButton: (props) => <TabBarButton testID={TestIDs.nav.tabProfile} props={props} />,
           tabBarIcon: ({ focused, color }) => (
             <TabIcon name="profile" focused={focused} color={color} />
           ),

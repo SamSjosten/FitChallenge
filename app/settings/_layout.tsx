@@ -7,10 +7,7 @@ export default function SettingsLayout() {
     <Stack>
       <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="health" options={{ headerShown: false }} />
-      <Stack.Screen
-        name="developer"
-        options={{ title: "Developer Settings" }}
-      />
+      <Stack.Screen name="developer" options={{ title: "Developer Settings" }} />
     </Stack>
   );
 }

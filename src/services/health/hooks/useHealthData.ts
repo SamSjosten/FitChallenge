@@ -25,9 +25,7 @@ export interface UseHealthDataResult {
   error: string | null;
 }
 
-export function useHealthData(
-  options: UseHealthDataOptions = {},
-): UseHealthDataResult {
+export function useHealthData(options: UseHealthDataOptions = {}): UseHealthDataResult {
   const { pageSize = 50, activityType, enabled = true } = options;
   const healthService = getHealthService();
 
@@ -42,10 +40,7 @@ export function useHealthData(
   } = useInfiniteQuery({
     queryKey: [...healthQueryKeys.recentActivities(pageSize), activityType],
     queryFn: async ({ pageParam = 0 }) => {
-      const activities = await healthService.getRecentActivities(
-        pageSize,
-        pageParam,
-      );
+      const activities = await healthService.getRecentActivities(pageSize, pageParam);
 
       if (activityType) {
         return activities.filter((a) => a.activity_type === activityType);
@@ -168,9 +163,7 @@ export function useHealthSummary(): {
   };
 }
 
-function mapTypeToField(
-  type: ChallengeType,
-): keyof HealthSummary["today"] | null {
+function mapTypeToField(type: ChallengeType): keyof HealthSummary["today"] | null {
   switch (type) {
     case "steps":
       return "steps";

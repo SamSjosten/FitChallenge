@@ -2,14 +2,7 @@
 // Developer settings screen with feature flags and debug tools
 
 import React, { useState, useEffect } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Alert,
-} from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAppTheme } from "@/providers/ThemeProvider";
@@ -55,9 +48,7 @@ export default function DeveloperSettingsScreen() {
       }
 
       // Get banner dismissed date
-      const bannerDismissedDate = await AsyncStorage.getItem(
-        STREAK_BANNER_STORAGE_KEY,
-      );
+      const bannerDismissedDate = await AsyncStorage.getItem(STREAK_BANNER_STORAGE_KEY);
 
       setDebugInfo({
         currentStreak,
@@ -89,9 +80,7 @@ export default function DeveloperSettingsScreen() {
   };
 
   return (
-    <SafeAreaView
-      style={[styles.container, { backgroundColor: colors.background }]}
-    >
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView contentContainerStyle={{ padding: spacing.lg }}>
         {/* Debug Tools Section */}
         <Text
@@ -123,16 +112,10 @@ export default function DeveloperSettingsScreen() {
             Streak Banner Debug Info
           </Text>
           {loadingDebug ? (
-            <Text
-              style={[styles.debugInfoText, { color: colors.textSecondary }]}
-            >
-              Loading...
-            </Text>
+            <Text style={[styles.debugInfoText, { color: colors.textSecondary }]}>Loading...</Text>
           ) : (
             <>
-              <Text
-                style={[styles.debugInfoText, { color: colors.textSecondary }]}
-              >
+              <Text style={[styles.debugInfoText, { color: colors.textSecondary }]}>
                 Current Streak:{" "}
                 <Text
                   style={{
@@ -147,9 +130,7 @@ export default function DeveloperSettingsScreen() {
                 </Text>
                 {debugInfo.currentStreak === 0 && " (banner won't show)"}
               </Text>
-              <Text
-                style={[styles.debugInfoText, { color: colors.textSecondary }]}
-              >
+              <Text style={[styles.debugInfoText, { color: colors.textSecondary }]}>
                 Banner Dismissed:{" "}
                 <Text style={{ fontWeight: "600" }}>
                   {debugInfo.bannerDismissedDate ?? "Not dismissed"}
@@ -165,13 +146,8 @@ export default function DeveloperSettingsScreen() {
               </Text>
             </>
           )}
-          <TouchableOpacity
-            onPress={fetchDebugInfo}
-            style={{ marginTop: spacing.sm }}
-          >
-            <Text style={{ color: colors.primary.main, fontSize: 13 }}>
-              ↻ Refresh
-            </Text>
+          <TouchableOpacity onPress={fetchDebugInfo} style={{ marginTop: spacing.sm }}>
+            <Text style={{ color: colors.primary.main, fontSize: 13 }}>↻ Refresh</Text>
           </TouchableOpacity>
         </View>
 
@@ -190,12 +166,10 @@ export default function DeveloperSettingsScreen() {
           ]}
         >
           <View style={styles.labelContainer}>
-            <Text style={[styles.label, { color: colors.textPrimary }]}>
-              Reset Streak Banner
-            </Text>
+            <Text style={[styles.label, { color: colors.textPrimary }]}>Reset Streak Banner</Text>
             <Text style={[styles.description, { color: colors.textSecondary }]}>
-              Clears the "dismissed today" state so the streak banner will
-              appear again on the home screen.
+              Clears the {'"'}dismissed today{'"'} state so the streak banner will appear again on the home
+              screen.
             </Text>
           </View>
           <Text style={[styles.actionText, { color: colors.primary.main }]}>

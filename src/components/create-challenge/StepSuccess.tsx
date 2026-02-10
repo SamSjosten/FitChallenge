@@ -6,12 +6,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { useAppTheme } from "@/providers/ThemeProvider";
 import type { StepSuccessProps } from "./types";
 
-export function StepSuccess({
-  mode,
-  challengeName,
-  inviteCount,
-  onDone,
-}: StepSuccessProps) {
+export function StepSuccess({ mode, challengeName, inviteCount, onDone }: StepSuccessProps) {
   const { colors, radius } = useAppTheme();
 
   const emoji = mode === "solo" ? "🎯" : "🎉";
@@ -27,12 +22,8 @@ export function StepSuccess({
     <View style={styles.container}>
       <View style={styles.content}>
         <Text style={styles.emoji}>{emoji}</Text>
-        <Text style={[styles.title, { color: colors.textPrimary }]}>
-          {title}
-        </Text>
-        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-          {subtitle}
-        </Text>
+        <Text style={[styles.title, { color: colors.textPrimary }]}>{title}</Text>
+        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>{subtitle}</Text>
       </View>
 
       <View style={styles.footer}>
@@ -47,9 +38,7 @@ export function StepSuccess({
             },
           ]}
         >
-          <Text style={[styles.buttonText, { color: colors.primary.contrast }]}>
-            Done
-          </Text>
+          <Text style={[styles.buttonText, { color: colors.primary.contrast }]}>Done</Text>
         </TouchableOpacity>
       </View>
     </View>

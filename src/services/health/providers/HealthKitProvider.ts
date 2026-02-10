@@ -40,9 +40,7 @@ export class HealthKitProvider extends HealthProvider {
   readonly provider: HealthProviderType = "healthkit";
   private healthKit: typeof import("react-native-health") | null = null;
 
-  private async getHealthKit(): Promise<
-    typeof import("react-native-health") | null
-  > {
+  private async getHealthKit(): Promise<typeof import("react-native-health") | null> {
     if (Platform.OS !== "ios") {
       return null;
     }
@@ -71,11 +69,9 @@ export class HealthKitProvider extends HealthProvider {
     }
 
     return new Promise((resolve) => {
-      healthKit.default.isAvailable(
-        (error: Error | null, available: boolean) => {
-          resolve(!error && available);
-        },
-      );
+      healthKit.default.isAvailable((error: Error | null, available: boolean) => {
+        resolve(!error && available);
+      });
     });
   }
 
@@ -96,9 +92,7 @@ export class HealthKitProvider extends HealthProvider {
     };
   }
 
-  async requestAuthorization(
-    permissions: HealthPermission[],
-  ): Promise<PermissionResult> {
+  async requestAuthorization(permissions: HealthPermission[]): Promise<PermissionResult> {
     const healthKit = await this.getHealthKit();
     if (!healthKit) {
       return {
@@ -108,9 +102,7 @@ export class HealthKitProvider extends HealthProvider {
       };
     }
 
-    const readPermissions = permissions
-      .map((p) => HEALTHKIT_PERMISSIONS[p])
-      .filter(Boolean);
+    const readPermissions = permissions.map((p) => HEALTHKIT_PERMISSIONS[p]).filter(Boolean);
 
     return new Promise((resolve) => {
       healthKit.default.initHealthKit(
@@ -273,17 +265,13 @@ export class HealthKitProvider extends HealthProvider {
     }
   }
 
-  protected override mapPermissionsToProvider(
-    permissions: HealthPermission[],
-  ): string[] {
+  protected override mapPermissionsToProvider(permissions: HealthPermission[]): string[] {
     return permissions
       .map((p) => HEALTHKIT_PERMISSIONS[p])
       .filter((p): p is string => p !== undefined);
   }
 
-  protected override mapProviderTypeToChallenge(
-    providerType: string,
-  ): ChallengeType | null {
+  protected override mapProviderTypeToChallenge(providerType: string): ChallengeType | null {
     return HEALTHKIT_TYPE_MAP[providerType] || null;
   }
 }

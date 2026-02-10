@@ -26,8 +26,7 @@ export function StepType({ mode, onSelect, onBack }: StepTypeProps) {
       <View style={styles.list}>
         {CHALLENGE_TYPES.map((type) => {
           const Icon = getActivityIcon(type.id as ActivityType);
-          const typeColors =
-            activityColors[type.id as ActivityType] || activityColors.custom;
+          const typeColors = activityColors[type.id as ActivityType] || activityColors.custom;
 
           return (
             <TouchableOpacity
@@ -56,47 +55,27 @@ export function StepType({ mode, onSelect, onBack }: StepTypeProps) {
                 </View>
 
                 <View style={styles.cardText}>
-                  <Text
-                    style={[styles.cardTitle, { color: colors.textPrimary }]}
-                  >
-                    {type.name}
-                  </Text>
-                  <Text
-                    style={[styles.cardDesc, { color: colors.textSecondary }]}
-                  >
+                  <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>{type.name}</Text>
+                  <Text style={[styles.cardDesc, { color: colors.textSecondary }]}>
                     {type.desc}
                   </Text>
                   <View style={styles.syncRow}>
                     {type.autoSync ? (
                       <>
                         <HeartIconSolid size={14} color="#EC4899" />
-                        <Text
-                          style={[
-                            styles.syncText,
-                            { color: colors.textSecondary },
-                          ]}
-                        >
+                        <Text style={[styles.syncText, { color: colors.textSecondary }]}>
                           Syncs from Apple Health
                         </Text>
                       </>
                     ) : (
-                      <Text
-                        style={[
-                          styles.syncText,
-                          { color: colors.textSecondary },
-                        ]}
-                      >
+                      <Text style={[styles.syncText, { color: colors.textSecondary }]}>
                         📝 Manual entry required
                       </Text>
                     )}
                   </View>
                 </View>
 
-                <ChevronRightIcon
-                  size={20}
-                  color={colors.textMuted}
-                  style={styles.chevron}
-                />
+                <ChevronRightIcon size={20} color={colors.textMuted} style={styles.chevron} />
               </View>
             </TouchableOpacity>
           );

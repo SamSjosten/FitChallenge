@@ -70,13 +70,11 @@ describe("Activity Integration Tests", () => {
 
     // User1 is automatically a participant as creator
     // Add user1 as accepted participant (creator auto-add)
-    const { error: participantError } = await user1.client
-      .from("challenge_participants")
-      .insert({
-        challenge_id: testChallengeId,
-        user_id: user1.id,
-        invite_status: "accepted",
-      });
+    const { error: participantError } = await user1.client.from("challenge_participants").insert({
+      challenge_id: testChallengeId,
+      user_id: user1.id,
+      invite_status: "accepted",
+    });
 
     // Ignore error if already exists (from trigger)
     if (participantError && participantError.code !== "23505") {
@@ -125,9 +123,7 @@ describe("Activity Integration Tests", () => {
         const clientEventId = generateTestUUID();
         // Malicious / untrusted timestamp (still within challenge bounds)
         // Pick something clearly distinct from "now" to ensure the override is observable.
-        const maliciousRecordedAt = new Date(
-          Date.now() - 30 * 60 * 1000,
-        ).toISOString(); // -30m
+        const maliciousRecordedAt = new Date(Date.now() - 30 * 60 * 1000).toISOString(); // -30m
 
         // Capture a tight window around the RPC call to sanity-check "server now".
         const before = Date.now();
@@ -423,18 +419,16 @@ describe("Activity Integration Tests", () => {
         });
 
         // User1's summary should show only their activities
-        const { data: user1Data } = await user1.client.rpc(
-          "get_activity_summary",
-          { p_challenge_id: challengeId },
-        );
+        const { data: user1Data } = await user1.client.rpc("get_activity_summary", {
+          p_challenge_id: challengeId,
+        });
         const user1Row = Array.isArray(user1Data) ? user1Data[0] : user1Data;
         expect(Number(user1Row?.total_value)).toBe(5000);
 
         // User2's summary should show only their activities
-        const { data: user2Data } = await user2.client.rpc(
-          "get_activity_summary",
-          { p_challenge_id: challengeId },
-        );
+        const { data: user2Data } = await user2.client.rpc("get_activity_summary", {
+          p_challenge_id: challengeId,
+        });
         const user2Row = Array.isArray(user2Data) ? user2Data[0] : user2Data;
         expect(Number(user2Row?.total_value)).toBe(3000);
       } finally {
@@ -540,9 +534,7 @@ describe("Activity Integration Tests", () => {
 
       // All returned items should have created_at < cursor
       pagedData?.forEach((item) => {
-        expect(new Date(item.created_at!).getTime()).toBeLessThan(
-          new Date(cursor).getTime(),
-        );
+        expect(new Date(item.created_at!).getTime()).toBeLessThan(new Date(cursor).getTime());
       });
     });
 
@@ -592,9 +584,9 @@ describe("Activity Integration Tests", () => {
 
       // Should be deterministically ordered
       if (pagedData && pagedData.length > 1) {
-        expect(
-          new Date(pagedData[0].created_at!).getTime(),
-        ).toBeGreaterThanOrEqual(new Date(pagedData[1].created_at!).getTime());
+        expect(new Date(pagedData[0].created_at!).getTime()).toBeGreaterThanOrEqual(
+          new Date(pagedData[1].created_at!).getTime(),
+        );
       }
     });
   });
@@ -778,9 +770,7 @@ describe("Activity Integration Tests", () => {
 
       // Log for debugging if needed
       if (hasFractional) {
-        console.log(
-          `Verified .or() filter works with fractional timestamp: ${cursorTimestamp}`,
-        );
+        console.log(`Verified .or() filter works with fractional timestamp: ${cursorTimestamp}`);
       }
     });
 
@@ -964,11 +954,10 @@ describe("Activity Integration Tests", () => {
     });
 
     it("should return activities via service API with injected client", async () => {
-      const activities: ActivityLog[] =
-        await activityService.getRecentActivities({
-          limit: 5,
-          client: user1.client,
-        });
+      const activities: ActivityLog[] = await activityService.getRecentActivities({
+        limit: 5,
+        client: user1.client,
+      });
 
       expect(activities).toBeDefined();
       expect(Array.isArray(activities)).toBe(true);
@@ -993,15 +982,14 @@ describe("Activity Integration Tests", () => {
       while (iterations < maxIterations) {
         iterations++;
 
-        const activities: ActivityLog[] =
-          await activityService.getRecentActivities({
-            limit: pageSize,
-            ...(cursor && {
-              beforeRecordedAt: cursor.beforeRecordedAt,
-              beforeId: cursor.beforeId,
-            }),
-            client: user1.client,
-          });
+        const activities: ActivityLog[] = await activityService.getRecentActivities({
+          limit: pageSize,
+          ...(cursor && {
+            beforeRecordedAt: cursor.beforeRecordedAt,
+            beforeId: cursor.beforeId,
+          }),
+          client: user1.client,
+        });
 
         if (activities.length === 0) {
           break;
@@ -1034,11 +1022,10 @@ describe("Activity Integration Tests", () => {
     });
 
     it("should return results in descending order by recorded_at", async () => {
-      const activities: ActivityLog[] =
-        await activityService.getRecentActivities({
-          limit: 10,
-          client: user1.client,
-        });
+      const activities: ActivityLog[] = await activityService.getRecentActivities({
+        limit: 10,
+        client: user1.client,
+      });
 
       expect(activities.length).toBeGreaterThan(1);
 
@@ -1051,18 +1038,16 @@ describe("Activity Integration Tests", () => {
     });
 
     it("should respect limit parameter", async () => {
-      const activities3: ActivityLog[] =
-        await activityService.getRecentActivities({
-          limit: 3,
-          client: user1.client,
-        });
+      const activities3: ActivityLog[] = await activityService.getRecentActivities({
+        limit: 3,
+        client: user1.client,
+      });
       expect(activities3.length).toBeLessThanOrEqual(3);
 
-      const activities1: ActivityLog[] =
-        await activityService.getRecentActivities({
-          limit: 1,
-          client: user1.client,
-        });
+      const activities1: ActivityLog[] = await activityService.getRecentActivities({
+        limit: 1,
+        client: user1.client,
+      });
       expect(activities1.length).toBeLessThanOrEqual(1);
     });
   });
@@ -1083,10 +1068,7 @@ describe("Activity Integration Tests", () => {
     beforeAll(async () => {
       // Clean up any existing activities for user1 to ensure test isolation
       const serviceClient = createServiceClient();
-      await serviceClient
-        .from("activity_logs")
-        .delete()
-        .eq("user_id", user1.id);
+      await serviceClient.from("activity_logs").delete().eq("user_id", user1.id);
 
       // Create a challenge
       const timeBounds = getActiveTimeBounds();
@@ -1135,16 +1117,15 @@ describe("Activity Integration Tests", () => {
       while (iterations < maxIterations) {
         iterations++;
 
-        const activities: ActivityLog[] =
-          await activityService.getRecentActivities({
-            limit: 1,
-            challengeId: sameSecondChallengeId, // Filter to this challenge only
-            ...(cursor && {
-              beforeRecordedAt: cursor.beforeRecordedAt,
-              beforeId: cursor.beforeId,
-            }),
-            client: user1.client,
-          });
+        const activities: ActivityLog[] = await activityService.getRecentActivities({
+          limit: 1,
+          challengeId: sameSecondChallengeId, // Filter to this challenge only
+          ...(cursor && {
+            beforeRecordedAt: cursor.beforeRecordedAt,
+            beforeId: cursor.beforeId,
+          }),
+          client: user1.client,
+        });
 
         if (activities.length === 0) {
           break;
@@ -1179,11 +1160,10 @@ describe("Activity Integration Tests", () => {
 
     it("should handle extractCursor with fractional-second timestamps", async () => {
       // Fetch an activity
-      const activities: ActivityLog[] =
-        await activityService.getRecentActivities({
-          limit: 1,
-          client: user1.client,
-        });
+      const activities: ActivityLog[] = await activityService.getRecentActivities({
+        limit: 1,
+        client: user1.client,
+      });
 
       expect(activities.length).toBe(1);
 
@@ -1199,14 +1179,12 @@ describe("Activity Integration Tests", () => {
       );
 
       // Using the cursor should not throw
-      const nextPage: ActivityLog[] = await activityService.getRecentActivities(
-        {
-          limit: 1,
-          beforeRecordedAt: cursor.beforeRecordedAt,
-          beforeId: cursor.beforeId,
-          client: user1.client,
-        },
-      );
+      const nextPage: ActivityLog[] = await activityService.getRecentActivities({
+        limit: 1,
+        beforeRecordedAt: cursor.beforeRecordedAt,
+        beforeId: cursor.beforeId,
+        client: user1.client,
+      });
 
       expect(Array.isArray(nextPage)).toBe(true);
 

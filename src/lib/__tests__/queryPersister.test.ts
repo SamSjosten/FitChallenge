@@ -26,15 +26,12 @@ describe("Query Persister Configuration", () => {
 
     it("has dehydrateOptions configured", () => {
       expect(persistOptions.dehydrateOptions).toBeDefined();
-      expect(
-        persistOptions.dehydrateOptions?.shouldDehydrateQuery,
-      ).toBeInstanceOf(Function);
+      expect(persistOptions.dehydrateOptions?.shouldDehydrateQuery).toBeInstanceOf(Function);
     });
   });
 
   describe("shouldDehydrateQuery", () => {
-    const shouldDehydrate =
-      persistOptions.dehydrateOptions!.shouldDehydrateQuery!;
+    const shouldDehydrate = persistOptions.dehydrateOptions!.shouldDehydrateQuery!;
 
     it("includes successful challenges queries", () => {
       const mockQuery = {
@@ -89,9 +86,7 @@ describe("Query Persister Configuration", () => {
     it("removes the cache key from AsyncStorage", async () => {
       await clearPersistedQueryCache();
 
-      expect(AsyncStorage.removeItem).toHaveBeenCalledWith(
-        "FITCHALLENGE_QUERY_CACHE",
-      );
+      expect(AsyncStorage.removeItem).toHaveBeenCalledWith("FITCHALLENGE_QUERY_CACHE");
     });
 
     it("logs success message", async () => {
@@ -104,9 +99,7 @@ describe("Query Persister Configuration", () => {
     });
 
     it("handles errors gracefully", async () => {
-      (AsyncStorage.removeItem as jest.Mock).mockRejectedValueOnce(
-        new Error("Storage error"),
-      );
+      (AsyncStorage.removeItem as jest.Mock).mockRejectedValueOnce(new Error("Storage error"));
       const consoleWarnSpy = jest.spyOn(console, "warn").mockImplementation();
 
       await clearPersistedQueryCache();
