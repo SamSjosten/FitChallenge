@@ -16,8 +16,9 @@ export const usernameSchema = z
 
 export const emailSchema = z
   .string()
-  .email("Invalid email address")
-  .transform((v) => v.toLowerCase().trim());
+  .trim()
+  .toLowerCase()
+  .email("Invalid email address");
 
 export const passwordSchema = z
   .string()
@@ -70,7 +71,10 @@ export const winConditionSchema = z.enum([
 
 export const createChallengeSchema = z
   .object({
-    title: z.string().min(3, "Title must be at least 3 characters").max(100, "Title too long"),
+    title: z
+      .string()
+      .min(3, "Title must be at least 3 characters")
+      .max(100, "Title too long"),
     description: z.string().max(500, "Description too long").optional(),
     challenge_type: challengeTypeSchema,
     custom_activity_name: z
@@ -108,7 +112,9 @@ export const createChallengeSchema = z
   })
   .refine(
     (d) => {
-      const days = (new Date(d.end_date).getTime() - new Date(d.start_date).getTime()) / 86400000;
+      const days =
+        (new Date(d.end_date).getTime() - new Date(d.start_date).getTime()) /
+        86400000;
       return days >= 1 && days <= 365;
     },
     { message: "Duration must be 1-365 days", path: ["end_date"] },
@@ -203,7 +209,10 @@ export function validate<T>(schema: z.ZodSchema<T>, data: unknown): T {
 /**
  * Try to validate, returning null on failure instead of throwing
  */
-export function tryValidate<T>(schema: z.ZodSchema<T>, data: unknown): T | null {
+export function tryValidate<T>(
+  schema: z.ZodSchema<T>,
+  data: unknown,
+): T | null {
   const result = schema.safeParse(data);
   return result.success ? result.data : null;
 }
@@ -218,8 +227,12 @@ export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 export type CreateChallengeInput = z.infer<typeof createChallengeSchema>;
 export type LogActivityInput = z.infer<typeof logActivitySchema>;
 export type SendFriendRequestInput = z.infer<typeof sendFriendRequestSchema>;
-export type AcceptFriendRequestInput = z.infer<typeof acceptFriendRequestSchema>;
-export type DeclineFriendRequestInput = z.infer<typeof declineFriendRequestSchema>;
+export type AcceptFriendRequestInput = z.infer<
+  typeof acceptFriendRequestSchema
+>;
+export type DeclineFriendRequestInput = z.infer<
+  typeof declineFriendRequestSchema
+>;
 export type RemoveFriendInput = z.infer<typeof removeFriendSchema>;
 export type InviteParticipantInput = z.infer<typeof inviteParticipantSchema>;
 export type RespondToInviteInput = z.infer<typeof respondToInviteSchema>;

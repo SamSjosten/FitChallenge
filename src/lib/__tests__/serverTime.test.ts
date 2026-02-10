@@ -18,6 +18,7 @@ import {
   getSyncStatus,
   subscribeToSyncStatus,
   RESYNC_INTERVAL_MS,
+  formatTimeAgo,
   type ServerTimeSyncStatus,
 } from "../serverTime";
 import { getSupabaseClient } from "../supabase";
@@ -669,6 +670,82 @@ describe("serverTime", () => {
         setOffsetMs(1000);
         expect(getSyncStatus().lastError).toBeNull();
       });
+    });
+  });
+
+  // ===========================================================================
+  // formatTimeAgo — 7+ branches, used across all timestamp displays
+  // ===========================================================================
+  describe("formatTimeAgo", () => {
+    // FIXED_NOW is set by beforeEach via jest.setSystemTime
+    // Using useServerTime: false so new Date() returns FIXED_NOW directly
+
+    const opts = { useServerTime: false };
+
+    function msAgo(ms: number): Date {
+      return new Date(FIXED_NOW - ms);
+    }
+
+    const MINUTE = 60_000;
+    const HOUR = 3_600_000;
+    const DAY = 86_400_000;
+
+    test("returns 'Just now' for future dates", () => {
+      const future = new Date(FIXED_NOW + 10_000);
+      expect(formatTimeAgo(future, opts)).toBe("Just now");
+    });
+
+    test("returns 'Just now' within default threshold (< 1 min)", () => {
+      expect(formatTimeAgo(msAgo(30_000), opts)).toBe("Just now");
+    });
+
+    test("returns 'Just now' at exactly 0ms ago", () => {
+      expect(formatTimeAgo(msAgo(0), opts)).toBe("Just now");
+    });
+
+    test("returns minutes for 1-59 minutes", () => {
+      expect(formatTimeAgo(msAgo(2 * MINUTE), opts)).toBe("2m ago");
+      expect(formatTimeAgo(msAgo(59 * MINUTE), opts)).toBe("59m ago");
+    });
+
+    test("returns hours for 1-23 hours", () => {
+      expect(formatTimeAgo(msAgo(1 * HOUR), opts)).toBe("1h ago");
+      expect(formatTimeAgo(msAgo(23 * HOUR), opts)).toBe("23h ago");
+    });
+
+    test("returns 'Yesterday' for 24-47 hours", () => {
+      expect(formatTimeAgo(msAgo(24 * HOUR), opts)).toBe("Yesterday");
+      expect(formatTimeAgo(msAgo(47 * HOUR), opts)).toBe("Yesterday");
+    });
+
+    test("returns days for 2-6 days", () => {
+      expect(formatTimeAgo(msAgo(2 * DAY), opts)).toBe("2d ago");
+      expect(formatTimeAgo(msAgo(6 * DAY), opts)).toBe("6d ago");
+    });
+
+    test("returns formatted date for 7+ days", () => {
+      const sevenDaysAgo = msAgo(7 * DAY);
+      const result = formatTimeAgo(sevenDaysAgo, opts);
+      // Should be a date string like "Nov 7" — not a relative time
+      expect(result).not.toContain("ago");
+      expect(result).not.toBe("Just now");
+      expect(result).not.toBe("Yesterday");
+    });
+
+    test("accepts ISO string input", () => {
+      const twoMinAgo = new Date(FIXED_NOW - 2 * MINUTE).toISOString();
+      expect(formatTimeAgo(twoMinAgo, opts)).toBe("2m ago");
+    });
+
+    test("respects custom justNowThresholdMs", () => {
+      // 2 minutes ago, but threshold set to 3 minutes
+      const date = msAgo(2 * MINUTE);
+      expect(
+        formatTimeAgo(date, { useServerTime: false, justNowThresholdMs: 3 * MINUTE }),
+      ).toBe("Just now");
+
+      // Same date, default threshold (1 min) — should show minutes
+      expect(formatTimeAgo(date, opts)).toBe("2m ago");
     });
   });
 });
