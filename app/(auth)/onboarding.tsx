@@ -18,6 +18,7 @@ import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "@/providers/AuthProvider";
+import { authService } from "@/services/auth";
 import { getSupabaseClient } from "@/lib/supabase";
 import { useNavigationStore } from "@/stores/navigationStore";
 
@@ -346,18 +347,10 @@ export default function OnboardingScreen() {
 
     setIsUpdating(true);
     try {
-      const { error } = await getSupabaseClient()
-        .from("profiles")
-        .update({ health_setup_completed_at: new Date().toISOString() })
-        .eq("id", profile.id);
-
-      if (error) {
-        console.error("[Onboarding] Failed to mark health setup:", error);
-      } else {
-        await refreshProfile?.();
-      }
+      await authService.markHealthSetupComplete();
+      await refreshProfile?.();
     } catch (err) {
-      console.error("[Onboarding] Error:", err);
+      console.error("[Onboarding] Failed to mark health setup:", err);
     } finally {
       setIsUpdating(false);
     }

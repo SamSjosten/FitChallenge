@@ -45,7 +45,7 @@ import {
   SectionHeader,
   StartingSoonCard,
 } from "@/components/home";
-import { Toast, useToast } from "@/components/shared/Toast";
+import { useToast } from "@/providers/ToastProvider";
 import { BiometricSetupModal } from "@/components/BiometricSetupModal";
 import { TestIDs } from "@/constants/testIDs";
 import {
@@ -68,7 +68,7 @@ const STREAK_BANNER_STORAGE_KEY = "fitchallenge_streak_banner_dismissed";
 
 export default function HomeScreenV2() {
   const { colors, spacing, radius } = useAppTheme();
-  const { toast, showToast, hideToast } = useToast();
+  const { showToast } = useToast();
 
   // Consolidated data fetching
   const {
@@ -593,15 +593,6 @@ export default function HomeScreenV2() {
         {/* Bottom spacing for FAB */}
         <View style={{ height: 100 }} />
       </ScrollView>
-
-      {/* Toast for undo */}
-      <Toast
-        visible={toast.visible}
-        message={toast.message}
-        actionLabel={toast.actionLabel}
-        onAction={toast.onAction}
-        onDismiss={hideToast}
-      />
 
       {/* Biometric setup modal (shown after sign-in if eligible) */}
       {pendingCredentials && (

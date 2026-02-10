@@ -3,7 +3,8 @@
 
 import React from "react";
 import { View, Animated } from "react-native";
-import { radius, useTheme } from "@/constants/theme";
+import { radius } from "@/constants/theme";
+import { useAppTheme } from "@/providers/ThemeProvider";
 
 export interface ProgressBarProps {
   progress: number; // 0-100
@@ -18,7 +19,7 @@ export function ProgressBar({
   size = "medium",
   animated = true,
 }: ProgressBarProps) {
-  const { colors } = useTheme();
+  const { colors } = useAppTheme();
   const animatedWidth = React.useRef(new Animated.Value(0)).current;
 
   // Clamp progress to 0-100 range to prevent overflow

@@ -9,8 +9,6 @@
 //         the prototype UI designs.
 // ============================================
 
-import { useColorScheme } from "react-native";
-
 // ============================================
 // COLORS
 // ============================================
@@ -814,33 +812,6 @@ export const theme = {
   iconSize,
   componentSize,
 } as const;
-
-// ============================================
-// THEME HOOK HELPER
-// ============================================
-
-export type ColorScheme = "light" | "dark";
-export type ThemeColors = typeof colors.light;
-export type ThemeShadows = typeof shadows.light;
-
-export function useTheme() {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
-
-  return {
-    colors: isDark ? colors.dark : colors.light,
-    shadows: isDark ? shadows.dark : shadows.light,
-    typography,
-    spacing,
-    radius,
-    animation,
-    zIndex,
-    breakpoints,
-    iconSize,
-    componentSize,
-    isDark,
-  };
-}
 
 // ============================================
 // TYPE EXPORTS

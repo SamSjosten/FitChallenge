@@ -9,8 +9,6 @@ export { ErrorState, type ErrorStateProps } from "./ErrorState";
 // Primitives (extracted from ui.tsx)
 export { Avatar, type AvatarProps } from "./Avatar";
 export { ProgressBar, type ProgressBarProps } from "./ProgressBar";
-export { LoadingScreen } from "./LoadingScreen";
-
 // Challenge components (used by challenges + home screens)
 export {
   ChallengeCard,

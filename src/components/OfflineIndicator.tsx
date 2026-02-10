@@ -8,7 +8,7 @@ import { View, Text, StyleSheet, Pressable, Animated } from "react-native";
 import { CloudIcon } from "react-native-heroicons/outline";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { useOfflineStore } from "@/stores/offlineStore";
-import { useTheme } from "@/constants/theme";
+import { useAppTheme } from "@/providers/ThemeProvider";
 
 interface OfflineIndicatorProps {
   /** Compact mode for inline display */
@@ -23,7 +23,7 @@ interface OfflineIndicatorProps {
  * - When online with empty queue: Hidden
  */
 export function OfflineIndicator({ compact = false }: OfflineIndicatorProps) {
-  const { colors } = useTheme();
+  const { colors } = useAppTheme();
   const { isConnected } = useNetworkStatus();
   const queueLength = useOfflineStore((s) => s.queue.length);
   const isProcessing = useOfflineStore((s) => s.isProcessing);

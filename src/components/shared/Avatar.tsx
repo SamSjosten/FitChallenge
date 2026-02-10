@@ -3,7 +3,8 @@
 
 import React from "react";
 import { View, Text, StyleProp, ViewStyle } from "react-native";
-import { radius, useTheme } from "@/constants/theme";
+import { radius } from "@/constants/theme";
+import { useAppTheme } from "@/providers/ThemeProvider";
 
 export interface AvatarProps {
   uri?: string | null;
@@ -13,7 +14,7 @@ export interface AvatarProps {
 }
 
 export function Avatar({ uri, name, size = "md", style }: AvatarProps) {
-  const { colors, componentSize } = useTheme();
+  const { colors, componentSize } = useAppTheme();
   const avatarSize = componentSize.avatar[size];
 
   const getInitials = (name?: string) => {

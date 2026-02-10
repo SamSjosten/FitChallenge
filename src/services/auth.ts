@@ -461,6 +461,21 @@ export const authService = {
 
     if (error) throw error;
   },
+
+  /**
+   * Mark health setup as completed in user profile.
+   * CONTRACT: Profile writes go through service layer (Rule 20).
+   */
+  async markHealthSetupComplete(): Promise<void> {
+    return withAuth(async (userId) => {
+      const { error } = await getSupabaseClient()
+        .from("profiles")
+        .update({ health_setup_completed_at: new Date().toISOString() })
+        .eq("id", userId);
+
+      if (error) throw error;
+    });
+  },
 };
 
 // =============================================================================
