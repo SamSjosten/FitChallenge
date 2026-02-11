@@ -30,43 +30,19 @@ import { TestIDs } from "@/constants/testIDs";
 export { TestIDs };
 
 // =============================================================================
-// DETOX SYNCHRONIZATION — URL BLACKLISTING
+// APP LAUNCH WRAPPER
 // =============================================================================
-// Detox waits for the app to become "idle" before any interaction. Two
-// persistent connections prevent idle from ever being reached:
+// Centralized launch point for all E2E tests. In CI, the E2E build sets
+// EXPO_PUBLIC_E2E=true which disables persistent background timers
+// (auth token refresh, server time sync) that prevent Detox idle detection.
 //
-//   1. Supabase realtime WebSocket (wss://...supabase.co/realtime/...)
-//   2. Sentry telemetry / replay   (https://...sentry.io/...)
-//
-// URL blacklisting tells Detox: "don't wait for these URLs to resolve."
-// Synchronization stays ENABLED for JS timers and animations, preserving
-// deterministic test execution for everything except background networking.
-//
-// All test helpers use explicit waitFor() after actions that hit Supabase,
-// so blacklisting these URLs is safe — we never rely on Detox's implicit
-// network tracking for correctness.
-//
-// NOTE: JS timers ≥1.5s (server time sync at 5min, notification poll at
-// 30s) are already ignored by Detox automatically. The timers themselves
-// are not the problem — the network requests they trigger are transient
-// and complete quickly. Only the persistent WebSocket/telemetry connections
-// cause the permanent idle-state block.
-//
-// Must be called after every device.launchApp() since launches reset state.
-// =============================================================================
+// If tests timeout with "N work items pending on Main Queue", the count
+// tells you exactly how many background timers are still running.
 
-/**
- * Launch app and configure Detox URL blacklist for persistent connections.
- * Use this instead of device.launchApp() directly.
- */
 export async function launchApp(
-  params: Parameters<typeof device.launchApp>[0] = {},
+  params: Record<string, unknown> = {},
 ): Promise<void> {
   await device.launchApp(params);
-  await device.setURLBlacklist([
-    ".*supabase\\.co.*",
-    ".*sentry\\.io.*",
-  ]);
 }
 
 // =============================================================================

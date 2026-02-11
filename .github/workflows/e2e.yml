@@ -45,6 +45,7 @@ on:
           - smoke
           - auth
           - challenges
+          - diagnostic
 
 # Cancel in-progress runs
 concurrency:
@@ -282,7 +283,9 @@ jobs:
         env:
           E2E_TEST_SUITE: ${{ github.event.inputs.test_suite || 'all' }}
         run: |
-          if [ "$E2E_TEST_SUITE" = "smoke" ]; then
+          if [ "$E2E_TEST_SUITE" = "diagnostic" ]; then
+            detox test --configuration ${{ steps.device.outputs.config }} e2e/diagnostic.e2e.ts --loglevel trace --record-logs all 2>&1 | head -500
+          elif [ "$E2E_TEST_SUITE" = "smoke" ]; then
             detox test --configuration ${{ steps.device.outputs.config }} --testNamePattern "Happy Path"
           elif [ "$E2E_TEST_SUITE" = "auth" ]; then
             detox test --configuration ${{ steps.device.outputs.config }} e2e/auth.e2e.ts
@@ -407,7 +410,9 @@ jobs:
           disable-animations: true
           script: |
             adb wait-for-device
-            if [ "${{ github.event.inputs.test_suite }}" = "smoke" ]; then
+            if [ "${{ github.event.inputs.test_suite }}" = "diagnostic" ]; then
+              detox test --configuration android.emu.release e2e/diagnostic.e2e.ts --loglevel trace --record-logs all 2>&1 | head -500
+            elif [ "${{ github.event.inputs.test_suite }}" = "smoke" ]; then
               detox test --configuration android.emu.release --testNamePattern "Happy Path"
             elif [ "${{ github.event.inputs.test_suite }}" = "auth" ]; then
               detox test --configuration android.emu.release e2e/auth.e2e.ts
