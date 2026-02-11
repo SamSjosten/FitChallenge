@@ -116,12 +116,12 @@ export interface ChallengeInfoSectionProps {
 // =============================================================================
 
 export interface YourActivitySectionProps {
-  activities: ReadonlyArray<{
+  activities: readonly {
     id: string;
     value: number;
     recorded_at: string;
     source: string;
-  }>;
+  }[];
   goalUnit: string;
 
   /**
@@ -184,7 +184,7 @@ export interface InviteModalProps {
   challengeId: string;
 
   /** Existing participant user IDs — modal filters these from results */
-  existingParticipantIds: ReadonlyArray<string>;
+  existingParticipantIds: readonly string[];
 
   /** Fires when user taps Invite on a search result */
   onInvite: (userId: string) => Promise<void>;

@@ -79,11 +79,11 @@ export interface LogHealthActivityResult {
   inserted: number;
   deduplicated: number;
   total_processed: number;
-  errors: Array<{
+  errors: {
     source_external_id?: string;
     error: string;
     details?: string;
-  }>;
+  }[];
 }
 
 // =============================================================================

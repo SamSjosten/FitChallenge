@@ -50,16 +50,12 @@ export function validateTestConfig(): void {
  * RLS policies are enforced
  */
 export function createAnonClient(): SupabaseClient<Database> {
-  return createClient<Database>(
-    testConfig.supabaseUrl,
-    testConfig.supabaseAnonKey,
-    {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
+  return createClient<Database>(testConfig.supabaseUrl, testConfig.supabaseAnonKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
     },
-  );
+  });
 }
 
 /**
@@ -67,16 +63,12 @@ export function createAnonClient(): SupabaseClient<Database> {
  * Use for test setup/cleanup only
  */
 export function createServiceClient(): SupabaseClient<Database> {
-  return createClient<Database>(
-    testConfig.supabaseUrl,
-    testConfig.supabaseServiceRoleKey,
-    {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
+  return createClient<Database>(testConfig.supabaseUrl, testConfig.supabaseServiceRoleKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
     },
-  );
+  });
 }
 
 // =============================================================================
@@ -102,11 +94,10 @@ async function getTestUser(email: string, password: string): Promise<TestUser> {
   const client = createAnonClient();
 
   // Try to sign in
-  const { data: signInData, error: signInError } =
-    await client.auth.signInWithPassword({
-      email,
-      password,
-    });
+  const { data: signInData, error: signInError } = await client.auth.signInWithPassword({
+    email,
+    password,
+  });
 
   if (signInData.user) {
     return {
@@ -136,8 +127,10 @@ async function getTestUser(email: string, password: string): Promise<TestUser> {
       ) {
         await new Promise((resolve) => setTimeout(resolve, 1500));
 
-        const { data: retrySignIn, error: retryError } =
-          await client.auth.signInWithPassword({ email, password });
+        const { data: retrySignIn, error: retryError } = await client.auth.signInWithPassword({
+          email,
+          password,
+        });
 
         if (retrySignIn.user) {
           return {
@@ -158,16 +151,13 @@ async function getTestUser(email: string, password: string): Promise<TestUser> {
     }
 
     // Sign in with the new user
-    const { data: newSignIn, error: newSignInError } =
-      await client.auth.signInWithPassword({
-        email,
-        password,
-      });
+    const { data: newSignIn, error: newSignInError } = await client.auth.signInWithPassword({
+      email,
+      password,
+    });
 
     if (newSignInError || !newSignIn.user) {
-      throw new Error(
-        `Failed to sign in after creating user: ${newSignInError?.message}`,
-      );
+      throw new Error(`Failed to sign in after creating user: ${newSignInError?.message}`);
     }
 
     return {
@@ -187,10 +177,7 @@ export async function getTestUser1(): Promise<TestUser> {
   if (cachedUser1) return cachedUser1;
 
   if (!user1Promise) {
-    user1Promise = getTestUser(
-      testConfig.testUser.email,
-      testConfig.testUser.password,
-    );
+    user1Promise = getTestUser(testConfig.testUser.email, testConfig.testUser.password);
   }
 
   cachedUser1 = await user1Promise;
@@ -204,10 +191,7 @@ export async function getTestUser2(): Promise<TestUser> {
   if (cachedUser2) return cachedUser2;
 
   if (!user2Promise) {
-    user2Promise = getTestUser(
-      testConfig.testUser2.email,
-      testConfig.testUser2.password,
-    );
+    user2Promise = getTestUser(testConfig.testUser2.email, testConfig.testUser2.password);
   }
 
   cachedUser2 = await user2Promise;
@@ -251,8 +235,7 @@ export async function createTestChallenge(
     .select()
     .single();
 
-  if (error)
-    throw new Error(`Failed to create test challenge: ${error.message}`);
+  if (error) throw new Error(`Failed to create test challenge: ${error.message}`);
   return data;
 }
 
@@ -310,10 +293,7 @@ export async function cleanupTestUser(userId: string): Promise<void> {
   await serviceClient.from("activity_logs").delete().eq("user_id", userId);
 
   // 2. Challenge participants
-  await serviceClient
-    .from("challenge_participants")
-    .delete()
-    .eq("user_id", userId);
+  await serviceClient.from("challenge_participants").delete().eq("user_id", userId);
 
   // 3. Challenges created by user
   await serviceClient.from("challenges").delete().eq("creator_id", userId);
@@ -343,14 +323,8 @@ export async function cleanupChallenge(challengeId: string): Promise<void> {
   const serviceClient = createServiceClient();
 
   // Delete in order
-  await serviceClient
-    .from("activity_logs")
-    .delete()
-    .eq("challenge_id", challengeId);
-  await serviceClient
-    .from("challenge_participants")
-    .delete()
-    .eq("challenge_id", challengeId);
+  await serviceClient.from("activity_logs").delete().eq("challenge_id", challengeId);
+  await serviceClient.from("challenge_participants").delete().eq("challenge_id", challengeId);
   await serviceClient.from("challenges").delete().eq("id", challengeId);
 }
 
@@ -363,9 +337,7 @@ export async function cleanupChallenge(challengeId: string): Promise<void> {
  * Use for tests that need to delete the user (e.g., account deletion tests).
  * Caller is responsible for cleanup via deleteEphemeralUser().
  */
-export async function createEphemeralUser(
-  name: string,
-): Promise<TestUser & { password: string }> {
+export async function createEphemeralUser(name: string): Promise<TestUser & { password: string }> {
   const serviceClient = createServiceClient();
   const suffix = generateTestUUID().slice(0, 8);
   const email = `${name}-${suffix}@test.fitchallenge.local`;
@@ -392,9 +364,7 @@ export async function createEphemeralUser(
   });
 
   if (signInError) {
-    throw new Error(
-      `Failed to sign in ephemeral user: ${signInError.message}`,
-    );
+    throw new Error(`Failed to sign in ephemeral user: ${signInError.message}`);
   }
 
   return { id: data.user.id, email, client, password };
@@ -412,10 +382,7 @@ export async function deleteEphemeralUser(userId: string): Promise<void> {
   await serviceClient.from("notifications").delete().eq("user_id", userId);
   await serviceClient.from("push_tokens").delete().eq("user_id", userId);
   await serviceClient.from("consent_records").delete().eq("user_id", userId);
-  await serviceClient
-    .from("challenge_participants")
-    .delete()
-    .eq("user_id", userId);
+  await serviceClient.from("challenge_participants").delete().eq("user_id", userId);
   await serviceClient
     .from("friends")
     .delete()

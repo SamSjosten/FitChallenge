@@ -91,10 +91,7 @@ describe("Profile Privacy RLS Integration Tests", () => {
       expect(data?.display_name).toBe(testName);
 
       // Restore
-      await user1.client
-        .from("profiles")
-        .update({ display_name: originalName })
-        .eq("id", user1.id);
+      await user1.client.from("profiles").update({ display_name: originalName }).eq("id", user1.id);
     });
 
     it("should NOT allow user to UPDATE another user's profile", async () => {
@@ -107,10 +104,7 @@ describe("Profile Privacy RLS Integration Tests", () => {
       const originalName = data?.display_name;
 
       // User1 tries to update user2's profile
-      await user1.client
-        .from("profiles")
-        .update({ display_name: "HACKED" })
-        .eq("id", user2.id);
+      await user1.client.from("profiles").update({ display_name: "HACKED" }).eq("id", user2.id);
 
       // Verify user2's profile is unchanged (use service client to bypass RLS)
       const serviceClient = createServiceClient();
@@ -152,13 +146,7 @@ describe("Profile Privacy RLS Integration Tests", () => {
       const keys = Object.keys(data!);
 
       // Only these fields should exist in profiles_public
-      const allowedFields = [
-        "id",
-        "username",
-        "display_name",
-        "avatar_url",
-        "updated_at",
-      ];
+      const allowedFields = ["id", "username", "display_name", "avatar_url", "updated_at"];
 
       for (const key of keys) {
         expect(allowedFields).toContain(key);
@@ -207,10 +195,7 @@ describe("Profile Privacy RLS Integration Tests", () => {
 
     it("should NOT allow client to DELETE from profiles_public", async () => {
       // Attempt delete — RLS with no DELETE policy silently matches 0 rows
-      await user1.client
-        .from("profiles_public")
-        .delete()
-        .eq("id", user1.id);
+      await user1.client.from("profiles_public").delete().eq("id", user1.id);
 
       // The real proof: row must still exist
       const serviceClient = createServiceClient();

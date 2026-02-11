@@ -27,7 +27,7 @@ import { ThemeProvider, useAppTheme } from "@/providers/ThemeProvider";
 import { AuthProvider, useAuth } from "@/providers/AuthProvider";
 import { ProfileErrorBoundary } from "@/components/ProfileErrorBoundary";
 import { ConfigurationErrorScreen } from "@/components/ConfigurationError";
-import { ToastProvider } from "@/providers/ToastProvider";
+import { ToastProvider, useToast } from "@/providers/ToastProvider";
 import { ServerTimeBanner } from "@/components/ServerTimeBanner";
 import { OfflineIndicator } from "@/components/OfflineIndicator";
 import { supabaseConfigError } from "@/lib/supabase";
@@ -37,7 +37,6 @@ import { queryRetryFn, mutationRetryFn } from "@/lib/queryRetry";
 import { initSentry, setUserContext } from "@/lib/sentry";
 import { useOfflineStore } from "@/stores/offlineStore";
 import { useNavigationStore, initNavigationStoreRecovery } from "@/stores/navigationStore";
-import { useToast } from "@/providers/ToastProvider";
 
 import * as Sentry from "@sentry/react-native";
 

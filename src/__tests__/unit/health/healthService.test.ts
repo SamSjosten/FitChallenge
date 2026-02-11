@@ -10,6 +10,23 @@
 // MOCKS - Must be defined before imports
 // =============================================================================
 
+// =============================================================================
+// IMPORTS - After mocks
+// =============================================================================
+
+import {
+  HealthService,
+  createMockHealthService,
+  getHealthService,
+  resetHealthService,
+} from "@/services/health/healthService";
+import {
+  MockHealthProvider,
+  createFullyGrantedMockProvider,
+  createFailingMockProvider,
+} from "@/services/health/providers/MockHealthProvider";
+import type { HealthSample } from "@/services/health/types";
+
 jest.mock("react-native-url-polyfill/auto", () => {});
 jest.mock("expo-secure-store", () => ({
   getItemAsync: jest.fn(),
@@ -29,8 +46,8 @@ jest.mock("react-native", () => ({
 const mockUserId = "test-user-health-123";
 
 // Track Supabase RPC calls
-const mockRpcCalls: Array<{ fn: string; args: Record<string, unknown> }> = [];
-const mockFromCalls: Array<{ table: string; method: string }> = [];
+const mockRpcCalls: { fn: string; args: Record<string, unknown> }[] = [];
+const mockFromCalls: { table: string; method: string }[] = [];
 
 // Configurable mock responses
 let mockRpcResponses: Record<string, { data: unknown; error: unknown }> = {};
@@ -121,23 +138,6 @@ jest.mock("@/services/health/utils", () => ({
     endDate: new Date(),
   })),
 }));
-
-// =============================================================================
-// IMPORTS - After mocks
-// =============================================================================
-
-import {
-  HealthService,
-  createMockHealthService,
-  getHealthService,
-  resetHealthService,
-} from "@/services/health/healthService";
-import {
-  MockHealthProvider,
-  createFullyGrantedMockProvider,
-  createFailingMockProvider,
-} from "@/services/health/providers/MockHealthProvider";
-import type { HealthSample } from "@/services/health/types";
 
 // =============================================================================
 // TEST HELPERS

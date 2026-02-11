@@ -3,11 +3,11 @@
 
 // Mock expo-crypto to simulate React Native not being available
 // This lets the function fall through to Web Crypto API (available in Node.js 19+)
+import { generateClientEventId } from "../uuid";
+
 jest.mock("expo-crypto", () => ({
   randomUUID: undefined, // Simulate expo-crypto not available
 }));
-
-import { generateClientEventId } from "../uuid";
 
 describe("generateClientEventId", () => {
   // UUID v4 format: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx

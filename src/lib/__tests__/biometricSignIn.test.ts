@@ -11,6 +11,16 @@
 import * as SecureStore from "expo-secure-store";
 import * as LocalAuthentication from "expo-local-authentication";
 
+// Import after mocks
+import {
+  checkBiometricCapability,
+  isBiometricSignInEnabled,
+  setupBiometricSignIn,
+  disableBiometricSignIn,
+  performBiometricSignIn,
+  type SignInFunction,
+} from "../biometricSignIn";
+
 // =============================================================================
 // MOCKS
 // =============================================================================
@@ -37,16 +47,6 @@ jest.mock("expo-local-authentication", () => ({
 jest.mock("react-native", () => ({
   Platform: { OS: "ios" },
 }));
-
-// Import after mocks
-import {
-  checkBiometricCapability,
-  isBiometricSignInEnabled,
-  setupBiometricSignIn,
-  disableBiometricSignIn,
-  performBiometricSignIn,
-  type SignInFunction,
-} from "../biometricSignIn";
 
 // =============================================================================
 // TEST HELPERS

@@ -3,6 +3,9 @@
 
 // Set __DEV__ for test environment (React Native global)
 // @ts-expect-error - __DEV__ is a React Native global
+import * as Sentry from "@sentry/react-native";
+import { initSentry, captureError, setUserContext, addBreadcrumb } from "../sentry";
+
 globalThis.__DEV__ = true;
 
 // Mock @sentry/react-native before importing sentry.ts
@@ -19,9 +22,6 @@ jest.mock("@/constants/config", () => ({
     sentryDsn: "https://test@sentry.io/123",
   },
 }));
-
-import * as Sentry from "@sentry/react-native";
-import { initSentry, captureError, setUserContext, addBreadcrumb } from "../sentry";
 
 // =============================================================================
 // TESTS

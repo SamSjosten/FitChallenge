@@ -6,11 +6,11 @@
 
 // Mock serverTime to avoid react-native import chain
 // (formatters.ts re-exports formatTimeAgo from serverTime.ts → supabase.ts → react-native-url-polyfill)
+import { formatNumber, formatShortDate } from "../formatters";
+
 jest.mock("../serverTime", () => ({
   formatTimeAgo: jest.fn(),
 }));
-
-import { formatNumber, formatShortDate } from "../formatters";
 
 // =============================================================================
 // formatNumber

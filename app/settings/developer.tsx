@@ -168,8 +168,8 @@ export default function DeveloperSettingsScreen() {
           <View style={styles.labelContainer}>
             <Text style={[styles.label, { color: colors.textPrimary }]}>Reset Streak Banner</Text>
             <Text style={[styles.description, { color: colors.textSecondary }]}>
-              Clears the {'"'}dismissed today{'"'} state so the streak banner will appear again on the home
-              screen.
+              Clears the {'"'}dismissed today{'"'} state so the streak banner will appear again on
+              the home screen.
             </Text>
           </View>
           <Text style={[styles.actionText, { color: colors.primary.main }]}>

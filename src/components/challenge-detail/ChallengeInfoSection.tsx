@@ -40,7 +40,7 @@ export function ChallengeInfoSection({
     return `${names.slice(0, 3).join(", ")} +${names.length - 3} more`;
   };
 
-  const infoItems: Array<{ label: string; value: string }> = [
+  const infoItems: { label: string; value: string }[] = [
     {
       label: "Goal",
       value: `${challenge.goal_value.toLocaleString()} ${challenge.goal_unit}`,

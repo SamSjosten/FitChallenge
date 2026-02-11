@@ -38,10 +38,7 @@ describe("Notification RLS Integration Tests", () => {
     // Clean up any notifications created during tests
     if (createdNotificationIds.length > 0) {
       const serviceClient = createServiceClient();
-      await serviceClient
-        .from("notifications")
-        .delete()
-        .in("id", createdNotificationIds);
+      await serviceClient.from("notifications").delete().in("id", createdNotificationIds);
       createdNotificationIds.length = 0;
     }
   });
@@ -215,10 +212,7 @@ describe("Notification RLS Integration Tests", () => {
 
       // Attempt delete — RLS with no DELETE policy silently matches 0 rows
       // (PostgreSQL doesn't error; it just finds nothing to delete)
-      await user1.client
-        .from("notifications")
-        .delete()
-        .eq("id", notifId);
+      await user1.client.from("notifications").delete().eq("id", notifId);
 
       // The real proof: notification must still exist
       const serviceClient = createServiceClient();
@@ -235,10 +229,7 @@ describe("Notification RLS Integration Tests", () => {
       const notifId = await createTestNotification(user2.id);
 
       // Attempt delete — RLS silently matches 0 rows (no DELETE policy + no SELECT visibility)
-      await user1.client
-        .from("notifications")
-        .delete()
-        .eq("id", notifId);
+      await user1.client.from("notifications").delete().eq("id", notifId);
 
       // The real proof: notification must still exist
       const serviceClient = createServiceClient();
@@ -278,13 +269,10 @@ describe("Notification RLS Integration Tests", () => {
     });
 
     it("should create notification for invited user when called by creator", async () => {
-      const { error } = await user1.client.rpc(
-        "enqueue_challenge_invite_notification",
-        {
-          p_challenge_id: challengeId,
-          p_invited_user_id: user2.id,
-        },
-      );
+      const { error } = await user1.client.rpc("enqueue_challenge_invite_notification", {
+        p_challenge_id: challengeId,
+        p_invited_user_id: user2.id,
+      });
 
       expect(error).toBeNull();
 
@@ -304,13 +292,10 @@ describe("Notification RLS Integration Tests", () => {
 
     it("should reject call from non-creator", async () => {
       // User2 is NOT the creator of this challenge
-      const { error } = await user2.client.rpc(
-        "enqueue_challenge_invite_notification",
-        {
-          p_challenge_id: challengeId,
-          p_invited_user_id: user1.id,
-        },
-      );
+      const { error } = await user2.client.rpc("enqueue_challenge_invite_notification", {
+        p_challenge_id: challengeId,
+        p_invited_user_id: user1.id,
+      });
 
       expect(error).not.toBeNull();
       expect(error?.message).toMatch(/not_creator/i);
@@ -331,8 +316,7 @@ describe("Notification RLS Integration Tests", () => {
         .single();
 
       expect(data?.data).toBeDefined();
-      const payload =
-        typeof data?.data === "string" ? JSON.parse(data.data) : data?.data;
+      const payload = typeof data?.data === "string" ? JSON.parse(data.data) : data?.data;
 
       // Only challenge_id should be in the payload
       expect(payload).toHaveProperty("challenge_id");

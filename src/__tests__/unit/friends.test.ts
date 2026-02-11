@@ -441,9 +441,7 @@ describe("friendsService", () => {
         fail("Should have thrown");
       } catch (error) {
         expect(error).toBeInstanceOf(ValidationError);
-        expect((error as { errors: Array<{ field: string }> }).errors[0].field).toBe(
-          "target_user_id",
-        );
+        expect((error as { errors: { field: string }[] }).errors[0].field).toBe("target_user_id");
       }
     });
   });

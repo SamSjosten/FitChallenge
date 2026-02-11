@@ -5,6 +5,12 @@
 // MOCKS (must be before imports)
 // =============================================================================
 
+// =============================================================================
+// IMPORTS (after mocks)
+// =============================================================================
+
+import { useOfflineStore, offlineStoreSelectors } from "../offlineStore";
+
 jest.mock("react-native-url-polyfill/auto", () => {});
 
 // Mock AsyncStorage
@@ -39,12 +45,6 @@ jest.mock("@/lib/supabase", () => ({
   })),
   requireUserId: jest.fn().mockResolvedValue("test-user-123"),
 }));
-
-// =============================================================================
-// IMPORTS (after mocks)
-// =============================================================================
-
-import { useOfflineStore, offlineStoreSelectors } from "../offlineStore";
 
 describe("Offline Store", () => {
   beforeEach(() => {

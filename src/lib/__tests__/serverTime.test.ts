@@ -1,13 +1,6 @@
 // src/lib/__tests__/serverTime.test.ts
 
 // Mock supabase before importing serverTime
-const mockRpc = jest.fn();
-jest.mock("../supabase", () => ({
-  getSupabaseClient: jest.fn(() => ({
-    rpc: mockRpc,
-  })),
-}));
-
 import {
   getServerNow,
   getOffsetMs,
@@ -23,6 +16,13 @@ import {
 } from "../serverTime";
 import { getSupabaseClient } from "../supabase";
 import { getEffectiveStatus } from "../challengeStatus";
+
+const mockRpc = jest.fn();
+jest.mock("../supabase", () => ({
+  getSupabaseClient: jest.fn(() => ({
+    rpc: mockRpc,
+  })),
+}));
 
 // Fixed timestamp for deterministic tests
 const FIXED_NOW = 1_700_000_000_000;
@@ -740,9 +740,9 @@ describe("serverTime", () => {
     test("respects custom justNowThresholdMs", () => {
       // 2 minutes ago, but threshold set to 3 minutes
       const date = msAgo(2 * MINUTE);
-      expect(
-        formatTimeAgo(date, { useServerTime: false, justNowThresholdMs: 3 * MINUTE }),
-      ).toBe("Just now");
+      expect(formatTimeAgo(date, { useServerTime: false, justNowThresholdMs: 3 * MINUTE })).toBe(
+        "Just now",
+      );
 
       // Same date, default threshold (1 min) — should show minutes
       expect(formatTimeAgo(date, opts)).toBe("2m ago");

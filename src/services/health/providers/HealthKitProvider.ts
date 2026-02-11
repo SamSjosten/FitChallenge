@@ -185,7 +185,7 @@ export class HealthKitProvider extends HealthProvider {
     return new Promise((resolve) => {
       const callback = (
         error: Error | null,
-        results: Array<{
+        results: {
           id: string;
           value: number;
           startDate: string;
@@ -193,7 +193,7 @@ export class HealthKitProvider extends HealthProvider {
           sourceName: string;
           sourceId: string;
           unit?: string;
-        }>,
+        }[],
       ) => {
         if (error || !results) {
           console.error(`HealthKit query error for ${hkType}:`, error);

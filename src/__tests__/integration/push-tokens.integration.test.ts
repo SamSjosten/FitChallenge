@@ -36,10 +36,7 @@ describe("Push Token RLS Integration Tests", () => {
     // Clean up tokens created during tests
     if (createdTokenIds.length > 0) {
       const serviceClient = createServiceClient();
-      await serviceClient
-        .from("push_tokens")
-        .delete()
-        .in("id", createdTokenIds);
+      await serviceClient.from("push_tokens").delete().in("id", createdTokenIds);
       createdTokenIds.length = 0;
     }
   });
@@ -207,10 +204,7 @@ describe("Push Token RLS Integration Tests", () => {
 
       const tokenId = created!.id;
 
-      const { error } = await user1.client
-        .from("push_tokens")
-        .delete()
-        .eq("id", tokenId);
+      const { error } = await user1.client.from("push_tokens").delete().eq("id", tokenId);
 
       expect(error).toBeNull();
 
@@ -239,10 +233,7 @@ describe("Push Token RLS Integration Tests", () => {
       if (created?.id) createdTokenIds.push(created.id);
 
       // User1 tries to delete user2's token
-      await user1.client
-        .from("push_tokens")
-        .delete()
-        .eq("id", created!.id);
+      await user1.client.from("push_tokens").delete().eq("id", created!.id);
 
       // Verify token still exists
       const { data } = await serviceClient

@@ -3,7 +3,7 @@
 // Phase 2B will add: stats cards, achievements
 
 import React from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { useAppTheme } from "@/providers/ThemeProvider";
@@ -18,7 +18,6 @@ import {
   ArrowRightOnRectangleIcon,
   BeakerIcon,
 } from "react-native-heroicons/outline";
-import { Alert } from "react-native";
 
 export default function ProfileScreenV2() {
   const { colors, spacing, radius } = useAppTheme();

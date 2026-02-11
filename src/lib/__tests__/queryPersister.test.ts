@@ -1,14 +1,14 @@
 // src/lib/__tests__/queryPersister.test.ts
 // Unit tests for query cache persistence configuration
 
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { clearPersistedQueryCache, persistOptions } from "../queryPersister";
+
 jest.mock("@react-native-async-storage/async-storage", () => ({
   getItem: jest.fn(),
   setItem: jest.fn(),
   removeItem: jest.fn().mockResolvedValue(undefined),
 }));
-
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { clearPersistedQueryCache, persistOptions } from "../queryPersister";
 
 describe("Query Persister Configuration", () => {
   beforeEach(() => {

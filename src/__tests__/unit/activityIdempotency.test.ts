@@ -9,6 +9,12 @@
 // MOCKS (must be before imports)
 // =============================================================================
 
+// =============================================================================
+// IMPORTS (after mocks)
+// =============================================================================
+
+import { activityService, generateClientEventId } from "@/services/activities";
+
 jest.mock("react-native-url-polyfill/auto", () => {});
 jest.mock("expo-secure-store", () => ({
   getItemAsync: jest.fn(),
@@ -74,12 +80,6 @@ jest.mock("@/lib/validation", () => ({
   validate: jest.fn((_, input) => input),
   logActivitySchema: {},
 }));
-
-// =============================================================================
-// IMPORTS (after mocks)
-// =============================================================================
-
-import { activityService, generateClientEventId } from "@/services/activities";
 
 // =============================================================================
 // TESTS

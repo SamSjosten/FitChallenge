@@ -247,7 +247,7 @@ export function createMockChallengeForDetail(
  */
 export function createMockLeaderboard(
   count: number,
-  customEntries?: Array<Partial<MockLeaderboardEntry>>,
+  customEntries?: Partial<MockLeaderboardEntry>[],
 ): MockLeaderboardEntry[] {
   return Array.from({ length: count }, (_, i) => {
     const custom = customEntries?.[i] || {};
@@ -269,7 +269,7 @@ export function createMockLeaderboard(
  */
 export function createMockChallengeList(
   count: number,
-  customChallenges?: Array<Partial<MockChallenge>>,
+  customChallenges?: Partial<MockChallenge>[],
 ): MockChallenge[] {
   return Array.from({ length: count }, (_, i) => {
     const custom = customChallenges?.[i] || {};

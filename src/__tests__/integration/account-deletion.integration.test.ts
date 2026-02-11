@@ -226,9 +226,7 @@ describe("Account Deletion Integration Tests", () => {
       const { data: before } = await serviceClient
         .from("friends")
         .select("id")
-        .or(
-          `requested_by.eq.${user.id},requested_to.eq.${user.id}`,
-        );
+        .or(`requested_by.eq.${user.id},requested_to.eq.${user.id}`);
 
       expect(before?.length).toBeGreaterThan(0);
 
@@ -237,9 +235,7 @@ describe("Account Deletion Integration Tests", () => {
       const { data: after } = await serviceClient
         .from("friends")
         .select("id")
-        .or(
-          `requested_by.eq.${user.id},requested_to.eq.${user.id}`,
-        );
+        .or(`requested_by.eq.${user.id},requested_to.eq.${user.id}`);
 
       expect(after?.length ?? 0).toBe(0);
     });
@@ -285,10 +281,7 @@ describe("Account Deletion Integration Tests", () => {
       expect(after?.length ?? 0).toBe(0);
 
       // Clean up challenge
-      await serviceClient
-        .from("challenge_participants")
-        .delete()
-        .eq("challenge_id", challenge!.id);
+      await serviceClient.from("challenge_participants").delete().eq("challenge_id", challenge!.id);
       await serviceClient.from("challenges").delete().eq("id", challenge!.id);
     });
   });
@@ -353,10 +346,7 @@ describe("Account Deletion Integration Tests", () => {
       expect(participant?.invite_status).toBe("accepted");
 
       // Clean up
-      await serviceClient
-        .from("challenge_participants")
-        .delete()
-        .eq("challenge_id", challengeId);
+      await serviceClient.from("challenge_participants").delete().eq("challenge_id", challengeId);
       await serviceClient.from("challenges").delete().eq("id", challengeId);
     });
 
@@ -404,10 +394,7 @@ describe("Account Deletion Integration Tests", () => {
       expect(visible?.id).toBe(challengeId);
 
       // Clean up
-      await serviceClient
-        .from("challenge_participants")
-        .delete()
-        .eq("challenge_id", challengeId);
+      await serviceClient.from("challenge_participants").delete().eq("challenge_id", challengeId);
       await serviceClient.from("challenges").delete().eq("id", challengeId);
     });
   });

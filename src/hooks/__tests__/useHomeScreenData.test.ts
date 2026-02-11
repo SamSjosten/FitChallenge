@@ -3,14 +3,14 @@
 
 import type { ChallengeWithParticipation } from "@/services/challenges";
 
+// Import after mocks are set up
+import { splitChallengesByStatus } from "../useHomeScreenData";
+
 // Mock serverTime module before importing the function under test
 const mockGetServerNow = jest.fn();
 jest.mock("@/lib/serverTime", () => ({
   getServerNow: () => mockGetServerNow(),
 }));
-
-// Import after mocks are set up
-import { splitChallengesByStatus } from "../useHomeScreenData";
 
 // =============================================================================
 // TEST DATA FACTORIES

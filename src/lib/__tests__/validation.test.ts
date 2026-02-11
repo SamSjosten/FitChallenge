@@ -47,9 +47,7 @@ function fixedPlusDays(n: number): string {
 }
 
 /** Minimal valid challenge input using fixed dates */
-function validChallenge(
-  overrides: Record<string, unknown> = {},
-): Record<string, unknown> {
+function validChallenge(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     title: "10K Steps Challenge",
     challenge_type: "steps",
@@ -237,27 +235,19 @@ describe("signUpSchema", () => {
   test("rejects missing fields", () => {
     expect(() => signUpSchema.parse({})).toThrow();
     expect(() => signUpSchema.parse({ email: "a@b.com" })).toThrow();
-    expect(() =>
-      signUpSchema.parse({ email: "a@b.com", password: "Password1" }),
-    ).toThrow();
+    expect(() => signUpSchema.parse({ email: "a@b.com", password: "Password1" })).toThrow();
   });
 
   test("rejects invalid email", () => {
-    expect(() =>
-      signUpSchema.parse({ ...validInput, email: "bad" }),
-    ).toThrow();
+    expect(() => signUpSchema.parse({ ...validInput, email: "bad" })).toThrow();
   });
 
   test("rejects weak password", () => {
-    expect(() =>
-      signUpSchema.parse({ ...validInput, password: "weak" }),
-    ).toThrow();
+    expect(() => signUpSchema.parse({ ...validInput, password: "weak" })).toThrow();
   });
 
   test("rejects invalid username", () => {
-    expect(() =>
-      signUpSchema.parse({ ...validInput, username: "ab" }),
-    ).toThrow();
+    expect(() => signUpSchema.parse({ ...validInput, username: "ab" })).toThrow();
   });
 });
 
@@ -280,9 +270,7 @@ describe("signInSchema", () => {
   });
 
   test("rejects empty password", () => {
-    expect(() =>
-      signInSchema.parse({ email: "test@example.com", password: "" }),
-    ).toThrow();
+    expect(() => signInSchema.parse({ email: "test@example.com", password: "" })).toThrow();
   });
 
   test("transforms email to lowercase and trimmed", () => {
@@ -311,9 +299,7 @@ describe("updateProfileSchema", () => {
   });
 
   test("rejects display_name over 50 chars", () => {
-    expect(() =>
-      updateProfileSchema.parse({ display_name: "a".repeat(51) }),
-    ).toThrow();
+    expect(() => updateProfileSchema.parse({ display_name: "a".repeat(51) })).toThrow();
   });
 
   test("accepts valid avatar_url", () => {
@@ -329,9 +315,7 @@ describe("updateProfileSchema", () => {
   });
 
   test("rejects invalid avatar_url", () => {
-    expect(() =>
-      updateProfileSchema.parse({ avatar_url: "not-a-url" }),
-    ).toThrow();
+    expect(() => updateProfileSchema.parse({ avatar_url: "not-a-url" })).toThrow();
   });
 });
 
@@ -355,14 +339,12 @@ describe("challengeTypeSchema", () => {
 });
 
 describe("winConditionSchema", () => {
-  test.each([
-    "highest_total",
-    "first_to_goal",
-    "longest_streak",
-    "all_complete",
-  ])("accepts '%s'", (condition) => {
-    expect(winConditionSchema.parse(condition)).toBe(condition);
-  });
+  test.each(["highest_total", "first_to_goal", "longest_streak", "all_complete"])(
+    "accepts '%s'",
+    (condition) => {
+      expect(winConditionSchema.parse(condition)).toBe(condition);
+    },
+  );
 
   test("rejects invalid conditions", () => {
     expect(() => winConditionSchema.parse("fastest")).toThrow();
@@ -389,9 +371,7 @@ describe("createChallengeSchema", () => {
   });
 
   test("accepts is_solo = true", () => {
-    const result = createChallengeSchema.parse(
-      validChallenge({ is_solo: true }),
-    );
+    const result = createChallengeSchema.parse(validChallenge({ is_solo: true }));
     expect(result.is_solo).toBe(true);
   });
 
@@ -421,48 +401,34 @@ describe("createChallengeSchema", () => {
   });
 
   test("rejects title too long (101 chars)", () => {
-    expect(() =>
-      createChallengeSchema.parse(validChallenge({ title: "a".repeat(101) })),
-    ).toThrow();
+    expect(() => createChallengeSchema.parse(validChallenge({ title: "a".repeat(101) }))).toThrow();
   });
 
   test("rejects description too long (501 chars)", () => {
     expect(() =>
-      createChallengeSchema.parse(
-        validChallenge({ description: "a".repeat(501) }),
-      ),
+      createChallengeSchema.parse(validChallenge({ description: "a".repeat(501) })),
     ).toThrow();
   });
 
   // Goal validation
   test("rejects zero goal_value", () => {
-    expect(() =>
-      createChallengeSchema.parse(validChallenge({ goal_value: 0 })),
-    ).toThrow();
+    expect(() => createChallengeSchema.parse(validChallenge({ goal_value: 0 }))).toThrow();
   });
 
   test("rejects negative goal_value", () => {
-    expect(() =>
-      createChallengeSchema.parse(validChallenge({ goal_value: -100 })),
-    ).toThrow();
+    expect(() => createChallengeSchema.parse(validChallenge({ goal_value: -100 }))).toThrow();
   });
 
   test("rejects non-integer goal_value", () => {
-    expect(() =>
-      createChallengeSchema.parse(validChallenge({ goal_value: 99.5 })),
-    ).toThrow();
+    expect(() => createChallengeSchema.parse(validChallenge({ goal_value: 99.5 }))).toThrow();
   });
 
   test("rejects goal_value over 10M", () => {
-    expect(() =>
-      createChallengeSchema.parse(validChallenge({ goal_value: 10000001 })),
-    ).toThrow();
+    expect(() => createChallengeSchema.parse(validChallenge({ goal_value: 10000001 }))).toThrow();
   });
 
   test("accepts goal_value at max (10M)", () => {
-    const result = createChallengeSchema.parse(
-      validChallenge({ goal_value: 10000000 }),
-    );
+    const result = createChallengeSchema.parse(validChallenge({ goal_value: 10000000 }));
     expect(result.goal_value).toBe(10000000);
   });
 
@@ -573,9 +539,7 @@ describe("createChallengeSchema", () => {
   // Invalid date format
   test("rejects non-ISO date strings", () => {
     expect(() =>
-      createChallengeSchema.parse(
-        validChallenge({ start_date: "next tuesday" }),
-      ),
+      createChallengeSchema.parse(validChallenge({ start_date: "next tuesday" })),
     ).toThrow();
   });
 });
@@ -607,27 +571,19 @@ describe("logActivitySchema", () => {
   });
 
   test("rejects zero value", () => {
-    expect(() =>
-      logActivitySchema.parse({ ...validInput, value: 0 }),
-    ).toThrow();
+    expect(() => logActivitySchema.parse({ ...validInput, value: 0 })).toThrow();
   });
 
   test("rejects negative value", () => {
-    expect(() =>
-      logActivitySchema.parse({ ...validInput, value: -100 }),
-    ).toThrow();
+    expect(() => logActivitySchema.parse({ ...validInput, value: -100 })).toThrow();
   });
 
   test("rejects non-integer value", () => {
-    expect(() =>
-      logActivitySchema.parse({ ...validInput, value: 3.5 }),
-    ).toThrow();
+    expect(() => logActivitySchema.parse({ ...validInput, value: 3.5 })).toThrow();
   });
 
   test("rejects value over 1M", () => {
-    expect(() =>
-      logActivitySchema.parse({ ...validInput, value: 1000001 }),
-    ).toThrow();
+    expect(() => logActivitySchema.parse({ ...validInput, value: 1000001 })).toThrow();
   });
 
   test("accepts value at max (1M)", () => {
@@ -636,15 +592,11 @@ describe("logActivitySchema", () => {
   });
 
   test("rejects invalid challenge_id", () => {
-    expect(() =>
-      logActivitySchema.parse({ ...validInput, challenge_id: "bad" }),
-    ).toThrow();
+    expect(() => logActivitySchema.parse({ ...validInput, challenge_id: "bad" })).toThrow();
   });
 
   test("rejects invalid client_event_id", () => {
-    expect(() =>
-      logActivitySchema.parse({ ...validInput, client_event_id: "bad" }),
-    ).toThrow();
+    expect(() => logActivitySchema.parse({ ...validInput, client_event_id: "bad" })).toThrow();
   });
 
   test("rejects missing client_event_id", () => {
@@ -653,9 +605,7 @@ describe("logActivitySchema", () => {
   });
 
   test("rejects invalid activity_type", () => {
-    expect(() =>
-      logActivitySchema.parse({ ...validInput, activity_type: "swimming" }),
-    ).toThrow();
+    expect(() => logActivitySchema.parse({ ...validInput, activity_type: "swimming" })).toThrow();
   });
 });
 
@@ -672,9 +622,7 @@ describe("sendFriendRequestSchema", () => {
   });
 
   test("rejects invalid UUID", () => {
-    expect(() =>
-      sendFriendRequestSchema.parse({ target_user_id: "not-uuid" }),
-    ).toThrow();
+    expect(() => sendFriendRequestSchema.parse({ target_user_id: "not-uuid" })).toThrow();
   });
 
   test("rejects missing field", () => {
@@ -691,9 +639,7 @@ describe("acceptFriendRequestSchema", () => {
   });
 
   test("rejects invalid UUID", () => {
-    expect(() =>
-      acceptFriendRequestSchema.parse({ friendship_id: "bad" }),
-    ).toThrow();
+    expect(() => acceptFriendRequestSchema.parse({ friendship_id: "bad" })).toThrow();
   });
 });
 
@@ -706,9 +652,7 @@ describe("declineFriendRequestSchema", () => {
   });
 
   test("rejects invalid UUID", () => {
-    expect(() =>
-      declineFriendRequestSchema.parse({ friendship_id: 123 }),
-    ).toThrow();
+    expect(() => declineFriendRequestSchema.parse({ friendship_id: 123 })).toThrow();
   });
 });
 
@@ -719,9 +663,7 @@ describe("removeFriendSchema", () => {
   });
 
   test("rejects invalid UUID", () => {
-    expect(() =>
-      removeFriendSchema.parse({ friendship_id: null }),
-    ).toThrow();
+    expect(() => removeFriendSchema.parse({ friendship_id: null })).toThrow();
   });
 });
 
@@ -759,9 +701,7 @@ describe("inviteParticipantSchema", () => {
 
   test("rejects missing fields", () => {
     expect(() => inviteParticipantSchema.parse({})).toThrow();
-    expect(() =>
-      inviteParticipantSchema.parse({ challenge_id: VALID_UUID }),
-    ).toThrow();
+    expect(() => inviteParticipantSchema.parse({ challenge_id: VALID_UUID })).toThrow();
   });
 });
 
