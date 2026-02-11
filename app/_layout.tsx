@@ -44,15 +44,11 @@ import * as Sentry from "@sentry/react-native";
 // MODULE-LEVEL SETUP (runs once at import time)
 // =============================================================================
 
-Sentry.init({
-  dsn: "https://5355753a2ebdf238435764f54c6b1f57@o4510739478478848.ingest.us.sentry.io/4510739480576000",
-  sendDefaultPii: true,
-  enableLogs: true,
-  replaysSessionSampleRate: 0.1,
-  replaysOnErrorSampleRate: 1,
-  integrations: [Sentry.mobileReplayIntegration(), Sentry.feedbackIntegration()],
-});
-
+// Sentry initialization is handled by initSentry() in lib/sentry.ts
+// which respects Config.sentryDsn, __DEV__, and environment guards.
+// Do NOT add a second Sentry.init() here — it bypasses all guards
+// and enables mobile replay unconditionally, which keeps the main
+// thread busy and breaks Detox idle synchronization.
 initSentry();
 
 // Configure foreground notification display

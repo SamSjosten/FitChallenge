@@ -104,17 +104,28 @@ export function initSentry(): void {
     return;
   }
 
+  // Skip in development
+  if (__DEV__) {
+    console.log("[Sentry] Skipped: Development mode");
+    return;
+  }
+
   Sentry.init({
     dsn: Config.sentryDsn,
 
     // Only send errors in production
-    enabled: !__DEV__,
+    enabled: true, // Already gated by __DEV__ check above
 
     // Set environment
-    environment: __DEV__ ? "development" : "production",
+    environment: "production",
 
     // Sample rate for performance monitoring (disabled for now)
     tracesSampleRate: 0,
+
+    // Mobile replay — only in production with a DSN
+    replaysSessionSampleRate: 0.1,
+    replaysOnErrorSampleRate: 1,
+    integrations: [Sentry.mobileReplayIntegration(), Sentry.feedbackIntegration()],
 
     // Filter out expected errors
     beforeSend(event, hint) {
@@ -136,9 +147,7 @@ export function initSentry(): void {
     },
   });
 
-  if (__DEV__) {
-    console.log("[Sentry] Initialized (disabled in dev mode)");
-  }
+  console.log("[Sentry] Initialized with mobile replay");
 }
 
 /**

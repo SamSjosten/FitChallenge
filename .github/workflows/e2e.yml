@@ -105,6 +105,8 @@ jobs:
         run: |
           echo "EXPO_PUBLIC_SUPABASE_URL=${{ secrets.TEST_SUPABASE_URL }}" > .env
           echo "EXPO_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.TEST_SUPABASE_ANON_KEY }}" >> .env
+          echo "EXPO_PUBLIC_ENABLE_REALTIME=false" >> .env
+          # No EXPO_PUBLIC_SENTRY_DSN — Sentry disabled in E2E builds
 
       # --- iOS Build ---
       - name: Setup Ruby (for CocoaPods)
@@ -226,6 +228,8 @@ jobs:
         run: |
           echo "EXPO_PUBLIC_SUPABASE_URL=${{ secrets.TEST_SUPABASE_URL }}" > .env
           echo "EXPO_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.TEST_SUPABASE_ANON_KEY }}" >> .env
+          echo "EXPO_PUBLIC_ENABLE_REALTIME=false" >> .env
+          # No EXPO_PUBLIC_SENTRY_DSN — Sentry disabled in E2E builds
 
       # --- iOS Build ---
       - name: Setup Ruby (for CocoaPods)
@@ -344,6 +348,8 @@ jobs:
         run: |
           echo "EXPO_PUBLIC_SUPABASE_URL=${{ secrets.TEST_SUPABASE_URL }}" > .env
           echo "EXPO_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.TEST_SUPABASE_ANON_KEY }}" >> .env
+          echo "EXPO_PUBLIC_ENABLE_REALTIME=false" >> .env
+          # No EXPO_PUBLIC_SENTRY_DSN — Sentry disabled in E2E builds
 
       # --- Android Build ---
       - name: Prebuild Android
