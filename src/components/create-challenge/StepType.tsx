@@ -12,13 +12,14 @@ import {
   type ActivityType,
 } from "@/components/icons/ActivityIcons";
 import { CHALLENGE_TYPES, type StepTypeProps } from "./types";
+import { TestIDs } from "@/constants/testIDs";
 import type { ChallengeType } from "@/types/database";
 
 export function StepType({ mode, onSelect, onBack }: StepTypeProps) {
   const { colors, radius } = useAppTheme();
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} testID={TestIDs.createWizard.stepType}>
       <Text style={[styles.heading, { color: colors.textPrimary }]}>
         What do you want to track?
       </Text>
@@ -33,6 +34,7 @@ export function StepType({ mode, onSelect, onBack }: StepTypeProps) {
               key={type.id}
               onPress={() => onSelect(type.id)}
               activeOpacity={0.7}
+              testID={TestIDs.createWizard.typeOption(type.id)}
               style={[
                 styles.card,
                 {

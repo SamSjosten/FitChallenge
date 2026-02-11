@@ -34,6 +34,7 @@ import { StepDetails } from "./StepDetails";
 import { StepInvite } from "./StepInvite";
 import { StepReview } from "./StepReview";
 import { StepSuccess } from "./StepSuccess";
+import { TestIDs } from "@/constants/testIDs";
 import {
   type CreateStep,
   type ChallengeMode,
@@ -340,7 +341,11 @@ export function CreateChallengeOrchestrator() {
   const ctaLabel = getCtaLabel(currentStep, mode, selectedFriendIds.length);
 
   return (
-    <SafeAreaView edges={["top"]} style={[styles.safe, { backgroundColor: colors.background }]}>
+    <SafeAreaView
+      edges={["top"]}
+      style={[styles.safe, { backgroundColor: colors.background }]}
+      testID={TestIDs.screens.createChallenge}
+    >
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={styles.flex}
@@ -360,10 +365,16 @@ export function CreateChallengeOrchestrator() {
               onPress={currentStep === "mode" ? handleClose : handleBack}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               style={styles.backBtn}
+              testID={TestIDs.createWizard.backButton}
             >
               <ChevronLeftIcon size={24} color={colors.textSecondary} />
             </TouchableOpacity>
-            <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>{title}</Text>
+            <Text
+              testID={TestIDs.createWizard.headerTitle}
+              style={[styles.headerTitle, { color: colors.textPrimary }]}
+            >
+              {title}
+            </Text>
             {/* Spacer for centering */}
             <View style={styles.backBtn} />
           </View>
@@ -440,6 +451,8 @@ export function CreateChallengeOrchestrator() {
               onPress={handleCtaPress}
               disabled={isCtaDisabled}
               activeOpacity={0.8}
+              testID={TestIDs.createWizard.ctaButton}
+              accessibilityState={{ disabled: isCtaDisabled }}
               style={[
                 styles.ctaButton,
                 {

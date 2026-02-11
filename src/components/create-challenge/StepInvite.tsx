@@ -21,6 +21,7 @@ import {
 } from "react-native-heroicons/outline";
 import type { FriendWithProfile } from "@/services/friends";
 import type { StepInviteProps } from "./types";
+import { TestIDs } from "@/constants/testIDs";
 
 interface FriendRowProps {
   friend: FriendWithProfile;
@@ -36,6 +37,7 @@ function FriendRow({ friend, isSelected, onToggle }: FriendRowProps) {
     <TouchableOpacity
       onPress={onToggle}
       activeOpacity={0.7}
+      testID={TestIDs.createWizard.inviteFriendRow(friend.friend_profile.id)}
       style={[styles.friendRow, isSelected && { backgroundColor: colors.primary.subtle }]}
     >
       {/* Avatar */}
@@ -114,7 +116,7 @@ export function StepInvite({
   }
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} testID={TestIDs.createWizard.stepInvite}>
       {/* Search */}
       <View style={styles.searchWrap}>
         <View
@@ -133,6 +135,7 @@ export function StepInvite({
             onChangeText={setSearch}
             placeholder="Search friends..."
             placeholderTextColor={colors.textMuted}
+            testID={TestIDs.createWizard.inviteSearchInput}
             style={[styles.searchInput, { color: colors.textPrimary }]}
             autoCapitalize="none"
           />

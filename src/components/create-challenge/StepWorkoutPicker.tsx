@@ -11,6 +11,7 @@ import {
   type StepWorkoutPickerProps,
   type WorkoutTypeCatalogEntry,
 } from "./types";
+import { TestIDs } from "@/constants/testIDs";
 
 // =============================================================================
 // CATEGORY CONFIG
@@ -57,6 +58,7 @@ function WorkoutChip({
     <TouchableOpacity
       onPress={() => onToggle(entry.id)}
       activeOpacity={0.7}
+      testID={TestIDs.createWizard.workoutChip(entry.id)}
       style={[
         styles.chip,
         {
@@ -153,7 +155,7 @@ export function StepWorkoutPicker({
   );
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} testID={TestIDs.createWizard.stepWorkoutPicker}>
       <Text style={[styles.heading, { color: colors.textPrimary }]}>Which exercises count?</Text>
       <Text style={[styles.subheading, { color: colors.textSecondary }]}>
         Select the workout types allowed in this challenge. Different types earn different point
@@ -163,6 +165,7 @@ export function StepWorkoutPicker({
       {/* Select All Toggle */}
       <Pressable
         onPress={handleToggleAll}
+        testID={TestIDs.createWizard.workoutSelectAll}
         style={[
           styles.selectAllRow,
           {
@@ -215,6 +218,7 @@ export function StepWorkoutPicker({
               onPress={() => handleSelectCategory(cat.id)}
               activeOpacity={0.7}
               style={styles.categoryHeader}
+              testID={TestIDs.createWizard.workoutCategory(cat.id)}
             >
               <Text style={styles.categoryEmoji}>{cat.emoji}</Text>
               <Text style={[styles.categoryLabel, { color: colors.textPrimary }]}>{cat.label}</Text>

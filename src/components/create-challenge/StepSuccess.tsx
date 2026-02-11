@@ -5,6 +5,7 @@ import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { useAppTheme } from "@/providers/ThemeProvider";
 import type { StepSuccessProps } from "./types";
+import { TestIDs } from "@/constants/testIDs";
 
 export function StepSuccess({ mode, challengeName, inviteCount, onDone }: StepSuccessProps) {
   const { colors, radius } = useAppTheme();
@@ -19,10 +20,15 @@ export function StepSuccess({ mode, challengeName, inviteCount, onDone }: StepSu
         : "Invite friends whenever you're ready.";
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} testID={TestIDs.createWizard.stepSuccess}>
       <View style={styles.content}>
         <Text style={styles.emoji}>{emoji}</Text>
-        <Text style={[styles.title, { color: colors.textPrimary }]}>{title}</Text>
+        <Text
+          testID={TestIDs.createWizard.successTitle}
+          style={[styles.title, { color: colors.textPrimary }]}
+        >
+          {title}
+        </Text>
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>{subtitle}</Text>
       </View>
 
@@ -30,6 +36,7 @@ export function StepSuccess({ mode, challengeName, inviteCount, onDone }: StepSu
         <TouchableOpacity
           onPress={onDone}
           activeOpacity={0.8}
+          testID={TestIDs.createWizard.doneButton}
           style={[
             styles.button,
             {

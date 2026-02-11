@@ -15,6 +15,7 @@ import {
   type WinConditionId,
   type CreateFormData,
 } from "./types";
+import { TestIDs } from "@/constants/testIDs";
 
 export function StepDetails({
   mode,
@@ -62,7 +63,7 @@ export function StepDetails({
   };
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} testID={TestIDs.createWizard.stepDetails}>
       <View
         style={[
           styles.card,
@@ -80,6 +81,7 @@ export function StepDetails({
           <TextInput
             value={formData.name}
             onChangeText={(v) => update({ name: v })}
+            testID={TestIDs.createWizard.nameInput}
             placeholder={
               mode === "solo" ? "e.g., 10K Steps Daily" : "e.g., Weekly Workout Warriors"
             }
@@ -105,6 +107,7 @@ export function StepDetails({
           <TextInput
             value={formData.description}
             onChangeText={(v) => update({ description: v })}
+            testID={TestIDs.createWizard.descriptionInput}
             placeholder="What's this challenge about?"
             placeholderTextColor={colors.textMuted}
             multiline
@@ -131,6 +134,7 @@ export function StepDetails({
             <TextInput
               value={formData.customUnit}
               onChangeText={(v) => update({ customUnit: v })}
+              testID={TestIDs.createWizard.customUnitInput}
               placeholder="e.g., glasses of water, books read"
               placeholderTextColor={colors.textMuted}
               style={[
@@ -153,6 +157,7 @@ export function StepDetails({
             <TextInput
               value={formData.goal}
               onChangeText={(v) => update({ goal: v.replace(/[^0-9]/g, "") })}
+              testID={TestIDs.createWizard.goalInput}
               placeholder={typeConfig?.placeholder || "100"}
               placeholderTextColor={colors.textMuted}
               keyboardType="number-pad"
@@ -200,6 +205,7 @@ export function StepDetails({
             <TextInput
               value={formData.dailyTarget}
               onChangeText={(v) => update({ dailyTarget: v.replace(/[^0-9]/g, "") })}
+              testID={TestIDs.createWizard.dailyTargetInput}
               placeholder="e.g., 10000"
               placeholderTextColor={colors.textMuted}
               keyboardType="number-pad"
@@ -244,6 +250,7 @@ export function StepDetails({
                   key={d.id}
                   onPress={() => update({ durationPreset: d.id })}
                   activeOpacity={0.7}
+                  testID={TestIDs.createWizard.durationPreset(d.id)}
                   style={[
                     styles.durationChip,
                     {
@@ -272,6 +279,7 @@ export function StepDetails({
             <TextInput
               value={formData.customDurationDays}
               onChangeText={(v) => update({ customDurationDays: v.replace(/[^0-9]/g, "") })}
+              testID={TestIDs.createWizard.customDurationInput}
               placeholder="Number of days"
               placeholderTextColor={colors.textMuted}
               keyboardType="number-pad"
@@ -312,6 +320,7 @@ export function StepDetails({
                 },
               ]}
               onPress={() => update({ startMode: "now" })}
+              testID={TestIDs.createWizard.startModeNow}
             >
               <Text
                 style={[
@@ -340,6 +349,7 @@ export function StepDetails({
                 fresh.setMinutes(0, 0, 0); // Round to next clean hour
                 update({ startMode: "scheduled", scheduledStart: fresh });
               }}
+              testID={TestIDs.createWizard.startModeScheduled}
             >
               <Text
                 style={[
@@ -482,6 +492,7 @@ export function StepDetails({
                     key={w.id}
                     onPress={() => update({ winCondition: w.id })}
                     activeOpacity={0.7}
+                    testID={TestIDs.createWizard.winCondition(w.id)}
                     style={[
                       styles.winOption,
                       {

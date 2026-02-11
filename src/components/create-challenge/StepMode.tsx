@@ -6,6 +6,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { useAppTheme } from "@/providers/ThemeProvider";
 import { UserGroupIcon, ChevronRightIcon } from "react-native-heroicons/outline";
 import type { StepModeProps, ChallengeMode } from "./types";
+import { TestIDs } from "@/constants/testIDs";
 
 // Using a target-like icon for solo; UserGroup for social
 // Heroicons doesn't have a perfect "target" so we use the custom ActivityIcon
@@ -39,6 +40,7 @@ function ModeCard({
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.7}
+      testID={mode === "social" ? TestIDs.createWizard.modeSocial : TestIDs.createWizard.modeSolo}
       style={[
         styles.card,
         {
@@ -90,7 +92,7 @@ export function StepMode({ onSelect }: StepModeProps) {
   const { colors } = useAppTheme();
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} testID={TestIDs.createWizard.stepMode}>
       <Text style={[styles.heading, { color: colors.textPrimary }]}>
         How do you want to challenge?
       </Text>

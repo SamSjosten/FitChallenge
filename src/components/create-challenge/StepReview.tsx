@@ -17,6 +17,7 @@ import {
   WORKOUT_TYPE_CATALOG,
   type StepReviewProps,
 } from "./types";
+import { TestIDs } from "@/constants/testIDs";
 
 // Horizontal connector line between milestones
 function MilestoneConnector({ color }: { color: string }) {
@@ -118,7 +119,7 @@ export function StepReview({
   }
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} testID={TestIDs.createWizard.stepReview}>
       {/* Challenge Summary Card */}
       <View
         style={[
@@ -136,7 +137,10 @@ export function StepReview({
             <Icon size={20} color={typeColors.text} />
           </View>
           <View style={styles.headerText}>
-            <Text style={[styles.challengeName, { color: colors.textPrimary }]}>
+            <Text
+              testID={TestIDs.createWizard.reviewChallengeName}
+              style={[styles.challengeName, { color: colors.textPrimary }]}
+            >
               {formData.name || "Untitled"}
             </Text>
             <Text style={[styles.challengeMeta, { color: colors.textSecondary }]}>
@@ -155,7 +159,11 @@ export function StepReview({
 
         {/* Summary Rows */}
         {summaryRows.map((row) => (
-          <View key={row.label} style={styles.summaryRow}>
+          <View
+            key={row.label}
+            style={styles.summaryRow}
+            testID={TestIDs.createWizard.reviewSummaryRow(row.label)}
+          >
             <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>{row.label}</Text>
             <Text style={[styles.summaryValue, { color: colors.textPrimary }]}>{row.value}</Text>
           </View>

@@ -147,6 +147,61 @@ export const TestIDs = {
   },
 
   // ===========================================================================
+  // CREATE CHALLENGE WIZARD (multi-step flow)
+  // ===========================================================================
+  createWizard: {
+    // Step containers — each step renders with its own testID for waitFor
+    stepMode: "wizard-step-mode",
+    stepType: "wizard-step-type",
+    stepWorkoutPicker: "wizard-step-workout-picker",
+    stepDetails: "wizard-step-details",
+    stepInvite: "wizard-step-invite",
+    stepReview: "wizard-step-review",
+    stepSuccess: "wizard-step-success",
+
+    // Orchestrator navigation
+    backButton: "wizard-back-button",
+    ctaButton: "wizard-cta-button",
+    headerTitle: "wizard-header-title",
+
+    // Step Mode — mode selection cards
+    modeSocial: "mode-social",
+    modeSolo: "mode-solo",
+
+    // Step Type — activity type cards
+    typeOption: (id: string) => `challenge-type-${id}`,
+
+    // Step Workout Picker — workout type selection
+    workoutSelectAll: "workout-select-all",
+    workoutChip: (id: string) => `workout-chip-${id}`,
+    workoutCategory: (id: string) => `workout-category-${id}`,
+
+    // Step Details — form fields
+    nameInput: "challenge-title-input",
+    descriptionInput: "challenge-description-input",
+    goalInput: "challenge-goal-input",
+    customUnitInput: "challenge-custom-unit-input",
+    dailyTargetInput: "daily-target-input",
+    durationPreset: (id: string) => `duration-${id}`,
+    customDurationInput: "custom-duration-input",
+    startModeNow: "start-mode-now",
+    startModeScheduled: "start-mode-scheduled",
+    winCondition: (id: string) => `win-condition-${id}`,
+
+    // Step Invite — friend selection
+    inviteFriendRow: (id: string) => `invite-friend-${id}`,
+    inviteSearchInput: "invite-search-input",
+
+    // Step Review — summary display
+    reviewChallengeName: "review-challenge-name",
+    reviewSummaryRow: (label: string) => `review-row-${label.toLowerCase().replace(/\s/g, "-")}`,
+
+    // Step Success
+    doneButton: "wizard-done-button",
+    successTitle: "wizard-success-title",
+  },
+
+  // ===========================================================================
   // CHALLENGE DETAIL SCREEN
   // ===========================================================================
   challengeDetail: {
