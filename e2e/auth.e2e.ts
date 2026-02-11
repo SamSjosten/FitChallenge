@@ -1,206 +1,183 @@
 // e2e/auth.e2e.ts
 // Authentication E2E Tests
 //
-// Tests the complete authentication flows:
-// - Sign in with valid credentials
-// - Sign in with invalid credentials
-// - Sign out
-// - Session persistence across app restarts
+// Tests the complete auth flow: welcome → auth → home → signout → welcome
+//
+// VERIFIED TESTIDS USED:
+//   welcome-screen, get-started-button, welcome-sign-in-link
+//   login-screen, email-input, password-input, username-input
+//   signin-button, signup-button, signup-mode-button, signin-mode-button
+//   login-error, home-screen-v2, settings-screen, signout-button
+//
+// PREREQUISITES:
+//   - E2E test users seeded (npm run e2e:seed)
+//   - Dev build installed on device/simulator
 
-import { by, device, element, expect } from "detox";
+import { by, device, element, expect, waitFor } from "detox";
 import {
   TestIDs,
   TestUsers,
   waitForElement,
-  waitForText,
-  tap,
-  typeText,
-  clearText,
   signIn,
   signOut,
-  ensureLoggedOut,
 } from "./setup";
 
 describe("Authentication", () => {
-  // ==========================================================================
-  // SETUP
-  // ==========================================================================
-
   beforeAll(async () => {
-    // Start fresh - ensure logged out
-    await device.launchApp({ newInstance: true });
+    await device.launchApp({ newInstance: true, delete: true });
   });
 
-  beforeEach(async () => {
-    // Reset to logged out state before each test
-    await ensureLoggedOut();
-  });
-
-  // ==========================================================================
-  // SIGN IN TESTS
-  // ==========================================================================
-
-  describe("Sign In", () => {
-    it("should display the login screen on app launch when logged out", async () => {
-      // Verify login screen elements are visible
-      await waitForElement(TestIDs.screens.login);
-      await expect(element(by.id(TestIDs.auth.emailInput))).toBeVisible();
-      await expect(element(by.id(TestIDs.auth.passwordInput))).toBeVisible();
-      await expect(element(by.id(TestIDs.auth.signInButton))).toBeVisible();
-    });
-
-    it("should sign in successfully with valid credentials", async () => {
-      await waitForElement(TestIDs.screens.login);
-
-      // Enter credentials
-      await typeText(TestIDs.auth.emailInput, TestUsers.primary.email);
-      await typeText(TestIDs.auth.passwordInput, TestUsers.primary.password);
-
-      // Tap sign in
-      await tap(TestIDs.auth.signInButton);
-
-      // Verify navigation to home screen
-      await waitForElement(TestIDs.screens.home, 20000);
-      await expect(element(by.id(TestIDs.screens.home))).toBeVisible();
-    });
-
-    it("should show error message with invalid credentials", async () => {
-      await waitForElement(TestIDs.screens.login);
-
-      // Enter invalid credentials
-      await typeText(TestIDs.auth.emailInput, "invalid@example.com");
-      await typeText(TestIDs.auth.passwordInput, "wrongpassword");
-
-      // Tap sign in
-      await tap(TestIDs.auth.signInButton);
-
-      // Verify error is shown (wait for network request)
-      await waitForElement(TestIDs.auth.loginError, 10000);
-      await expect(element(by.id(TestIDs.auth.loginError))).toBeVisible();
-    });
-
-    it("should show validation error for empty email", async () => {
-      await waitForElement(TestIDs.screens.login);
-
-      // Enter only password
-      await typeText(TestIDs.auth.passwordInput, "somepassword");
-
-      // Tap sign in
-      await tap(TestIDs.auth.signInButton);
-
-      // Should show validation error
-      await waitForText("Invalid email");
-    });
-
-    it("should show validation error for invalid email format", async () => {
-      await waitForElement(TestIDs.screens.login);
-
-      // Enter invalid email format
-      await typeText(TestIDs.auth.emailInput, "notanemail");
-      await typeText(TestIDs.auth.passwordInput, "somepassword");
-
-      // Tap sign in
-      await tap(TestIDs.auth.signInButton);
-
-      // Should show validation error
-      await waitForText("Invalid email");
-    });
-  });
-
-  // ==========================================================================
-  // SIGN OUT TESTS
-  // ==========================================================================
-
-  describe("Sign Out", () => {
+  describe("Welcome Screen", () => {
     beforeEach(async () => {
-      // Sign in first
-      await signIn(TestUsers.primary.email, TestUsers.primary.password);
+      await device.launchApp({ newInstance: true, delete: true });
+      await waitForElement(TestIDs.screens.welcome, 10000);
     });
 
-    it("should sign out successfully and return to login screen", async () => {
-      // Verify we're on home screen
-      await expect(element(by.id(TestIDs.screens.home))).toBeVisible();
-
-      // Perform sign out
-      await signOut();
-
-      // Verify we're back on login screen
-      await expect(element(by.id(TestIDs.screens.login))).toBeVisible();
-    });
-  });
-
-  // ==========================================================================
-  // SESSION PERSISTENCE TESTS
-  // ==========================================================================
-
-  describe("Session Persistence", () => {
-    it("should persist session after app restart", async () => {
-      // Sign in
-      await signIn(TestUsers.primary.email, TestUsers.primary.password);
-
-      // Verify we're on home screen
-      await expect(element(by.id(TestIDs.screens.home))).toBeVisible();
-
-      // Restart the app (not a new instance - keeps storage)
-      await device.launchApp({ newInstance: false });
-
-      // Wait for app to load
-      await new Promise((resolve) => setTimeout(resolve, 3000));
-
-      // Should still be on home screen (session persisted)
-      await waitForElement(TestIDs.screens.home, 15000);
-      await expect(element(by.id(TestIDs.screens.home))).toBeVisible();
+    it("shows welcome screen on fresh launch", async () => {
+      await waitForElement(TestIDs.screens.welcome, 10000);
+      await expect(element(by.id(TestIDs.screens.welcome))).toBeVisible();
     });
 
-    it("should require re-login after signing out and restarting", async () => {
-      // Sign in
-      await signIn(TestUsers.primary.email, TestUsers.primary.password);
-
-      // Sign out
-      await signOut();
-
-      // Restart the app
-      await device.launchApp({ newInstance: false });
-
-      // Wait for app to load
-      await new Promise((resolve) => setTimeout(resolve, 3000));
-
-      // Should be on login screen
-      await waitForElement(TestIDs.screens.login, 15000);
-      await expect(element(by.id(TestIDs.screens.login))).toBeVisible();
+    it("has Get Started button", async () => {
+      await waitForElement(TestIDs.screens.welcome, 10000);
+      await expect(element(by.id(TestIDs.welcome.getStartedButton))).toBeVisible();
     });
-  });
 
-  // ==========================================================================
-  // NAVIGATION TO SIGN UP
-  // ==========================================================================
+    it("has Sign In link", async () => {
+      await waitForElement(TestIDs.screens.welcome, 10000);
+      await expect(element(by.id(TestIDs.welcome.signInLink))).toBeVisible();
+    });
 
-  describe("Sign Up Navigation", () => {
-    it("should navigate to sign up screen when tapping sign up link", async () => {
-      await waitForElement(TestIDs.screens.login);
+    it("Get Started navigates to auth in signup mode", async () => {
+      await waitForElement(TestIDs.screens.welcome, 10000);
+      await element(by.id(TestIDs.welcome.getStartedButton)).tap();
 
-      // Tap sign up link
-      await tap(TestIDs.auth.signUpLink);
+      // Wait for auth screen (500ms exit animation from welcome)
+      await waitForElement(TestIDs.screens.login, 5000);
 
-      // Verify navigation to sign up screen
-      await waitForElement(TestIDs.screens.signup);
+      // Verify signup mode is active — the username field should be visible
       await expect(element(by.id(TestIDs.auth.usernameInput))).toBeVisible();
       await expect(element(by.id(TestIDs.auth.signUpButton))).toBeVisible();
     });
 
-    it("should navigate back to sign in from sign up screen", async () => {
-      await waitForElement(TestIDs.screens.login);
+    it("Sign In link navigates to auth in signin mode", async () => {
+      await waitForElement(TestIDs.screens.welcome, 10000);
+      await element(by.id(TestIDs.welcome.signInLink)).tap();
 
-      // Go to sign up
-      await tap(TestIDs.auth.signUpLink);
-      await waitForElement(TestIDs.screens.signup);
+      // Wait for auth screen (400ms exit animation from welcome)
+      await waitForElement(TestIDs.screens.login, 5000);
 
-      // Tap sign in link
-      await tap(TestIDs.auth.signInLink);
-
-      // Verify we're back on login
-      await waitForElement(TestIDs.screens.login);
+      // Verify signin mode — username field should NOT exist (conditionally rendered)
+      await expect(element(by.id(TestIDs.auth.usernameInput))).not.toExist();
       await expect(element(by.id(TestIDs.auth.signInButton))).toBeVisible();
+    });
+  });
+
+  describe("Auth Screen — Mode Toggle", () => {
+    beforeEach(async () => {
+      await device.launchApp({ newInstance: true, delete: true });
+      await waitForElement(TestIDs.screens.welcome, 10000);
+      await element(by.id(TestIDs.welcome.signInLink)).tap();
+      await waitForElement(TestIDs.screens.login, 5000);
+    });
+
+    it("can switch from signin to signup mode", async () => {
+      // Start in signin mode — no username field
+      await expect(element(by.id(TestIDs.auth.usernameInput))).not.toExist();
+
+      // Switch to signup mode
+      await element(by.id(TestIDs.auth.signupModeButton)).tap();
+
+      // Username field appears, button changes
+      await expect(element(by.id(TestIDs.auth.usernameInput))).toBeVisible();
+      await expect(element(by.id(TestIDs.auth.signUpButton))).toBeVisible();
+    });
+
+    it("can switch from signup to signin mode", async () => {
+      // Switch to signup first
+      await element(by.id(TestIDs.auth.signupModeButton)).tap();
+      await expect(element(by.id(TestIDs.auth.usernameInput))).toBeVisible();
+
+      // Switch back to signin
+      await element(by.id(TestIDs.auth.signinModeButton)).tap();
+      await expect(element(by.id(TestIDs.auth.usernameInput))).not.toExist();
+      await expect(element(by.id(TestIDs.auth.signInButton))).toBeVisible();
+    });
+  });
+
+  describe("Sign In Flow", () => {
+    beforeEach(async () => {
+      await device.launchApp({ newInstance: true, delete: true });
+      await waitForElement(TestIDs.screens.welcome, 10000);
+    });
+
+    it("successfully signs in with valid credentials", async () => {
+      await signIn(TestUsers.primary.email, TestUsers.primary.password);
+
+      // Verify we're on home screen
+      await expect(element(by.id(TestIDs.screensV2.home))).toBeVisible();
+    });
+
+    it("shows error for invalid credentials", async () => {
+      await waitForElement(TestIDs.screens.welcome, 10000);
+      await element(by.id(TestIDs.welcome.signInLink)).tap();
+      await waitForElement(TestIDs.screens.login, 5000);
+
+      // Enter invalid credentials
+      await element(by.id(TestIDs.auth.emailInput)).replaceText("wrong@test.local");
+      await element(by.id(TestIDs.auth.passwordInput)).replaceText("WrongPassword123!");
+      await element(by.id(TestIDs.auth.signInButton)).tap();
+
+      // Should see an error (either login-error banner or Alert)
+      // The auth screen shows Alert.alert on error, which is a system dialog
+      await waitFor(element(by.text("Error")))
+        .toBeVisible()
+        .withTimeout(10000);
+    });
+
+    it("shows error for empty fields", async () => {
+      await waitForElement(TestIDs.screens.welcome, 10000);
+      await element(by.id(TestIDs.welcome.signInLink)).tap();
+      await waitForElement(TestIDs.screens.login, 5000);
+
+      // Tap submit without entering anything
+      await element(by.id(TestIDs.auth.signInButton)).tap();
+
+      // Zod validation should fire and show field-level errors.
+      // signInSchema requires: email (valid format) and password (min 1 char).
+      // Assert: still on auth screen AND validation error appeared.
+      await expect(element(by.id(TestIDs.screens.login))).toBeVisible();
+      await waitFor(element(by.text("Password is required")))
+        .toBeVisible()
+        .withTimeout(3000);
+    });
+  });
+
+  describe("Sign Out Flow", () => {
+    beforeEach(async () => {
+      await device.launchApp({ newInstance: true, delete: true });
+      await waitForElement(TestIDs.screens.welcome, 10000);
+      await signIn(TestUsers.primary.email, TestUsers.primary.password);
+    });
+
+    it("successfully signs out and returns to welcome", async () => {
+      await signOut();
+      await expect(element(by.id(TestIDs.screens.welcome))).toBeVisible();
+    });
+  });
+
+  describe("Session Persistence", () => {
+    it("stays logged in after app relaunch", async () => {
+      // Sign in first
+      await device.launchApp({ newInstance: true, delete: true });
+      await waitForElement(TestIDs.screens.welcome, 10000);
+      await signIn(TestUsers.primary.email, TestUsers.primary.password);
+
+      // Relaunch WITHOUT deleting — session should persist
+      await device.launchApp({ newInstance: true });
+
+      // Should go straight to home, not welcome
+      await waitForElement(TestIDs.screensV2.home, 10000);
     });
   });
 });

@@ -11,6 +11,7 @@ web-build/
 .env.local
 .env.*.local
 .env.test
+.env.e2e
 
 # IDE
 .vscode/

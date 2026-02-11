@@ -68,7 +68,10 @@ export default function ProfileScreenV2() {
         {/* Header */}
         <View style={styles.header}>
           <Text style={[styles.title, { color: colors.textPrimary }]}>Profile</Text>
-          <TouchableOpacity onPress={() => router.push("/settings")}>
+          <TouchableOpacity
+            testID={TestIDs.profile.settingsButton}
+            onPress={() => router.push("/settings")}
+          >
             <Cog6ToothIcon size={24} color={colors.textSecondary} />
           </TouchableOpacity>
         </View>

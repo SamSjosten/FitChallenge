@@ -38,6 +38,7 @@ import {
   performBiometricSignIn,
 } from "@/lib/biometricSignIn";
 import { styles } from "./auth.styles";
+import { TestIDs } from "@/constants/testIDs";
 
 const LOG = "📱 [AuthScreen]";
 const LOCK_TIMEOUT_MS = 10_000;
@@ -234,7 +235,7 @@ export default function AuthScreenV2() {
 
   // ── Render ────────────────────────────────────────────────────────────
   return (
-    <View style={styles.container}>
+    <View testID={TestIDs.screens.login} style={styles.container}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.keyboardView}
@@ -279,6 +280,7 @@ export default function AuthScreenV2() {
             {/* Mode Toggle */}
             <View style={styles.modeToggle}>
               <TouchableOpacity
+                testID={TestIDs.auth.signupModeButton}
                 style={[styles.modeButton, form.mode === "signup" && styles.modeButtonActive]}
                 onPress={() => form.switchMode("signup")}
               >
@@ -292,6 +294,7 @@ export default function AuthScreenV2() {
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
+                testID={TestIDs.auth.signinModeButton}
                 style={[styles.modeButton, form.mode === "signin" && styles.modeButtonActive]}
                 onPress={() => form.switchMode("signin")}
               >
@@ -309,7 +312,7 @@ export default function AuthScreenV2() {
             {/* Form Fields */}
             <View style={styles.formFields}>
               {form.errors.general && (
-                <View style={styles.errorBanner}>
+                <View testID={TestIDs.auth.loginError} style={styles.errorBanner}>
                   <Ionicons name="alert-circle" size={18} color="#DC2626" />
                   <Text style={styles.errorBannerText}>{form.errors.general}</Text>
                   <TouchableOpacity
@@ -322,6 +325,7 @@ export default function AuthScreenV2() {
               )}
               {form.mode === "signup" && (
                 <AuthFormField
+                  testID={TestIDs.auth.usernameInput}
                   icon="at"
                   placeholder="Username"
                   value={form.username}
@@ -330,6 +334,7 @@ export default function AuthScreenV2() {
                 />
               )}
               <AuthFormField
+                testID={TestIDs.auth.emailInput}
                 icon="mail-outline"
                 placeholder="Email"
                 value={form.email}
@@ -338,6 +343,7 @@ export default function AuthScreenV2() {
                 keyboardType="email-address"
               />
               <AuthFormField
+                testID={TestIDs.auth.passwordInput}
                 icon="lock-closed-outline"
                 placeholder="Password"
                 value={form.password}
@@ -381,6 +387,7 @@ export default function AuthScreenV2() {
 
             {/* Submit Button */}
             <TouchableOpacity
+              testID={form.mode === "signup" ? TestIDs.auth.signUpButton : TestIDs.auth.signInButton}
               style={[styles.submitButton, form.isLoading && styles.submitButtonDisabled]}
               onPress={handleSubmit}
               disabled={form.isLoading}

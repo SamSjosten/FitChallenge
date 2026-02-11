@@ -27,6 +27,7 @@ export const TestIDs = {
     createChallenge: "create-challenge-screen",
     challengeDetail: "challenge-detail-screen",
     notifications: "notifications-screen",
+    welcome: "welcome-screen",
   },
 
   // ===========================================================================
@@ -40,6 +41,10 @@ export const TestIDs = {
     signUpLink: "signup-link",
     loginError: "login-error",
 
+    // Mode toggle
+    signupModeButton: "signup-mode-button",
+    signinModeButton: "signin-mode-button",
+
     // Signup
     usernameInput: "username-input",
     signUpButton: "signup-button",
@@ -48,6 +53,14 @@ export const TestIDs = {
     usernameError: "username-error",
     emailError: "email-error",
     passwordError: "password-error",
+  },
+
+  // ===========================================================================
+  // WELCOME SCREEN
+  // ===========================================================================
+  welcome: {
+    getStartedButton: "get-started-button",
+    signInLink: "welcome-sign-in-link",
   },
 
   // ===========================================================================
