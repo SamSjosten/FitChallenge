@@ -16,6 +16,7 @@ import {
   ensureLoggedIn,
   navigateToTab,
   signIn,
+  launchApp,
 } from "./setup";
 
 /**
@@ -72,7 +73,7 @@ describe("Settings Screen", () => {
 describe("Settings — Sign Out", () => {
   beforeEach(async () => {
     // Fresh login before each sign-out test
-    await device.launchApp({ newInstance: true, delete: true });
+    await launchApp({ newInstance: true, delete: true });
     await waitForElement(TestIDs.screens.welcome, 10000);
     await signIn(TestUsers.primary.email, TestUsers.primary.password);
   });

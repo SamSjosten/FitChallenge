@@ -25,6 +25,7 @@ import {
   generateTestId,
   expectVisible,
   expectNotVisible,
+  launchApp,
 } from "./setup";
 
 describe("Invite Flow", () => {
@@ -35,7 +36,7 @@ describe("Invite Flow", () => {
   // ==========================================================================
 
   beforeAll(async () => {
-    await device.launchApp({ newInstance: true });
+    await launchApp({ newInstance: true });
 
     // Sign in as primary user
     await ensureLoggedOut();
@@ -44,7 +45,7 @@ describe("Invite Flow", () => {
     // Create a challenge for invite testing
     testChallengeTitle = `Invite Test ${generateTestId()}`;
 
-    await navigateToTab("create");
+    await tap(TestIDs.nav.createChallengeFab);
     await waitForElement(TestIDs.screens.createChallenge);
 
     await typeText(TestIDs.createChallenge.titleInput, testChallengeTitle);
@@ -232,7 +233,7 @@ describe("Invite Flow", () => {
 
       const declineTestTitle = `Decline Test ${generateTestId()}`;
 
-      await navigateToTab("create");
+      await tap(TestIDs.nav.createChallengeFab);
       await waitForElement(TestIDs.screens.createChallenge);
 
       await typeText(TestIDs.createChallenge.titleInput, declineTestTitle);

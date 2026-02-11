@@ -20,16 +20,17 @@ import {
   waitForElement,
   signIn,
   signOut,
+  launchApp,
 } from "./setup";
 
 describe("Authentication", () => {
   beforeAll(async () => {
-    await device.launchApp({ newInstance: true, delete: true });
+    await launchApp({ newInstance: true, delete: true });
   });
 
   describe("Welcome Screen", () => {
     beforeEach(async () => {
-      await device.launchApp({ newInstance: true, delete: true });
+      await launchApp({ newInstance: true, delete: true });
       await waitForElement(TestIDs.screens.welcome, 10000);
     });
 
@@ -75,7 +76,7 @@ describe("Authentication", () => {
 
   describe("Auth Screen — Mode Toggle", () => {
     beforeEach(async () => {
-      await device.launchApp({ newInstance: true, delete: true });
+      await launchApp({ newInstance: true, delete: true });
       await waitForElement(TestIDs.screens.welcome, 10000);
       await element(by.id(TestIDs.welcome.signInLink)).tap();
       await waitForElement(TestIDs.screens.login, 5000);
@@ -107,7 +108,7 @@ describe("Authentication", () => {
 
   describe("Sign In Flow", () => {
     beforeEach(async () => {
-      await device.launchApp({ newInstance: true, delete: true });
+      await launchApp({ newInstance: true, delete: true });
       await waitForElement(TestIDs.screens.welcome, 10000);
     });
 
@@ -155,7 +156,7 @@ describe("Authentication", () => {
 
   describe("Sign Out Flow", () => {
     beforeEach(async () => {
-      await device.launchApp({ newInstance: true, delete: true });
+      await launchApp({ newInstance: true, delete: true });
       await waitForElement(TestIDs.screens.welcome, 10000);
       await signIn(TestUsers.primary.email, TestUsers.primary.password);
     });
@@ -169,12 +170,12 @@ describe("Authentication", () => {
   describe("Session Persistence", () => {
     it("stays logged in after app relaunch", async () => {
       // Sign in first
-      await device.launchApp({ newInstance: true, delete: true });
+      await launchApp({ newInstance: true, delete: true });
       await waitForElement(TestIDs.screens.welcome, 10000);
       await signIn(TestUsers.primary.email, TestUsers.primary.password);
 
       // Relaunch WITHOUT deleting — session should persist
-      await device.launchApp({ newInstance: true });
+      await launchApp({ newInstance: true });
 
       // Should go straight to home, not welcome
       await waitForElement(TestIDs.screensV2.home, 10000);

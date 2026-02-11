@@ -20,6 +20,7 @@ import {
   generateTestId,
   expectVisible,
   expectTextVisible,
+  launchApp,
 } from "./setup";
 
 // =============================================================================
@@ -166,7 +167,7 @@ async function tapDoneAndWaitForHome() {
 
 describe("Challenge Creation", () => {
   beforeAll(async () => {
-    await device.launchApp({ newInstance: true });
+    await launchApp({ newInstance: true });
   });
 
   beforeEach(async () => {

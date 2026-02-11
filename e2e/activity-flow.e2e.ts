@@ -20,12 +20,12 @@ import {
   clearText,
   ensureLoggedIn,
   navigateToTab,
-  createChallenge,
   logActivity,
   generateTestId,
   expectVisible,
   expectNotVisible,
   expectTextVisible,
+  launchApp,
 } from "./setup";
 
 describe("Activity Logging", () => {
@@ -37,14 +37,14 @@ describe("Activity Logging", () => {
   // ==========================================================================
 
   beforeAll(async () => {
-    await device.launchApp({ newInstance: true });
+    await launchApp({ newInstance: true });
 
     // Sign in and create a test challenge
     await ensureLoggedIn();
 
     testChallengeTitle = `Activity Test ${generateTestId()}`;
 
-    await navigateToTab("create");
+    await tap(TestIDs.nav.createChallengeFab);
     await waitForElement(TestIDs.screens.createChallenge);
 
     await typeText(TestIDs.createChallenge.titleInput, testChallengeTitle);

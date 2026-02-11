@@ -30,6 +30,7 @@ import {
   expectVisible,
   expectTextVisible,
   retry,
+  launchApp,
 } from "./setup";
 
 describe("Happy Path", () => {
@@ -42,7 +43,7 @@ describe("Happy Path", () => {
   // ==========================================================================
 
   beforeAll(async () => {
-    await device.launchApp({
+    await launchApp({
       newInstance: true,
       permissions: { notifications: "YES" },
     });
@@ -77,7 +78,8 @@ describe("Happy Path", () => {
     console.log("Step 2: Creating challenge...");
 
     // Navigate to create screen
-    await navigateToTab("create");
+    // Navigate to create screen via FAB (not a standard tab)
+    await tap(TestIDs.nav.createChallengeFab);
     await waitForElement(TestIDs.screens.createChallenge);
 
     // Fill in challenge details
@@ -184,7 +186,7 @@ describe("Happy Path", () => {
     await expectVisible(TestIDs.screens.home);
 
     // Restart app (keep storage)
-    await device.launchApp({ newInstance: false });
+    await launchApp({ newInstance: false });
 
     // Wait for app to initialize
     await new Promise((resolve) => setTimeout(resolve, 3000));
@@ -233,7 +235,7 @@ describe("Happy Path", () => {
 
 describe("Navigation Smoke Test", () => {
   beforeAll(async () => {
-    await device.launchApp({ newInstance: true });
+    await launchApp({ newInstance: true });
     await ensureLoggedOut();
     await signIn(TestUsers.primary.email, TestUsers.primary.password);
     await waitForElement(TestIDs.screens.home);
@@ -278,7 +280,7 @@ describe("Navigation Smoke Test", () => {
 
 describe("Error Handling Smoke Test", () => {
   beforeAll(async () => {
-    await device.launchApp({ newInstance: true });
+    await launchApp({ newInstance: true });
     await ensureLoggedOut();
   });
 

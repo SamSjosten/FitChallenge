@@ -30,6 +30,46 @@ import { TestIDs } from "@/constants/testIDs";
 export { TestIDs };
 
 // =============================================================================
+// DETOX SYNCHRONIZATION — URL BLACKLISTING
+// =============================================================================
+// Detox waits for the app to become "idle" before any interaction. Two
+// persistent connections prevent idle from ever being reached:
+//
+//   1. Supabase realtime WebSocket (wss://...supabase.co/realtime/...)
+//   2. Sentry telemetry / replay   (https://...sentry.io/...)
+//
+// URL blacklisting tells Detox: "don't wait for these URLs to resolve."
+// Synchronization stays ENABLED for JS timers and animations, preserving
+// deterministic test execution for everything except background networking.
+//
+// All test helpers use explicit waitFor() after actions that hit Supabase,
+// so blacklisting these URLs is safe — we never rely on Detox's implicit
+// network tracking for correctness.
+//
+// NOTE: JS timers ≥1.5s (server time sync at 5min, notification poll at
+// 30s) are already ignored by Detox automatically. The timers themselves
+// are not the problem — the network requests they trigger are transient
+// and complete quickly. Only the persistent WebSocket/telemetry connections
+// cause the permanent idle-state block.
+//
+// Must be called after every device.launchApp() since launches reset state.
+// =============================================================================
+
+/**
+ * Launch app and configure Detox URL blacklist for persistent connections.
+ * Use this instead of device.launchApp() directly.
+ */
+export async function launchApp(
+  params: Parameters<typeof device.launchApp>[0] = {},
+): Promise<void> {
+  await device.launchApp(params);
+  await device.setURLBlacklist([
+    ".*supabase\\.co.*",
+    ".*sentry\\.io.*",
+  ]);
+}
+
+// =============================================================================
 // TEST USER CREDENTIALS
 // =============================================================================
 // These match the users created by e2e/scripts/seed-users.ts.
@@ -204,7 +244,7 @@ export async function signOut(): Promise<void> {
  * Ensure we're logged out and on the welcome screen.
  */
 export async function ensureLoggedOut(): Promise<void> {
-  await device.launchApp({ newInstance: true });
+  await launchApp({ newInstance: true });
 
   try {
     await waitFor(element(by.id(TestIDs.screensV2.home)))
@@ -216,7 +256,7 @@ export async function ensureLoggedOut(): Promise<void> {
       await waitForElement(TestIDs.screens.welcome, 5000);
     } catch {
       // Nuclear option: clear app data
-      await device.launchApp({ newInstance: true, delete: true });
+      await launchApp({ newInstance: true, delete: true });
       await waitForElement(TestIDs.screens.welcome, 10000);
     }
   }
@@ -226,7 +266,7 @@ export async function ensureLoggedOut(): Promise<void> {
  * Ensure we're logged in as the primary test user.
  */
 export async function ensureLoggedIn(): Promise<void> {
-  await device.launchApp({ newInstance: true });
+  await launchApp({ newInstance: true });
 
   try {
     await waitFor(element(by.id(TestIDs.screensV2.home)))
