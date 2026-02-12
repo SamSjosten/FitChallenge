@@ -309,6 +309,33 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, [state.session]);
 
   // ==========================================================================
+  // GOTRUE AUTO-REFRESH LIFECYCLE
+  // ==========================================================================
+  // GoTrue's autoRefreshToken is disabled at client creation (see supabase.ts)
+  // to prevent a persistent setInterval from blocking Detox idle detection on
+  // cold launch. Instead, we manually start/stop the refresh ticker based on
+  // session existence. This is the officially recommended pattern for non-browser
+  // platforms per GoTrue docs.
+
+  useEffect(() => {
+    const client = getSupabaseClient();
+
+    if (state.session) {
+      // Session exists — start the refresh ticker so tokens stay fresh.
+      // startAutoRefresh() is idempotent (internally calls stop before start).
+      client.auth.startAutoRefresh();
+    } else {
+      // No session — ensure ticker is stopped (no-op if already stopped).
+      client.auth.stopAutoRefresh();
+    }
+
+    return () => {
+      // Cleanup: stop ticker on unmount or before re-run
+      client.auth.stopAutoRefresh();
+    };
+  }, [state.session]);
+
+  // ==========================================================================
   // SOCIAL AUTH HELPER
   // ==========================================================================
 

@@ -81,11 +81,20 @@ export function getSupabaseClient(): SupabaseClient<Database> {
     supabaseClient = createClient<Database>(Config.supabaseUrl, Config.supabaseAnonKey, {
       auth: {
         storage: ResilientStorageAdapter,
-        autoRefreshToken: true,
+        autoRefreshToken: false, // Managed manually in AuthProvider — see below
         persistSession: true,
         detectSessionInUrl: false, // Important for React Native
         flowType: "pkce", // More secure than implicit
       },
+      // NOTE: GoTrue's autoRefreshToken starts a persistent setInterval ticker
+      // immediately on client creation. In non-browser environments (React Native),
+      // _handleVisibilityChange() unconditionally calls startAutoRefresh(), which
+      // installs the ticker even with no session. This blocks Detox idle detection
+      // (shows as "2 work items on main queue").
+      //
+      // Instead, AuthProvider calls startAutoRefresh()/stopAutoRefresh() scoped
+      // to session existence. This is the officially recommended pattern per
+      // GoTrue docs for non-browser platforms.
     });
   }
 
