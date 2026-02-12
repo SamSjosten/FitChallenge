@@ -13,15 +13,29 @@
 //                       notification-bell, create-challenge-fab
 //   (tabs)/index.tsx:   home-screen-v2
 //   (tabs)/friends.tsx: friends-screen-v2
-//   (tabs)/profile.tsx: profile-screen-v2
+//   (tabs)/profile.tsx: profile-screen-v2, settings-button (gear icon)
 //   settings/index.tsx: settings-screen, signout-button, health-data-button, developer-button
 //   ChallengeDetailScreen: challenge-detail-screen, challenge-detail-title, progress-card,
 //                       log-activity-button, invite-button, leaderboard-section
 //   LogActivitySheet:   log-activity-modal, activity-value-input, submit-activity-button
 //   InviteModal:        invite-modal, user-search-input, close-modal-button
+//   CreateChallengeOrchestrator: create-challenge-screen, wizard-back-button,
+//                       wizard-header-title, wizard-cta-button
+//   StepMode:           wizard-step-mode, mode-social, mode-solo
+//   StepType:           wizard-step-type, challenge-type-{id}
+//   StepWorkoutPicker:  wizard-step-workout-picker, workout-select-all,
+//                       workout-chip-{id}, workout-category-{id}
+//   StepDetails:        wizard-step-details, challenge-title-input,
+//                       challenge-description-input, challenge-goal-input,
+//                       challenge-custom-unit-input, daily-target-input,
+//                       duration-{id}, custom-duration-input,
+//                       start-mode-now, start-mode-scheduled, win-condition-{id}
+//   StepInvite:         wizard-step-invite, invite-search-input, invite-friend-{id}
+//   StepReview:         wizard-step-review, review-challenge-name, review-row-{label}
+//   StepSuccess:        wizard-step-success, wizard-success-title, wizard-done-button
 //
 // NOT INSTRUMENTED (need text selectors or future testID additions):
-//   create-challenge components, FriendRow, profile gear icon
+//   FriendRow (shared component)
 
 import { by, device, element, expect, waitFor } from "detox";
 import { TestIDs } from "@/constants/testIDs";
@@ -205,15 +219,12 @@ export async function signIn(email: string, password: string): Promise<void> {
  *
  * ACTUAL FLOW (verified):
  * 1. Tap tab-profile → profile-screen-v2
- * 2. Profile gear icon has NO testID — we navigate via text fallback
+ * 2. Tap settings-button (gear icon) → settings-screen
  * 3. Wait for settings-screen
  * 4. Tap signout-button
  * 5. System Alert: "Sign Out" / "Are you sure..." / "Cancel" + "Sign Out"
  * 6. Confirm alert
  * 7. Wait for welcome-screen
- *
- * KNOWN ISSUE: Profile gear icon lacks testID. Phase 2 will add
- * TestIDs.profile.settingsButton to the gear icon TouchableOpacity.
  */
 export async function signOut(): Promise<void> {
   // Navigate to profile tab
@@ -321,9 +332,9 @@ export async function logActivity(value: number): Promise<void> {
   await waitForElementToDisappear(TestIDs.logActivity.modal);
 }
 
-// NOTE: createChallenge() is intentionally absent.
-// Create challenge components have NO testIDs.
-// Pre-create challenges via seed script instead.
+// NOTE: createChallenge() helper is not needed — the wizard flow is fully
+// instrumented with testIDs and tests drive each step directly via
+// TestIDs.createWizard.* selectors.
 
 // =============================================================================
 // ASSERTION HELPERS

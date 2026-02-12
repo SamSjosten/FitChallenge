@@ -18,7 +18,7 @@ import { TestIDs } from "@/constants/testIDs";
 import { launchApp } from "./setup";
 
 const TEST_EMAIL = "e2e-primary@test.local";
-const TEST_PASSWORD = "TestPass123!";
+const TEST_PASSWORD = "E2eTestPassword123!";
 
 describe("Diagnostic: Detox Sync State", () => {
   // ==========================================================================

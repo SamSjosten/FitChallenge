@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import type { User } from "@supabase/supabase-js";
 
 const supabaseUrl = process.env.SUPABASE_URL!;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -41,15 +42,20 @@ async function seedUsers() {
 
   // Fetch existing users once to find stale test accounts.
   // This is a single API call regardless of how many test users we have.
-  const {
-    data: { users: existingUsers },
-    error: listError,
-  } = await supabase.auth.admin.listUsers({ page: 1, perPage: 1000 });
+  const { data: listData, error: listError } =
+    await supabase.auth.admin.listUsers({ page: 1, perPage: 1000 });
 
   if (listError) {
     console.error("❌ Failed to list existing users:", listError.message);
     process.exit(1);
   }
+
+  if (!listData) {
+    console.error("❌ No data returned from listUsers");
+    process.exit(1);
+  }
+
+  const existingUsers: User[] = listData.users;
 
   for (const user of testUsers) {
     try {

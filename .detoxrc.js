@@ -127,7 +127,7 @@ module.exports = {
     init: {
       exposeGlobals: true,
     },
-    launchApp: "manual",
+    launchApp: "auto",
     cleanup: {
       shutdownDevice: false, // Keep device running for faster re-runs
     },
