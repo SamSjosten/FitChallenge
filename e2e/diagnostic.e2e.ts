@@ -1,22 +1,20 @@
 // e2e/diagnostic.e2e.ts
 // =============================================================================
-// DIAGNOSTIC TEST — Run this FIRST to understand Detox sync state
+// DIAGNOSTIC TEST — Validates sync-disabled E2E infrastructure
 // =============================================================================
 //
-// This test does NOT use disableSynchronization(). It deliberately lets Detox
-// report what's keeping the app busy at each phase:
+// This test validates that the sync-disabled launch flow works correctly:
 //
-//   Phase 1: Fresh launch (no session) — is the app idle before auth?
-//   Phase 2: After sign-in — what new work items appear?
-//   Phase 3: Manual sync check — can we interact after disabling sync?
-//
-// Read the CI output to see exactly which phase blocks and what Detox reports.
+//   Phase 1: Fresh launch → welcome screen reachable
+//   Phase 2: Sign-in → home screen reachable post-auth
+//   Phase 3: Work item identification (sync re-enabled briefly, isolated)
 //
 // Run alone:  detox test --configuration ios.sim.release.iphone16 e2e/diagnostic.e2e.ts --loglevel trace
 // =============================================================================
 
 import { by, device, element, expect, waitFor } from "detox";
 import { TestIDs } from "@/constants/testIDs";
+import { launchApp } from "./setup";
 
 const TEST_EMAIL = "e2e-primary@test.local";
 const TEST_PASSWORD = "TestPass123!";
@@ -28,22 +26,19 @@ describe("Diagnostic: Detox Sync State", () => {
   describe("Phase 1: Fresh launch (no session)", () => {
     beforeAll(async () => {
       console.log("[DIAG] ====== PHASE 1: Launching fresh (delete app data) ======");
-      await device.launchApp({ newInstance: true, delete: true });
-      console.log("[DIAG] launchApp returned. If you see this, launch itself is not blocking.");
+      await launchApp({ newInstance: true, delete: true });
+      console.log("[DIAG] launchApp returned (sync disabled).");
     });
 
-    it("should reach welcome screen with sync ENABLED", async () => {
-      // This is the critical test. If it times out, the app never reaches
-      // idle even before any auth or session exists.
-      console.log("[DIAG] Phase 1: Waiting for welcome screen WITH sync enabled...");
+    it("should reach welcome screen with sync disabled", async () => {
+      console.log("[DIAG] Phase 1: Waiting for welcome screen...");
       try {
         await waitFor(element(by.id(TestIDs.screens.welcome)))
           .toBeVisible()
           .withTimeout(30000);
-        console.log("[DIAG] Phase 1: ✅ Welcome screen visible WITH sync. App reached idle.");
+        console.log("[DIAG] Phase 1: ✅ Welcome screen visible.");
       } catch (e) {
-        console.log("[DIAG] Phase 1: ❌ TIMEOUT — app never reached idle before auth.");
-        console.log("[DIAG] Phase 1: The sync issue exists BEFORE any session/auth/timers.");
+        console.log("[DIAG] Phase 1: ❌ TIMEOUT — welcome screen not reachable.");
         throw e;
       }
     });
@@ -55,8 +50,6 @@ describe("Diagnostic: Detox Sync State", () => {
   describe("Phase 2: After sign-in", () => {
     beforeAll(async () => {
       console.log("[DIAG] ====== PHASE 2: Sign in to create session ======");
-      // Disable sync just for the sign-in mechanics
-      await device.disableSynchronization();
 
       try {
         // Navigate to sign-in
@@ -82,41 +75,43 @@ describe("Diagnostic: Detox Sync State", () => {
         console.log("[DIAG] Phase 2: Sign-in failed:", (e as Error).message);
         throw e;
       }
-
-      // Re-enable sync to test if app reaches idle after auth
-      console.log("[DIAG] Phase 2: Re-enabling sync to test post-auth idle state...");
-      await device.enableSynchronization();
     });
 
-    it("should allow interaction with sync ENABLED after auth", async () => {
-      console.log("[DIAG] Phase 2: Testing interaction with sync enabled post-auth...");
+    it("should allow interaction after sign-in", async () => {
+      console.log("[DIAG] Phase 2: Testing interaction post-auth...");
       try {
-        // Simple assertion — if this works, app is idle even with session
         await waitFor(element(by.id(TestIDs.screensV2.home)))
           .toBeVisible()
           .withTimeout(30000);
-        console.log("[DIAG] Phase 2: ✅ Home screen visible WITH sync after auth.");
-        console.log("[DIAG] Phase 2: Timers are NOT blocking. Problem is elsewhere.");
+        console.log("[DIAG] Phase 2: ✅ Home screen visible after auth.");
       } catch (e) {
-        console.log("[DIAG] Phase 2: ❌ TIMEOUT — app busy AFTER auth.");
-        console.log("[DIAG] Phase 2: Session-related timers are likely the cause.");
+        console.log("[DIAG] Phase 2: ❌ TIMEOUT — home not reachable after auth.");
         throw e;
       }
     });
   });
 
   // ==========================================================================
-  // PHASE 3: Identify work items — sync disabled, then probe
+  // PHASE 3: Work item identification — relaunch and probe
   // ==========================================================================
   describe("Phase 3: Work item identification", () => {
     beforeAll(async () => {
       console.log("[DIAG] ====== PHASE 3: Relaunch for work item identification ======");
-      await device.launchApp({ newInstance: true, delete: true });
-      // Don't disable sync — let Detox report what it sees
+      // Launch fresh — sync is disabled by launchApp()
+      await launchApp({ newInstance: true, delete: true });
+      // Briefly re-enable sync to let Detox report what it sees.
+      // This is safe because it's the LAST phase — no subsequent describes
+      // in this file, and Jest runs each file in a separate worker.
+      await device.enableSynchronization();
+    });
+
+    afterAll(async () => {
+      // Restore sync-disabled state in case Detox reuses this worker
+      await device.disableSynchronization();
     });
 
     it("should log device idle status", async () => {
-      console.log("[DIAG] Phase 3: Checking app busy status...");
+      console.log("[DIAG] Phase 3: Checking app busy status (sync enabled)...");
 
       // Try a short timeout to trigger the busy report quickly
       try {
@@ -136,12 +131,6 @@ describe("Diagnostic: Detox Sync State", () => {
         }
         if (msg.includes("Run loop")) {
           console.log("[DIAG] Phase 3: Main run loop is awake");
-        }
-        if (msg.includes("network")) {
-          console.log("[DIAG] Phase 3: Network requests pending");
-        }
-        if (msg.includes("timer")) {
-          console.log("[DIAG] Phase 3: JS timers pending");
         }
 
         // This test "passes" — it's diagnostic, the info is in the logs

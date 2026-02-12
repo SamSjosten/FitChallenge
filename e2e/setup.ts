@@ -32,17 +32,27 @@ export { TestIDs };
 // =============================================================================
 // APP LAUNCH WRAPPER
 // =============================================================================
-// Centralized launch point for all E2E tests. In CI, the E2E build sets
-// EXPO_PUBLIC_E2E=true which disables persistent background timers
-// (auth token refresh, server time sync) that prevent Detox idle detection.
+// Centralized launch point for all E2E tests.
 //
-// If tests timeout with "N work items pending on Main Queue", the count
-// tells you exactly how many background timers are still running.
+// Detox synchronization is DISABLED because the app has persistent background
+// timers that keep the main dispatch queue non-idle:
+//   - AuthProvider 10-second safety timeout (fires once, then clears)
+//   - GoTrue auto-refresh ticker (30s interval, starts after login)
+//   - Server time sync interval (starts after login)
+//   - Sentry mobile replay (if DSN configured in release build)
+//
+// With sync disabled, all tests MUST use waitFor()/waitForElement() before
+// interacting with elements. The existing helpers already follow this pattern.
+//
+// Previous approach: Tried to eliminate individual timer sources (GoTrue fix
+// in supabase.ts/AuthProvider.tsx), but new timers keep appearing. Disabling
+// sync is the standard production Detox pattern for complex RN apps.
 
 export async function launchApp(
   params: Record<string, unknown> = {},
 ): Promise<void> {
   await device.launchApp(params);
+  await device.disableSynchronization();
 }
 
 // =============================================================================
@@ -112,18 +122,30 @@ export async function waitForText(
 // =============================================================================
 
 export async function tap(testID: string): Promise<void> {
+  await waitFor(element(by.id(testID)))
+    .toBeVisible()
+    .withTimeout(DEFAULT_TIMEOUT);
   await element(by.id(testID)).tap();
 }
 
 export async function typeText(testID: string, text: string): Promise<void> {
+  await waitFor(element(by.id(testID)))
+    .toBeVisible()
+    .withTimeout(DEFAULT_TIMEOUT);
   await element(by.id(testID)).typeText(text);
 }
 
 export async function replaceText(testID: string, text: string): Promise<void> {
+  await waitFor(element(by.id(testID)))
+    .toBeVisible()
+    .withTimeout(DEFAULT_TIMEOUT);
   await element(by.id(testID)).replaceText(text);
 }
 
 export async function clearText(testID: string): Promise<void> {
+  await waitFor(element(by.id(testID)))
+    .toBeVisible()
+    .withTimeout(DEFAULT_TIMEOUT);
   await element(by.id(testID)).clearText();
 }
 
@@ -306,7 +328,9 @@ export async function logActivity(value: number): Promise<void> {
 // =============================================================================
 
 export async function expectVisible(testID: string): Promise<void> {
-  await expect(element(by.id(testID))).toBeVisible();
+  await waitFor(element(by.id(testID)))
+    .toBeVisible()
+    .withTimeout(DEFAULT_TIMEOUT);
 }
 
 export async function expectNotVisible(testID: string): Promise<void> {
@@ -318,6 +342,9 @@ export async function expectTextVisible(text: string): Promise<void> {
 }
 
 export async function expectText(testID: string, text: string): Promise<void> {
+  await waitFor(element(by.id(testID)))
+    .toBeVisible()
+    .withTimeout(DEFAULT_TIMEOUT);
   await expect(element(by.id(testID))).toHaveText(text);
 }
 
