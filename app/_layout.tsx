@@ -12,7 +12,7 @@ import "react-native-get-random-values";
 
 import React, { useEffect } from "react";
 import { Stack } from "expo-router";
-import { QueryClient } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { StatusBar } from "expo-status-bar";
 import { View, ActivityIndicator, StyleSheet } from "react-native";
@@ -37,6 +37,7 @@ import { queryRetryFn, mutationRetryFn } from "@/lib/queryRetry";
 import { initSentry, setUserContext } from "@/lib/sentry";
 import { useOfflineStore } from "@/stores/offlineStore";
 import { useNavigationStore, initNavigationStoreRecovery } from "@/stores/navigationStore";
+import { Config } from "@/constants/config";
 
 import * as Sentry from "@sentry/react-native";
 
@@ -72,6 +73,32 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+// =============================================================================
+// QUERY PROVIDER (E2E-aware)
+// =============================================================================
+// In E2E mode, skip PersistQueryClientProvider to eliminate AsyncStorage
+// hydration/persistence throttle timers that keep the main dispatch queue
+// busy and prevent Detox synchronization from detecting app idle state.
+// Production behavior is unchanged.
+
+function QueryProvider({ children }: { children: React.ReactNode }) {
+  if (Config.isE2E) {
+    return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+  }
+
+  return (
+    <PersistQueryClientProvider
+      client={queryClient}
+      persistOptions={persistOptions}
+      onSuccess={() => {
+        console.log("[QueryPersister] Cache hydrated");
+      }}
+    >
+      {children}
+    </PersistQueryClientProvider>
+  );
+}
 
 // =============================================================================
 // ROOT LAYOUT NAV (authenticated shell)
@@ -238,7 +265,13 @@ function RootLayoutNav() {
 // ROOT LAYOUT (provider tree)
 // =============================================================================
 
-export default Sentry.wrap(function RootLayout() {
+// In E2E mode, skip Sentry.wrap() to avoid mounting TouchEventBoundary,
+// profiler, and feedback provider — these install native observers that
+// create persistent main-queue work items even when Sentry.init() is
+// never called (no DSN in E2E builds). This keeps Detox synchronization
+// working by allowing the app to reach a true idle state.
+
+function RootLayout() {
   // GUARDRAIL 0: Block app if Supabase config is invalid (production error screen)
   if (supabaseConfigError) {
     return (
@@ -250,14 +283,7 @@ export default Sentry.wrap(function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      {/* GUARDRAIL 0: Non-blocking hydration via PersistQueryClientProvider */}
-      <PersistQueryClientProvider
-        client={queryClient}
-        persistOptions={persistOptions}
-        onSuccess={() => {
-          console.log("[QueryPersister] Cache hydrated");
-        }}
-      >
+      <QueryProvider>
         <AuthProvider>
           <ThemeProvider>
             <ToastProvider>
@@ -265,10 +291,12 @@ export default Sentry.wrap(function RootLayout() {
             </ToastProvider>
           </ThemeProvider>
         </AuthProvider>
-      </PersistQueryClientProvider>
+      </QueryProvider>
     </SafeAreaProvider>
   );
-});
+}
+
+export default Config.isE2E ? RootLayout : Sentry.wrap(RootLayout);
 
 // =============================================================================
 // STYLES

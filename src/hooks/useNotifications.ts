@@ -7,6 +7,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { notificationsService, Notification } from "@/services/notifications";
+import { Config } from "@/constants/config";
 
 // =============================================================================
 // QUERY KEYS
@@ -34,12 +35,16 @@ export function useNotifications() {
 
 /**
  * Get unread notification count
+ *
+ * In E2E mode, polling is disabled to eliminate the 30s interval timer
+ * that creates persistent main-queue work items preventing Detox from
+ * detecting app idle state.
  */
 export function useUnreadNotificationCount() {
   return useQuery({
     queryKey: notificationsKeys.unreadCount(),
     queryFn: () => notificationsService.getUnreadCount(),
-    refetchInterval: 30000, // Refresh every 30 seconds
+    refetchInterval: Config.isE2E ? false : 30000,
   });
 }
 

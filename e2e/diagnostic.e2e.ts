@@ -1,13 +1,14 @@
 // e2e/diagnostic.e2e.ts
 // =============================================================================
-// DIAGNOSTIC TEST — Validates sync-disabled E2E infrastructure
+// DIAGNOSTIC TEST — Validates E2E infrastructure with sync enabled
 // =============================================================================
 //
-// This test validates that the sync-disabled launch flow works correctly:
+// This test validates that the E2E mode flag (EXPO_PUBLIC_E2E=true) successfully
+// eliminates persistent timer sources, allowing Detox synchronization to work:
 //
-//   Phase 1: Fresh launch → welcome screen reachable
-//   Phase 2: Sign-in → home screen reachable post-auth
-//   Phase 3: Work item identification (sync re-enabled briefly, isolated)
+//   Phase 1: Fresh launch → welcome screen reachable (sync working at cold start)
+//   Phase 2: Sign-in → home screen reachable post-auth (sync working with session)
+//   Phase 3: Idle state probe — temporarily disable sync to check for residual work items
 //
 // Run alone:  detox test --configuration ios.sim.release.iphone16 e2e/diagnostic.e2e.ts --loglevel trace
 // =============================================================================
@@ -27,10 +28,10 @@ describe("Diagnostic: Detox Sync State", () => {
     beforeAll(async () => {
       console.log("[DIAG] ====== PHASE 1: Launching fresh (delete app data) ======");
       await launchApp({ newInstance: true, delete: true });
-      console.log("[DIAG] launchApp returned (sync disabled).");
+      console.log("[DIAG] launchApp returned (sync enabled).");
     });
 
-    it("should reach welcome screen with sync disabled", async () => {
+    it("should reach welcome screen with sync enabled", async () => {
       console.log("[DIAG] Phase 1: Waiting for welcome screen...");
       try {
         await waitFor(element(by.id(TestIDs.screens.welcome)))
@@ -92,26 +93,32 @@ describe("Diagnostic: Detox Sync State", () => {
   });
 
   // ==========================================================================
-  // PHASE 3: Work item identification — relaunch and probe
+  // PHASE 3: Idle state probe — check for residual work items
   // ==========================================================================
   describe("Phase 3: Work item identification", () => {
     beforeAll(async () => {
       console.log("[DIAG] ====== PHASE 3: Relaunch for work item identification ======");
-      // Launch fresh — sync is disabled by launchApp()
+      // Launch fresh with sync enabled (default)
       await launchApp({ newInstance: true, delete: true });
-      // Briefly re-enable sync to let Detox report what it sees.
-      // This is safe because it's the LAST phase — no subsequent describes
-      // in this file, and Jest runs each file in a separate worker.
-      await device.enableSynchronization();
-    });
-
-    afterAll(async () => {
-      // Restore sync-disabled state in case Detox reuses this worker
+      // Briefly disable sync so we can probe without hanging
       await device.disableSynchronization();
     });
 
+    afterAll(async () => {
+      // Re-enable sync for any subsequent test files
+      await device.enableSynchronization();
+    });
+
     it("should log device idle status", async () => {
-      console.log("[DIAG] Phase 3: Checking app busy status (sync enabled)...");
+      console.log("[DIAG] Phase 3: Probing app busy status (sync disabled for probe)...");
+
+      // Wait for app to settle, then re-enable sync to trigger busy report
+      await waitFor(element(by.id(TestIDs.screens.welcome)))
+        .toBeVisible()
+        .withTimeout(10000);
+
+      console.log("[DIAG] Phase 3: Welcome screen visible. Re-enabling sync to check idle...");
+      await device.enableSynchronization();
 
       // Try a short timeout to trigger the busy report quickly
       try {
@@ -128,6 +135,9 @@ describe("Diagnostic: Detox Sync State", () => {
         if (msg.includes("work items pending")) {
           const match = msg.match(/(\d+) work items pending/);
           console.log(`[DIAG] Phase 3: Found ${match?.[1] || "?"} work items on main queue`);
+        } else if (msg.includes("not found")) {
+          // Element not found = sync completed, app is idle! That's the success case.
+          console.log("[DIAG] Phase 3: ✅ App reached idle state — no persistent work items!");
         }
         if (msg.includes("Run loop")) {
           console.log("[DIAG] Phase 3: Main run loop is awake");

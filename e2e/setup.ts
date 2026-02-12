@@ -32,27 +32,29 @@ export { TestIDs };
 // =============================================================================
 // APP LAUNCH WRAPPER
 // =============================================================================
-// Centralized launch point for all E2E tests.
+// Detox synchronization is ENABLED. The app reaches idle state because
+// non-essential startup instrumentation is disabled at build time via
+// EXPO_PUBLIC_E2E=true (set in .env before building the E2E binary):
 //
-// Detox synchronization is DISABLED because the app has persistent background
-// timers that keep the main dispatch queue non-idle:
-//   - AuthProvider 10-second safety timeout (fires once, then clears)
-//   - GoTrue auto-refresh ticker (30s interval, starts after login)
-//   - Server time sync interval (starts after login)
-//   - Sentry mobile replay (if DSN configured in release build)
+//   - Sentry.wrap() skipped → no TouchEventBoundary/profiler/feedback observers
+//   - PersistQueryClientProvider skipped → no AsyncStorage hydration/throttle timers
+//   - Notification polling interval disabled → no 30s refetchInterval timer
 //
-// With sync disabled, all tests MUST use waitFor()/waitForElement() before
-// interacting with elements. The existing helpers already follow this pattern.
+// With these timer sources eliminated, Detox can detect app idle and
+// synchronize automatically. No disableSynchronization() workaround needed.
 //
-// Previous approach: Tried to eliminate individual timer sources (GoTrue fix
-// in supabase.ts/AuthProvider.tsx), but new timers keep appearing. Disabling
-// sync is the standard production Detox pattern for complex RN apps.
+// The AuthProvider 10s safety timeout is intentionally NOT gated — it's a
+// one-shot timer that clears when INITIAL_SESSION fires and serves a real
+// purpose (detecting corrupted auth storage).
+//
+// IMPORTANT: EXPO_PUBLIC_E2E is a BUILD-TIME flag inlined by Metro.
+// Detox launchArgs do NOT reach process.env. The flag must be in .env
+// before `detox build`.
 
 export async function launchApp(
   params: Record<string, unknown> = {},
 ): Promise<void> {
   await device.launchApp(params);
-  await device.disableSynchronization();
 }
 
 // =============================================================================

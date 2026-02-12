@@ -8,6 +8,12 @@ export const Config = {
   enableAnalytics: process.env.NODE_ENV === "production",
   // Realtime subscriptions - disable with EXPO_PUBLIC_ENABLE_REALTIME=false
   enableRealtime: process.env.EXPO_PUBLIC_ENABLE_REALTIME !== "false",
+  // E2E mode — set via EXPO_PUBLIC_E2E=true in .env BEFORE building.
+  // Disables non-essential startup instrumentation (Sentry.wrap, query
+  // persistence, notification polling) so Detox synchronization can
+  // detect app idle state. This is a BUILD-TIME flag inlined by Metro;
+  // Detox launchArgs do NOT reach process.env.
+  isE2E: process.env.EXPO_PUBLIC_E2E === "true",
 };
 
 export interface ConfigValidation {
