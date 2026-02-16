@@ -10,6 +10,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useAppTheme } from "@/providers/ThemeProvider";
 import { TrophyIcon, UsersIcon, FireIcon, StarIcon } from "react-native-heroicons/solid";
 import { Feather } from "@expo/vector-icons";
+import { TestIDs } from "@/constants/testIDs";
 
 const { width } = Dimensions.get("window");
 
@@ -209,6 +210,7 @@ export default function WelcomeScreenV2() {
 
   return (
     <Animated.View
+      testID={TestIDs.screens.welcome}
       style={[
         styles.container,
         {
@@ -268,6 +270,7 @@ export default function WelcomeScreenV2() {
 
         {/* Get Started Button */}
         <Pressable
+          testID={TestIDs.welcome.getStartedButton}
           onPress={handleGetStarted}
           disabled={isExiting}
           style={({ pressed }) => [
@@ -284,7 +287,11 @@ export default function WelcomeScreenV2() {
         </Pressable>
 
         {/* Sign In Link */}
-        <Pressable onPress={handleSignIn} style={styles.signInLink}>
+        <Pressable
+          testID={TestIDs.welcome.signInLink}
+          onPress={handleSignIn}
+          style={styles.signInLink}
+        >
           <Text style={[styles.signInText, { color: colors.textMuted }]}>
             Already have an account?{" "}
             <Text style={{ color: colors.primary.main, fontWeight: "600" }}>Sign in</Text>

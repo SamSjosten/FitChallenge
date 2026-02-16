@@ -68,8 +68,8 @@ describe("Happy Path", () => {
     await tap(TestIDs.auth.signInButton);
 
     // Verify successful login
-    await waitForElement(TestIDs.screens.home, 20000);
-    await expectVisible(TestIDs.screens.home);
+    await waitForElement(TestIDs.screensV2.home, 20000);
+    await expectVisible(TestIDs.screensV2.home);
     console.log("✓ Signed in successfully");
 
     // =========================================================================
@@ -137,7 +137,7 @@ describe("Happy Path", () => {
 
     // Navigate to home
     await navigateToTab("home");
-    await waitForElement(TestIDs.screens.home);
+    await waitForElement(TestIDs.screensV2.home);
 
     // Challenge should appear in active challenges
     await expectTextVisible(challengeTitle);
@@ -183,7 +183,7 @@ describe("Happy Path", () => {
     // Sign in
     await ensureLoggedOut();
     await signIn(TestUsers.primary.email, TestUsers.primary.password);
-    await expectVisible(TestIDs.screens.home);
+    await expectVisible(TestIDs.screensV2.home);
 
     // Restart app (keep storage)
     await launchApp({ newInstance: false });
@@ -193,9 +193,9 @@ describe("Happy Path", () => {
 
     // Should still be logged in
     await retry(async () => {
-      await waitForElement(TestIDs.screens.home, 10000);
+      await waitForElement(TestIDs.screensV2.home, 10000);
     });
-    await expectVisible(TestIDs.screens.home);
+    await expectVisible(TestIDs.screensV2.home);
 
     console.log("✓ Session persisted after restart");
 
@@ -212,7 +212,7 @@ describe("Happy Path", () => {
 
     // Sign in
     await signIn(TestUsers.primary.email, TestUsers.primary.password);
-    await waitForElement(TestIDs.screens.home);
+    await waitForElement(TestIDs.screensV2.home);
 
     // The challenge created earlier should still exist
     // (This test assumes it runs after the main happy path test)
@@ -238,7 +238,7 @@ describe("Navigation Smoke Test", () => {
     await launchApp({ newInstance: true });
     await ensureLoggedOut();
     await signIn(TestUsers.primary.email, TestUsers.primary.password);
-    await waitForElement(TestIDs.screens.home);
+    await waitForElement(TestIDs.screensV2.home);
   });
 
   afterAll(async () => {
@@ -247,27 +247,27 @@ describe("Navigation Smoke Test", () => {
 
   it("should navigate through all main tabs", async () => {
     // Home tab (already on home)
-    await expectVisible(TestIDs.screens.home);
+    await expectVisible(TestIDs.screensV2.home);
     console.log("✓ Home tab");
 
     // Challenges tab
     await navigateToTab("challenges");
-    await waitForElement(TestIDs.screens.challenges);
+    await waitForElement(TestIDs.screensV2.challenges);
     console.log("✓ Challenges tab");
 
     // Friends tab
     await navigateToTab("friends");
-    await waitForElement(TestIDs.screens.friends);
+    await waitForElement(TestIDs.screensV2.friends);
     console.log("✓ Friends tab");
 
     // Profile tab
     await navigateToTab("profile");
-    await waitForElement(TestIDs.screens.profile);
+    await waitForElement(TestIDs.screensV2.profile);
     console.log("✓ Profile tab");
 
     // Back to Home
     await navigateToTab("home");
-    await waitForElement(TestIDs.screens.home);
+    await waitForElement(TestIDs.screensV2.home);
     console.log("✓ Back to Home");
 
     console.log("\n✅ Navigation smoke test passed!");

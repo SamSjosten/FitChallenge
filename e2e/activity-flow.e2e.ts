@@ -60,7 +60,7 @@ describe("Activity Logging", () => {
   beforeEach(async () => {
     // Navigate back to challenge detail if needed
     await navigateToTab("home");
-    await waitForElement(TestIDs.screens.home);
+    await waitForElement(TestIDs.screensV2.home);
 
     // Find and tap on the test challenge
     await tap(TestIDs.home.activeChallengesSection);

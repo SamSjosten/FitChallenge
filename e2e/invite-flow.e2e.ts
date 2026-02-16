@@ -70,7 +70,7 @@ describe("Invite Flow", () => {
 
       // Navigate to the test challenge
       await navigateToTab("home");
-      await waitForElement(TestIDs.screens.home);
+      await waitForElement(TestIDs.screensV2.home);
       await element(by.text(testChallengeTitle)).tap();
       await waitForElement(TestIDs.screens.challengeDetail);
     });
@@ -121,7 +121,7 @@ describe("Invite Flow", () => {
       await signIn(TestUsers.primary.email, TestUsers.primary.password);
 
       await navigateToTab("home");
-      await waitForElement(TestIDs.screens.home);
+      await waitForElement(TestIDs.screensV2.home);
       await element(by.text(testChallengeTitle)).tap();
       await waitForElement(TestIDs.screens.challengeDetail);
 
@@ -148,13 +148,13 @@ describe("Invite Flow", () => {
       // Sign in as secondary user
       await ensureLoggedOut();
       await signIn(TestUsers.secondary.email, TestUsers.secondary.password);
-      await waitForElement(TestIDs.screens.home);
+      await waitForElement(TestIDs.screensV2.home);
     });
 
     it("should show pending invites section on home screen", async () => {
       // The pending invites section should be visible if there are invites
       // Check for either the section or empty state
-      await waitForElement(TestIDs.screens.home);
+      await waitForElement(TestIDs.screensV2.home);
 
       // Either pending invites exist or they don't - both are valid states
       // depending on whether the invite was successfully sent
@@ -181,7 +181,7 @@ describe("Invite Flow", () => {
     beforeEach(async () => {
       await ensureLoggedOut();
       await signIn(TestUsers.secondary.email, TestUsers.secondary.password);
-      await waitForElement(TestIDs.screens.home);
+      await waitForElement(TestIDs.screensV2.home);
     });
 
     it("should accept invite and show challenge in active challenges", async () => {
@@ -261,7 +261,7 @@ describe("Invite Flow", () => {
     it("should decline invite and remove from pending list", async () => {
       await ensureLoggedOut();
       await signIn(TestUsers.secondary.email, TestUsers.secondary.password);
-      await waitForElement(TestIDs.screens.home);
+      await waitForElement(TestIDs.screensV2.home);
 
       try {
         await waitForElement(TestIDs.home.pendingInvitesSection, 5000);
@@ -291,7 +291,7 @@ describe("Invite Flow", () => {
       await signIn(TestUsers.primary.email, TestUsers.primary.password);
 
       await navigateToTab("home");
-      await waitForElement(TestIDs.screens.home);
+      await waitForElement(TestIDs.screensV2.home);
 
       try {
         await element(by.text(testChallengeTitle)).tap();
