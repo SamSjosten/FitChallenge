@@ -17,11 +17,21 @@ module.exports = {
       binaryPath: "ios/build/Build/Products/Debug-iphonesimulator/FitChallenge.app",
       build:
         "xcodebuild -workspace ios/FitChallenge.xcworkspace -scheme FitChallenge -configuration Debug -sdk iphonesimulator -derivedDataPath ios/build",
+      // Disable Detox synchronization at native level before app starts.
+      // React Native keeps the CFRunLoop permanently awake, which makes
+      // Detox's idle-wait mechanism deadlock. Tests use explicit waitFor
+      // polling instead of relying on automatic synchronization.
+      launchArgs: {
+        detoxDisableSynchronization: "YES",
+      },
     },
     "android.debug": {
       type: "android.apk",
       binaryPath: "android/app/build/outputs/apk/debug/app-debug.apk",
       build: "cd android && ./gradlew assembleDebug assembleAndroidTest -DtestBuildType=debug",
+      launchArgs: {
+        detoxDisableSynchronization: "YES",
+      },
     },
     // Release builds - for CI and final validation
     "ios.release": {
@@ -29,11 +39,17 @@ module.exports = {
       binaryPath: "ios/build/Build/Products/Release-iphonesimulator/FitChallenge.app",
       build:
         "xcodebuild -workspace ios/FitChallenge.xcworkspace -scheme FitChallenge -configuration Release -sdk iphonesimulator -derivedDataPath ios/build",
+      launchArgs: {
+        detoxDisableSynchronization: "YES",
+      },
     },
     "android.release": {
       type: "android.apk",
       binaryPath: "android/app/build/outputs/apk/release/app-release.apk",
       build: "cd android && ./gradlew assembleRelease assembleAndroidTest -DtestBuildType=release",
+      launchArgs: {
+        detoxDisableSynchronization: "YES",
+      },
     },
   },
   devices: {

@@ -71,20 +71,32 @@ export async function launchApp(
   params: Record<string, unknown> = {},
 ): Promise<void> {
   // CRITICAL: Disable synchronization DURING launch via launchArgs.
-  // Without this, device.launchApp() blocks for ~25s waiting for the
+  // Without this, device.launchApp() blocks indefinitely waiting for the
   // app's main run loop to idle — which never happens in React Native
   // because the bridge keeps the CFRunLoop permanently awake.
-  // Passing detoxDisableSynchronization as a launch arg tells Detox's
-  // native layer to skip idle-wait from the start.
+  //
+  // The CORRECT flag is `detoxEnableSynchronization: 0` (documented in
+  // Detox 20.x Device API). Setting it to 0 disables sync from the
+  // moment the native Detox layer initializes inside the app process.
+  //
+  // NOTE: `detoxDisableSynchronization` does NOT exist in Detox's API
+  // and is silently ignored. Previous attempts used that nonexistent
+  // flag, which is why sync was never actually disabled.
   const existingLaunchArgs = (params.launchArgs as Record<string, unknown>) ?? {};
   await device.launchApp({
     ...params,
     launchArgs: {
       ...existingLaunchArgs,
-      detoxDisableSynchronization: 1,
+      detoxEnableSynchronization: 0,
+      // Verbose sync logging — writes detailed idle/busy resource info
+      // to the device system log. If tests still hang, pull logs with:
+      //   xcrun simctl spawn booted log stream --level debug --style compact --predicate "category=='SyncManager'"
+      DTXEnableVerboseSyncSystem: "YES",
+      DTXEnableVerboseSyncResources: "YES",
     },
   });
-  // Belt-and-suspenders: also call the JS-side disable
+  // Belt-and-suspenders: also call the runtime API to ensure sync
+  // stays disabled even if Detox resets state internally.
   await device.disableSynchronization();
 }
 
