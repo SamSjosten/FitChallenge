@@ -70,7 +70,21 @@ export { TestIDs };
 export async function launchApp(
   params: Record<string, unknown> = {},
 ): Promise<void> {
-  await device.launchApp(params);
+  // CRITICAL: Disable synchronization DURING launch via launchArgs.
+  // Without this, device.launchApp() blocks for ~25s waiting for the
+  // app's main run loop to idle — which never happens in React Native
+  // because the bridge keeps the CFRunLoop permanently awake.
+  // Passing detoxDisableSynchronization as a launch arg tells Detox's
+  // native layer to skip idle-wait from the start.
+  const existingLaunchArgs = (params.launchArgs as Record<string, unknown>) ?? {};
+  await device.launchApp({
+    ...params,
+    launchArgs: {
+      ...existingLaunchArgs,
+      detoxDisableSynchronization: 1,
+    },
+  });
+  // Belt-and-suspenders: also call the JS-side disable
   await device.disableSynchronization();
 }
 
