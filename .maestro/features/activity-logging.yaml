@@ -26,10 +26,10 @@ appId: com.sps.fitchallenge
 # ===========================================================================
 
 - runFlow:
-    file: sub-flows/ensure-logged-out.yaml
+    file: ../sub-flows/ensure-logged-out.yaml
 
 - runFlow:
-    file: sub-flows/sign-in.yaml
+    file: ../sub-flows/sign-in.yaml
     env:
       EMAIL: "e2e-primary@test.local"
       PASSWORD: "E2eTestPassword123!"
@@ -38,7 +38,7 @@ appId: com.sps.fitchallenge
 - evalScript: ${output.testId = '' + Date.now()}
 
 - runFlow:
-    file: sub-flows/create-challenge.yaml
+    file: ../sub-flows/create-challenge.yaml
     env:
       CHALLENGE_TITLE: "Activity Log ${output.testId}"
       CHALLENGE_GOAL: "100000"
@@ -159,7 +159,7 @@ appId: com.sps.fitchallenge
 # ===========================================================================
 
 - runFlow:
-    file: sub-flows/log-activity.yaml
+    file: ../sub-flows/log-activity.yaml
     env:
       ACTIVITY_VALUE: "5000"
 
@@ -180,7 +180,7 @@ appId: com.sps.fitchallenge
 # ===========================================================================
 
 - runFlow:
-    file: sub-flows/log-activity.yaml
+    file: ../sub-flows/log-activity.yaml
     env:
       ACTIVITY_VALUE: "3000"
 
@@ -189,7 +189,7 @@ appId: com.sps.fitchallenge
     label: "Progress updated after second log"
 
 - runFlow:
-    file: sub-flows/log-activity.yaml
+    file: ../sub-flows/log-activity.yaml
     env:
       ACTIVITY_VALUE: "1500"
 

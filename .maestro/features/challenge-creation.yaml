@@ -28,10 +28,10 @@ appId: com.sps.fitchallenge
 # ===========================================================================
 
 - runFlow:
-    file: sub-flows/ensure-logged-out.yaml
+    file: ../sub-flows/ensure-logged-out.yaml
 
 - runFlow:
-    file: sub-flows/sign-in.yaml
+    file: ../sub-flows/sign-in.yaml
     env:
       EMAIL: "e2e-primary@test.local"
       PASSWORD: "E2eTestPassword123!"
@@ -152,7 +152,7 @@ appId: com.sps.fitchallenge
 # ===========================================================================
 
 - runFlow:
-    file: sub-flows/create-challenge.yaml
+    file: ../sub-flows/create-challenge.yaml
     env:
       CHALLENGE_TITLE: "Steps ${output.testId}"
       CHALLENGE_GOAL: "70000"

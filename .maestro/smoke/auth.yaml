@@ -22,7 +22,7 @@ appId: com.sps.fitchallenge
 # ===========================================================================
 
 - runFlow:
-    file: sub-flows/ensure-logged-out.yaml
+    file: ../sub-flows/ensure-logged-out.yaml
 
 - assertVisible:
     id: "welcome-screen"
@@ -60,7 +60,7 @@ appId: com.sps.fitchallenge
 # ===========================================================================
 
 - runFlow:
-    file: sub-flows/ensure-logged-out.yaml
+    file: ../sub-flows/ensure-logged-out.yaml
 
 - tapOn:
     id: "welcome-sign-in-link"
@@ -124,10 +124,10 @@ appId: com.sps.fitchallenge
 # ===========================================================================
 
 - runFlow:
-    file: sub-flows/ensure-logged-out.yaml
+    file: ../sub-flows/ensure-logged-out.yaml
 
 - runFlow:
-    file: sub-flows/sign-in.yaml
+    file: ../sub-flows/sign-in.yaml
     env:
       EMAIL: "e2e-primary@test.local"
       PASSWORD: "E2eTestPassword123!"
@@ -141,7 +141,7 @@ appId: com.sps.fitchallenge
 # ===========================================================================
 
 - runFlow:
-    file: sub-flows/sign-out.yaml
+    file: ../sub-flows/sign-out.yaml
 
 - assertVisible:
     id: "welcome-screen"
@@ -153,7 +153,7 @@ appId: com.sps.fitchallenge
 
 # Sign in first
 - runFlow:
-    file: sub-flows/sign-in.yaml
+    file: ../sub-flows/sign-in.yaml
     env:
       EMAIL: "e2e-primary@test.local"
       PASSWORD: "E2eTestPassword123!"
@@ -170,4 +170,4 @@ appId: com.sps.fitchallenge
 
 # Clean up
 - runFlow:
-    file: sub-flows/sign-out.yaml
+    file: ../sub-flows/sign-out.yaml

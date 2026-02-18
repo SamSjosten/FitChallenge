@@ -30,10 +30,10 @@ appId: com.sps.fitchallenge
 # ===========================================================================
 
 - runFlow:
-    file: sub-flows/ensure-logged-out.yaml
+    file: ../sub-flows/ensure-logged-out.yaml
 
 - runFlow:
-    file: sub-flows/sign-in.yaml
+    file: ../sub-flows/sign-in.yaml
     env:
       EMAIL: "e2e-primary@test.local"
       PASSWORD: "E2eTestPassword123!"
@@ -42,7 +42,7 @@ appId: com.sps.fitchallenge
 - evalScript: ${output.testId = '' + Date.now()}
 
 - runFlow:
-    file: sub-flows/create-challenge.yaml
+    file: ../sub-flows/create-challenge.yaml
     env:
       CHALLENGE_TITLE: "Invite Test ${output.testId}"
       CHALLENGE_GOAL: "50000"
@@ -109,7 +109,7 @@ appId: com.sps.fitchallenge
 
 # Sign out primary
 - runFlow:
-    file: sub-flows/sign-out.yaml
+    file: ../sub-flows/sign-out.yaml
 
 - assertVisible:
     id: "welcome-screen"
@@ -117,7 +117,7 @@ appId: com.sps.fitchallenge
 
 # Sign in as secondary user
 - runFlow:
-    file: sub-flows/sign-in.yaml
+    file: ../sub-flows/sign-in.yaml
     env:
       EMAIL: "e2e-secondary@test.local"
       PASSWORD: "E2eTestPassword123!"
@@ -150,7 +150,7 @@ appId: com.sps.fitchallenge
 # ===========================================================================
 
 - runFlow:
-    file: sub-flows/create-challenge.yaml
+    file: ../sub-flows/create-challenge.yaml
     env:
       CHALLENGE_TITLE: "Secondary ${output.testId}"
       CHALLENGE_GOAL: "25000"
@@ -164,10 +164,10 @@ appId: com.sps.fitchallenge
 # ===========================================================================
 
 - runFlow:
-    file: sub-flows/sign-out.yaml
+    file: ../sub-flows/sign-out.yaml
 
 - runFlow:
-    file: sub-flows/sign-in.yaml
+    file: ../sub-flows/sign-in.yaml
     env:
       EMAIL: "e2e-primary@test.local"
       PASSWORD: "E2eTestPassword123!"
