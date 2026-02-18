@@ -1,0 +1,350 @@
+# .github/workflows/e2e.yml
+# E2E Test Workflow - Runs Maestro tests on iOS simulators
+#
+# Schedule: Weekly on Sunday at 4am UTC (full matrix - all devices)
+# Manual: Can be triggered via workflow_dispatch (single device, default iPhone 16)
+#
+# Uses Supabase cloud test branch for isolation.
+# Replaces Detox test runner (DetoxSync deadlock with New Architecture, GitHub #4506).
+# Build pipeline (expo prebuild + xcodebuild) is unchanged.
+
+name: E2E Tests
+
+on:
+  # Weekly run (full matrix - all devices)
+  schedule:
+    - cron: "0 4 * * 0" # Sunday at 4am UTC
+
+  # Manual trigger with options (single device)
+  workflow_dispatch:
+    inputs:
+      device:
+        description: "iOS Device to test"
+        required: true
+        default: "iPhone 16"
+        type: choice
+        options:
+          - iPhone 16
+          - iPhone 16 Pro Max
+          - iPhone SE
+          - iPhone 14
+      test_suite:
+        description: "Test suite to run"
+        required: true
+        default: "all"
+        type: choice
+        options:
+          - all
+          - smoke
+          - diagnostic
+
+# Cancel in-progress runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "20"
+
+jobs:
+  # ===========================================================================
+  # iOS E2E Tests - Weekly Full Matrix (All Devices)
+  # ===========================================================================
+  e2e-ios-matrix:
+    name: E2E Tests (iOS - ${{ matrix.device.name }})
+    runs-on: macos-15
+    if: github.event_name == 'schedule'
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        device:
+          - name: "iPhone 16 Pro Max"
+            simulator: "iPhone 16 Pro Max"
+          - name: "iPhone 16"
+            simulator: "iPhone 16"
+          - name: "iPhone SE"
+            simulator: "iPhone SE (3rd generation)"
+          - name: "iPhone 14"
+            simulator: "iPhone 14"
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Seed E2E test users
+        env:
+          SUPABASE_URL: ${{ secrets.TEST_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.TEST_SUPABASE_SERVICE_ROLE_KEY }}
+        run: npm run e2e:seed
+
+      - name: Create .env for E2E
+        run: |
+          echo "EXPO_PUBLIC_SUPABASE_URL=${{ secrets.TEST_SUPABASE_URL }}" > .env
+          echo "EXPO_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.TEST_SUPABASE_ANON_KEY }}" >> .env
+          echo "EXPO_PUBLIC_ENABLE_REALTIME=false" >> .env
+          echo "EXPO_PUBLIC_E2E=true" >> .env
+
+      # --- iOS Build (same as before — prebuild + xcodebuild) ---
+      - name: Setup Ruby (for CocoaPods)
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.2"
+          bundler-cache: true
+
+      - name: Prebuild iOS
+        env:
+          SENTRY_DISABLE_AUTO_UPLOAD: "true"
+        run: npx expo prebuild --platform ios --clean
+
+      - name: Cache CocoaPods
+        uses: actions/cache@v4
+        with:
+          path: ios/Pods
+          key: ${{ runner.os }}-pods-${{ hashFiles('ios/Podfile.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pods-
+
+      - name: Install CocoaPods
+        working-directory: ios
+        run: pod install --repo-update
+
+      - name: Build iOS app (Release for simulator)
+        env:
+          SENTRY_DISABLE_AUTO_UPLOAD: "true"
+        run: |
+          xcodebuild \
+            -workspace ios/FitChallenge.xcworkspace \
+            -scheme FitChallenge \
+            -configuration Release \
+            -sdk iphonesimulator \
+            -derivedDataPath ios/build \
+            | tail -20
+
+      # --- Install Maestro ---
+      - name: Install Maestro CLI
+        run: |
+          curl -fsSL "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> $GITHUB_PATH
+
+      - name: Verify Maestro installation
+        run: |
+          export PATH="$HOME/.maestro/bin:$PATH"
+          maestro --version
+
+      # --- Boot Simulator & Install App ---
+      - name: Boot iOS Simulator
+        run: |
+          xcrun simctl boot "${{ matrix.device.simulator }}" || true
+          xcrun simctl bootstatus "${{ matrix.device.simulator }}" -b
+
+      - name: Install app on simulator
+        run: |
+          xcrun simctl install booted ios/build/Build/Products/Release-iphonesimulator/FitChallenge.app
+
+      # --- Run Maestro Tests ---
+      - name: Run E2E tests (iOS - ${{ matrix.device.name }})
+        run: |
+          export PATH="$HOME/.maestro/bin:$PATH"
+          maestro test .maestro/ --format junit --output report.xml
+
+      # --- Artifacts ---
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: maestro-report-${{ matrix.device.name }}
+          path: |
+            report.xml
+            ~/.maestro/tests/**
+          retention-days: 7
+
+  # ===========================================================================
+  # iOS E2E Tests - Manual Single Device
+  # ===========================================================================
+  e2e-ios:
+    name: E2E Tests (iOS - ${{ github.event.inputs.device || 'iPhone 16' }})
+    runs-on: macos-15
+    if: github.event_name == 'workflow_dispatch'
+    timeout-minutes: 60
+    env:
+      DEVICE_NAME: ${{ github.event.inputs.device || 'iPhone 16' }}
+    steps:
+      - name: Set device simulator name
+        id: device
+        run: |
+          case "${{ env.DEVICE_NAME }}" in
+            "iPhone 16 Pro Max")
+              echo "simulator=iPhone 16 Pro Max" >> $GITHUB_OUTPUT
+              ;;
+            "iPhone 16")
+              echo "simulator=iPhone 16" >> $GITHUB_OUTPUT
+              ;;
+            "iPhone SE")
+              echo "simulator=iPhone SE (3rd generation)" >> $GITHUB_OUTPUT
+              ;;
+            "iPhone 14")
+              echo "simulator=iPhone 14" >> $GITHUB_OUTPUT
+              ;;
+          esac
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Seed E2E test users
+        env:
+          SUPABASE_URL: ${{ secrets.TEST_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.TEST_SUPABASE_SERVICE_ROLE_KEY }}
+        run: npm run e2e:seed
+
+      - name: Create .env for E2E
+        run: |
+          echo "EXPO_PUBLIC_SUPABASE_URL=${{ secrets.TEST_SUPABASE_URL }}" > .env
+          echo "EXPO_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.TEST_SUPABASE_ANON_KEY }}" >> .env
+          echo "EXPO_PUBLIC_ENABLE_REALTIME=false" >> .env
+          echo "EXPO_PUBLIC_E2E=true" >> .env
+
+      # --- iOS Build (same as before — prebuild + xcodebuild) ---
+      - name: Setup Ruby (for CocoaPods)
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.2"
+          bundler-cache: true
+
+      - name: Prebuild iOS
+        env:
+          SENTRY_DISABLE_AUTO_UPLOAD: "true"
+        run: npx expo prebuild --platform ios --clean
+
+      - name: Cache CocoaPods
+        uses: actions/cache@v4
+        with:
+          path: ios/Pods
+          key: ${{ runner.os }}-pods-${{ hashFiles('ios/Podfile.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pods-
+
+      - name: Install CocoaPods
+        working-directory: ios
+        run: pod install --repo-update
+
+      - name: Build iOS app (Release for simulator)
+        env:
+          SENTRY_DISABLE_AUTO_UPLOAD: "true"
+        run: |
+          xcodebuild \
+            -workspace ios/FitChallenge.xcworkspace \
+            -scheme FitChallenge \
+            -configuration Release \
+            -sdk iphonesimulator \
+            -derivedDataPath ios/build \
+            | tail -20
+
+      # --- Install Maestro ---
+      - name: Install Maestro CLI
+        run: |
+          curl -fsSL "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> $GITHUB_PATH
+
+      - name: Verify Maestro installation
+        run: |
+          export PATH="$HOME/.maestro/bin:$PATH"
+          maestro --version
+
+      # --- Boot Simulator & Install App ---
+      - name: Boot iOS Simulator
+        run: |
+          xcrun simctl boot "${{ steps.device.outputs.simulator }}" || true
+          xcrun simctl bootstatus "${{ steps.device.outputs.simulator }}" -b
+
+      - name: Install app on simulator
+        run: |
+          xcrun simctl install booted ios/build/Build/Products/Release-iphonesimulator/FitChallenge.app
+
+      # --- Run Maestro Tests ---
+      - name: Run E2E tests (iOS)
+        run: |
+          export PATH="$HOME/.maestro/bin:$PATH"
+          TEST_SUITE="${{ github.event.inputs.test_suite || 'all' }}"
+
+          if [ "$TEST_SUITE" = "diagnostic" ]; then
+            maestro test .maestro/smoke/diagnostic.yaml
+          elif [ "$TEST_SUITE" = "smoke" ]; then
+            maestro test .maestro/smoke/diagnostic.yaml
+            maestro test .maestro/smoke/auth.yaml
+            maestro test .maestro/smoke/happy-path.yaml
+          else
+            maestro test .maestro/ --format junit --output report.xml
+          fi
+
+      # --- Artifacts ---
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: maestro-report-${{ env.DEVICE_NAME }}
+          path: |
+            report.xml
+            ~/.maestro/tests/**
+          retention-days: 7
+
+  # ===========================================================================
+  # Summary Job
+  # ===========================================================================
+  e2e-summary:
+    name: E2E Summary
+    runs-on: ubuntu-latest
+    needs: [e2e-ios-matrix, e2e-ios]
+    if: always()
+
+    steps:
+      - name: Check results
+        run: |
+          ios_matrix_result="${{ needs.e2e-ios-matrix.result }}"
+          ios_single_result="${{ needs.e2e-ios.result }}"
+
+          echo "iOS E2E (Matrix): $ios_matrix_result"
+          echo "iOS E2E (Single): $ios_single_result"
+
+          if [ "$ios_matrix_result" = "failure" ] || [ "$ios_single_result" = "failure" ]; then
+            echo "❌ E2E tests failed"
+            exit 1
+          fi
+
+          if [ "$ios_matrix_result" = "success" ] || [ "$ios_single_result" = "success" ]; then
+            echo "✅ E2E tests passed"
+            exit 0
+          fi
+
+          echo "⚠️ No E2E tests ran"
+          exit 1
+
+      - name: Notify on failure
+        if: failure() && github.event_name == 'schedule'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '🚨 Weekly E2E Tests Failed',
+              body: `The weekly E2E test run failed.\n\nWorkflow: ${context.workflow}\nRun: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}\n\nPlease investigate and fix any regressions.`,
+              labels: ['bug', 'e2e', 'automated']
+            })
