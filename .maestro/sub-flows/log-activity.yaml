@@ -13,7 +13,7 @@
 #         ACTIVITY_VALUE: "5000"
 
 appId: com.sps.fitchallenge
-
+---
 # Open log activity modal
 - tapOn:
     id: "log-activity-button"

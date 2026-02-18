@@ -4,7 +4,7 @@
 # needs a guaranteed unauthenticated state.
 
 appId: com.sps.fitchallenge
-
+---
 - launchApp:
     clearState: true
     clearKeychain: true

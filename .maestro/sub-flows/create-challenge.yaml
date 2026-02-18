@@ -17,7 +17,7 @@
 #         CHALLENGE_GOAL: "70000"
 
 appId: com.sps.fitchallenge
-
+---
 # Open wizard via FAB
 - tapOn:
     id: "create-challenge-fab"

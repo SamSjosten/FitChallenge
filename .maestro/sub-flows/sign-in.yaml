@@ -17,7 +17,7 @@
 #         PASSWORD: "E2eTestPassword123!"
 
 appId: com.sps.fitchallenge
-
+---
 # If on welcome screen, tap sign-in link (optional — may already be on login)
 - tapOn:
     id: "welcome-sign-in-link"

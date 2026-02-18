@@ -7,7 +7,7 @@
 # Maestro can tap the destructive "Sign Out" button by its visible text.
 
 appId: com.sps.fitchallenge
-
+---
 # Navigate to profile tab
 - tapOn:
     id: "tab-profile"
