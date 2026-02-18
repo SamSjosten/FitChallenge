@@ -1,0 +1,40 @@
+# .maestro/sub-flows/sign-out.yaml
+# Sign out from any authenticated screen.
+#
+# Flow: Profile tab → Settings gear → Sign Out button → Confirm alert → Welcome screen
+#
+# The sign-out confirmation is a React Native Alert (renders as iOS ActionSheet).
+# Maestro can tap the destructive "Sign Out" button by its visible text.
+
+appId: com.sps.fitchallenge
+
+# Navigate to profile tab
+- tapOn:
+    id: "tab-profile"
+
+- assertVisible:
+    id: "profile-screen-v2"
+
+# Tap settings gear icon
+- tapOn:
+    id: "settings-button"
+
+- assertVisible:
+    id: "settings-screen"
+
+# Tap sign out button
+- tapOn:
+    id: "signout-button"
+
+# Confirm the alert — the destructive "Sign Out" button.
+# Alert has BOTH a title "Sign Out" (index 0) and a button "Sign Out" (index 1).
+# Without index, tapOn matches the title first which is not tappable.
+- tapOn:
+    text: "Sign Out"
+    index: 1
+
+# Wait for welcome screen
+- extendedWaitUntil:
+    visible:
+      id: "welcome-screen"
+    timeout: 10000

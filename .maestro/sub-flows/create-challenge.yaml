@@ -1,0 +1,90 @@
+# .maestro/sub-flows/create-challenge.yaml
+# Create a solo steps challenge through the full wizard flow.
+#
+# Parameters (passed via env):
+#   CHALLENGE_TITLE - Challenge name (required)
+#   CHALLENGE_GOAL  - Goal value as string, e.g. "70000" (required)
+#
+# Wizard path: FAB → mode(solo) → type(steps) → details → review → success → done
+#
+# Assumes: User is authenticated and on the home screen.
+#
+# Usage:
+#   - runFlow:
+#       file: sub-flows/create-challenge.yaml
+#       env:
+#         CHALLENGE_TITLE: "My Steps Challenge"
+#         CHALLENGE_GOAL: "70000"
+
+appId: com.sps.fitchallenge
+
+# Open wizard via FAB
+- tapOn:
+    id: "create-challenge-fab"
+
+- assertVisible:
+    id: "create-challenge-screen"
+
+# Step 1: Mode selection — tap Solo (auto-advances to type)
+- assertVisible:
+    id: "wizard-step-mode"
+
+- tapOn:
+    id: "mode-solo"
+
+# Step 2: Type selection — tap Steps (auto-advances to details)
+- assertVisible:
+    id: "wizard-step-type"
+
+- tapOn:
+    id: "challenge-type-steps"
+
+# Step 3: Details — fill form fields
+- assertVisible:
+    id: "wizard-step-details"
+
+# Enter challenge name
+- tapOn:
+    id: "challenge-title-input"
+- eraseText
+- inputText: ${CHALLENGE_TITLE}
+
+# Enter goal value
+- tapOn:
+    id: "challenge-goal-input"
+- eraseText
+- inputText: ${CHALLENGE_GOAL}
+
+# Select 1-week duration
+- tapOn:
+    id: "duration-1week"
+
+# Dismiss keyboard before tapping CTA
+- hideKeyboard
+
+# Advance to review
+- tapOn:
+    id: "wizard-cta-button"
+
+# Step 4: Review — verify and submit
+- assertVisible:
+    id: "wizard-step-review"
+
+- tapOn:
+    id: "wizard-cta-button"
+
+# Step 5: Success — wait for creation to complete
+- extendedWaitUntil:
+    visible:
+      id: "wizard-step-success"
+    timeout: 20000
+
+- assertVisible:
+    id: "wizard-success-title"
+
+# Tap Done to return to home
+- tapOn:
+    id: "wizard-done-button"
+
+- assertVisible:
+    id: "home-screen-v2"

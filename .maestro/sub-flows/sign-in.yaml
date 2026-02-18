@@ -1,0 +1,53 @@
+# .maestro/sub-flows/sign-in.yaml
+# Sign in with configurable credentials.
+#
+# Parameters (passed via env):
+#   EMAIL    - User email address
+#   PASSWORD - User password
+#
+# Handles both states:
+#   - App on welcome screen → taps sign-in link first
+#   - App already on login screen → proceeds directly
+#
+# Usage:
+#   - runFlow:
+#       file: sub-flows/sign-in.yaml
+#       env:
+#         EMAIL: "e2e-primary@test.local"
+#         PASSWORD: "E2eTestPassword123!"
+
+appId: com.sps.fitchallenge
+
+# If on welcome screen, tap sign-in link (optional — may already be on login)
+- tapOn:
+    id: "welcome-sign-in-link"
+    optional: true
+
+# Wait for login screen
+- assertVisible:
+    id: "login-screen"
+
+# Clear and enter email
+- tapOn:
+    id: "email-input"
+- eraseText
+- inputText: ${EMAIL}
+
+# Clear and enter password
+- tapOn:
+    id: "password-input"
+- eraseText
+- inputText: ${PASSWORD}
+
+# Dismiss keyboard before tapping submit
+- hideKeyboard
+
+# Tap sign in
+- tapOn:
+    id: "signin-button"
+
+# Wait for home screen (V2 screen ID)
+- extendedWaitUntil:
+    visible:
+      id: "home-screen-v2"
+    timeout: 20000

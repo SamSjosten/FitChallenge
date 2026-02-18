@@ -1,0 +1,76 @@
+# .maestro/smoke/diagnostic.yaml
+# =============================================================================
+# DIAGNOSTIC TEST — Validates E2E infrastructure works end-to-end
+# =============================================================================
+#
+# Phase 1: Fresh launch → welcome screen reachable
+# Phase 2: Sign-in → home screen reachable
+# Phase 3: Tab navigation → profile screen reachable, home return
+#
+# This is the Day 1 gate — if this fails, debug with `maestro studio`.
+# Replaces: e2e/diagnostic.e2e.ts
+
+appId: com.sps.fitchallenge
+
+---
+# ===========================================================================
+# PHASE 1: Fresh launch — app boots and renders welcome screen
+# ===========================================================================
+
+- launchApp:
+    clearState: true
+    clearKeychain: true
+
+- assertVisible:
+    id: "welcome-screen"
+    label: "Phase 1: Welcome screen visible after fresh launch"
+
+# ===========================================================================
+# PHASE 2: Sign-in — auth flow completes
+# ===========================================================================
+
+- tapOn:
+    id: "welcome-sign-in-link"
+    label: "Phase 2: Tap sign-in link"
+
+- assertVisible:
+    id: "login-screen"
+
+- tapOn:
+    id: "email-input"
+- inputText: "e2e-primary@test.local"
+
+- tapOn:
+    id: "password-input"
+- inputText: "E2eTestPassword123!"
+
+- hideKeyboard
+
+- tapOn:
+    id: "signin-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "home-screen-v2"
+    timeout: 20000
+    label: "Phase 2: Home screen visible after sign-in"
+
+# ===========================================================================
+# PHASE 3: Post-auth interaction — tab navigation works
+# ===========================================================================
+
+- tapOn:
+    id: "tab-profile"
+    label: "Phase 3: Navigate to profile tab"
+
+- assertVisible:
+    id: "profile-screen-v2"
+    label: "Phase 3: Profile screen visible"
+
+- tapOn:
+    id: "tab-home"
+    label: "Phase 3: Navigate back to home tab"
+
+- assertVisible:
+    id: "home-screen-v2"
+    label: "Phase 3: Home screen visible after tab switch"

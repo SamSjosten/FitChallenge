@@ -1,0 +1,22 @@
+# .maestro/config.yaml
+# Workspace configuration for FitChallenge E2E tests
+#
+# Only top-level YAML files in .maestro/ are auto-executed by `maestro test .maestro/`.
+# Subdirectories (sub-flows/, smoke/, features/) are NOT auto-executed.
+# Run specific suites with:
+#   maestro test .maestro/smoke/
+#   maestro test .maestro/features/
+#
+# Run individual tests with:
+#   maestro test .maestro/smoke/diagnostic.yaml
+
+# Execution order when running the full suite
+flows:
+  - smoke/diagnostic.yaml
+  - smoke/auth.yaml
+  - smoke/happy-path.yaml
+  - features/navigation.yaml
+  - features/settings.yaml
+  - features/challenge-creation.yaml
+  - features/activity-logging.yaml
+  - features/invite-flow.yaml

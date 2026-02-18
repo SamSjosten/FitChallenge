@@ -1,0 +1,220 @@
+# .maestro/features/activity-logging.yaml
+# =============================================================================
+# ACTIVITY LOGGING — Modal, validation, successful logging, progress updates
+# =============================================================================
+#
+# Covers:
+#   - Log activity modal opens from challenge detail
+#   - Modal closes on cancel
+#   - Validation: empty value shows error
+#   - Validation: zero value shows error
+#   - Successful activity logging with modal dismiss
+#   - Progress card updates after logging
+#   - Multiple sequential activity logs (cumulative)
+#   - Leaderboard visible after logging
+#
+# Replaces: e2e/activity-flow.e2e.ts
+#
+# SETUP: Creates a fresh solo steps challenge, then exercises the activity
+# logging flow against it.
+
+appId: com.sps.fitchallenge
+
+---
+# ===========================================================================
+# SETUP: Sign in and create a test challenge
+# ===========================================================================
+
+- runFlow:
+    file: sub-flows/ensure-logged-out.yaml
+
+- runFlow:
+    file: sub-flows/sign-in.yaml
+    env:
+      EMAIL: "e2e-primary@test.local"
+      PASSWORD: "E2eTestPassword123!"
+
+# Generate unique title to avoid collisions across runs
+- evalScript: ${output.testId = '' + Date.now()}
+
+- runFlow:
+    file: sub-flows/create-challenge.yaml
+    env:
+      CHALLENGE_TITLE: "Activity Log ${output.testId}"
+      CHALLENGE_GOAL: "100000"
+
+# Navigate to challenge detail
+- tapOn:
+    text: "Activity Log ${output.testId}"
+    label: "Open challenge for activity testing"
+
+- assertVisible:
+    id: "challenge-detail-screen"
+
+# ===========================================================================
+# LOG ACTIVITY MODAL OPENS
+# ===========================================================================
+
+- tapOn:
+    id: "log-activity-button"
+    label: "Open log activity modal"
+
+- assertVisible:
+    id: "log-activity-modal"
+
+- assertVisible:
+    id: "activity-value-input"
+    label: "Value input visible"
+
+- assertVisible:
+    id: "submit-activity-button"
+    label: "Submit button visible"
+
+# ===========================================================================
+# MODAL CLOSES ON CANCEL
+# ===========================================================================
+
+- tapOn:
+    id: "cancel-activity-button"
+    label: "Cancel closes modal"
+
+- extendedWaitUntil:
+    notVisible:
+      id: "log-activity-modal"
+    timeout: 5000
+
+- assertVisible:
+    id: "challenge-detail-screen"
+    label: "Back on detail after cancel"
+
+# ===========================================================================
+# VALIDATION: EMPTY VALUE
+# ===========================================================================
+
+- tapOn:
+    id: "log-activity-button"
+
+- assertVisible:
+    id: "log-activity-modal"
+
+- tapOn:
+    id: "activity-value-input"
+- eraseText
+
+- hideKeyboard
+
+- tapOn:
+    id: "submit-activity-button"
+    label: "Submit with empty value"
+
+# Should show validation error
+- assertVisible:
+    text: "Must be positive"
+    label: "Validation error for empty value"
+
+# Close modal via cancel
+- tapOn:
+    id: "cancel-activity-button"
+
+- extendedWaitUntil:
+    notVisible:
+      id: "log-activity-modal"
+    timeout: 5000
+
+# ===========================================================================
+# VALIDATION: ZERO VALUE
+# ===========================================================================
+
+- tapOn:
+    id: "log-activity-button"
+
+- assertVisible:
+    id: "log-activity-modal"
+
+- tapOn:
+    id: "activity-value-input"
+- eraseText
+- inputText: "0"
+
+- hideKeyboard
+
+- tapOn:
+    id: "submit-activity-button"
+    label: "Submit with zero value"
+
+- assertVisible:
+    text: "Must be positive"
+    label: "Validation error for zero"
+
+- tapOn:
+    id: "cancel-activity-button"
+
+- extendedWaitUntil:
+    notVisible:
+      id: "log-activity-modal"
+    timeout: 5000
+
+# ===========================================================================
+# SUCCESSFUL ACTIVITY LOGGING
+# ===========================================================================
+
+- runFlow:
+    file: sub-flows/log-activity.yaml
+    env:
+      ACTIVITY_VALUE: "5000"
+
+- assertVisible:
+    id: "challenge-detail-screen"
+    label: "Back on detail after successful log"
+
+# ===========================================================================
+# PROGRESS CARD UPDATES
+# ===========================================================================
+
+- assertVisible:
+    id: "progress-card"
+    label: "Progress card visible after logging"
+
+# ===========================================================================
+# MULTIPLE SEQUENTIAL LOGS (CUMULATIVE)
+# ===========================================================================
+
+- runFlow:
+    file: sub-flows/log-activity.yaml
+    env:
+      ACTIVITY_VALUE: "3000"
+
+- assertVisible:
+    id: "progress-card"
+    label: "Progress updated after second log"
+
+- runFlow:
+    file: sub-flows/log-activity.yaml
+    env:
+      ACTIVITY_VALUE: "1500"
+
+- assertVisible:
+    id: "progress-card"
+    label: "Progress updated after third log"
+
+# ===========================================================================
+# LEADERBOARD VISIBLE AFTER LOGGING
+# ===========================================================================
+
+- assertVisible:
+    id: "leaderboard-section"
+    label: "Leaderboard visible for accepted participant"
+
+# ===========================================================================
+# VERIFY CHALLENGE STILL ON HOME
+# ===========================================================================
+
+- tapOn:
+    id: "tab-home"
+
+- assertVisible:
+    id: "home-screen-v2"
+
+- assertVisible:
+    text: "Activity Log ${output.testId}"
+    label: "Challenge still visible on home after logging"

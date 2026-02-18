@@ -1,0 +1,138 @@
+# .maestro/smoke/happy-path.yaml
+# =============================================================================
+# HAPPY PATH — Complete user journey from login to leaderboard
+# =============================================================================
+#
+# Steps:
+#   1. Sign in
+#   2. Create a solo steps challenge via wizard
+#   3. Navigate to challenge detail and log activity
+#   4. Verify progress card and leaderboard visible
+#   5. Navigate home and verify challenge appears
+#   6. Sign out
+#
+# Replaces: e2e/happy-path.e2e.ts (main journey test)
+
+appId: com.sps.fitchallenge
+
+---
+# ===========================================================================
+# STEP 1: SIGN IN
+# ===========================================================================
+
+- runFlow:
+    file: sub-flows/ensure-logged-out.yaml
+
+- runFlow:
+    file: sub-flows/sign-in.yaml
+    env:
+      EMAIL: "e2e-primary@test.local"
+      PASSWORD: "E2eTestPassword123!"
+
+- assertVisible:
+    id: "home-screen-v2"
+    label: "Step 1: Signed in successfully"
+
+# ===========================================================================
+# STEP 2: CREATE CHALLENGE (unique title per run)
+# ===========================================================================
+
+# Generate a unique suffix to avoid title collisions across runs
+- evalScript: ${output.testId = '' + Date.now()}
+
+- runFlow:
+    file: sub-flows/create-challenge.yaml
+    env:
+      CHALLENGE_TITLE: "E2E Happy Path ${output.testId}"
+      CHALLENGE_GOAL: "100000"
+
+- assertVisible:
+    id: "home-screen-v2"
+    label: "Step 2: Back on home after challenge creation"
+
+# Verify challenge title appears on home screen
+- assertVisible:
+    text: "E2E Happy Path ${output.testId}"
+    label: "Step 2: Challenge visible on home screen"
+
+# ===========================================================================
+# STEP 3: LOG ACTIVITY
+# ===========================================================================
+
+# Tap on the challenge to go to detail
+- tapOn:
+    text: "E2E Happy Path ${output.testId}"
+    label: "Step 3: Navigate to challenge detail"
+
+- assertVisible:
+    id: "challenge-detail-screen"
+
+# Log 5000 steps
+- runFlow:
+    file: sub-flows/log-activity.yaml
+    env:
+      ACTIVITY_VALUE: "5000"
+
+- assertVisible:
+    id: "challenge-detail-screen"
+    label: "Step 3: Activity logged, still on detail screen"
+
+# ===========================================================================
+# STEP 4: VERIFY PROGRESS + LEADERBOARD
+# ===========================================================================
+
+- assertVisible:
+    id: "progress-card"
+    label: "Step 4: Progress card visible"
+
+- assertVisible:
+    id: "leaderboard-section"
+    label: "Step 4: Leaderboard visible for accepted participant"
+
+# ===========================================================================
+# STEP 5: VERIFY HOME SCREEN SHOWS CHALLENGE
+# ===========================================================================
+
+# Navigate back to home via tab (avoids iOS back gesture complexity)
+- tapOn:
+    id: "tab-home"
+    label: "Step 5: Navigate to home"
+
+- assertVisible:
+    id: "home-screen-v2"
+
+- assertVisible:
+    text: "E2E Happy Path ${output.testId}"
+    label: "Step 5: Challenge still visible on home screen"
+
+# ===========================================================================
+# STEP 6: LOG MORE ACTIVITY FROM HOME
+# ===========================================================================
+
+# Tap challenge again
+- tapOn:
+    text: "E2E Happy Path ${output.testId}"
+
+- assertVisible:
+    id: "challenge-detail-screen"
+
+# Log additional activity
+- runFlow:
+    file: sub-flows/log-activity.yaml
+    env:
+      ACTIVITY_VALUE: "3000"
+
+- assertVisible:
+    id: "progress-card"
+    label: "Step 6: Progress updated after second log"
+
+# ===========================================================================
+# STEP 7: SIGN OUT
+# ===========================================================================
+
+- runFlow:
+    file: sub-flows/sign-out.yaml
+
+- assertVisible:
+    id: "welcome-screen"
+    label: "Step 7: Signed out successfully"

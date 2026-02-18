@@ -1,0 +1,173 @@
+# .maestro/smoke/auth.yaml
+# =============================================================================
+# AUTH TESTS — Welcome screen, mode toggle, sign-in, sign-out, persistence
+# =============================================================================
+#
+# Covers:
+#   - Welcome screen elements (Get Started, Sign In link)
+#   - Get Started → signup mode (username field visible)
+#   - Sign In link → signin mode (no username field)
+#   - Mode toggle between signin ↔ signup
+#   - Successful sign-in with valid credentials
+#   - Sign-out returns to welcome
+#   - Session persistence across relaunch
+#
+# Replaces: e2e/auth.e2e.ts
+
+appId: com.sps.fitchallenge
+
+---
+# ===========================================================================
+# WELCOME SCREEN ELEMENTS
+# ===========================================================================
+
+- runFlow:
+    file: sub-flows/ensure-logged-out.yaml
+
+- assertVisible:
+    id: "welcome-screen"
+    label: "Welcome screen visible"
+
+- assertVisible:
+    id: "get-started-button"
+    label: "Get Started button present"
+
+- assertVisible:
+    id: "welcome-sign-in-link"
+    label: "Sign In link present"
+
+# ===========================================================================
+# GET STARTED → SIGNUP MODE
+# ===========================================================================
+
+- tapOn:
+    id: "get-started-button"
+    label: "Get Started navigates to auth in signup mode"
+
+- assertVisible:
+    id: "login-screen"
+
+- assertVisible:
+    id: "username-input"
+    label: "Username field visible (signup mode)"
+
+- assertVisible:
+    id: "signup-button"
+    label: "Sign Up button visible (signup mode)"
+
+# ===========================================================================
+# SIGN IN LINK → SIGNIN MODE
+# ===========================================================================
+
+- runFlow:
+    file: sub-flows/ensure-logged-out.yaml
+
+- tapOn:
+    id: "welcome-sign-in-link"
+    label: "Sign In link navigates to signin mode"
+
+- assertVisible:
+    id: "login-screen"
+
+- assertVisible:
+    id: "signin-button"
+    label: "Sign In button visible (signin mode)"
+
+- assertNotVisible:
+    id: "username-input"
+    label: "Username field hidden (signin mode)"
+
+# ===========================================================================
+# MODE TOGGLE: SIGNIN → SIGNUP → SIGNIN
+# ===========================================================================
+
+- tapOn:
+    id: "signup-mode-button"
+    label: "Switch to signup mode"
+
+- assertVisible:
+    id: "username-input"
+    label: "Username field appears in signup mode"
+
+- assertVisible:
+    id: "signup-button"
+
+- tapOn:
+    id: "signin-mode-button"
+    label: "Switch back to signin mode"
+
+- assertNotVisible:
+    id: "username-input"
+    label: "Username field hidden after switching back"
+
+- assertVisible:
+    id: "signin-button"
+
+# ===========================================================================
+# EMPTY FIELD VALIDATION
+# ===========================================================================
+
+- tapOn:
+    id: "signin-button"
+    label: "Submit with empty fields"
+
+# Should still be on login screen (validation prevents submission)
+- assertVisible:
+    id: "login-screen"
+
+- assertVisible:
+    text: "Password is required"
+    label: "Validation error for empty password"
+
+# ===========================================================================
+# SUCCESSFUL SIGN-IN
+# ===========================================================================
+
+- runFlow:
+    file: sub-flows/ensure-logged-out.yaml
+
+- runFlow:
+    file: sub-flows/sign-in.yaml
+    env:
+      EMAIL: "e2e-primary@test.local"
+      PASSWORD: "E2eTestPassword123!"
+
+- assertVisible:
+    id: "home-screen-v2"
+    label: "Home screen visible after sign-in"
+
+# ===========================================================================
+# SIGN-OUT → WELCOME
+# ===========================================================================
+
+- runFlow:
+    file: sub-flows/sign-out.yaml
+
+- assertVisible:
+    id: "welcome-screen"
+    label: "Welcome screen visible after sign-out"
+
+# ===========================================================================
+# SESSION PERSISTENCE
+# ===========================================================================
+
+# Sign in first
+- runFlow:
+    file: sub-flows/sign-in.yaml
+    env:
+      EMAIL: "e2e-primary@test.local"
+      PASSWORD: "E2eTestPassword123!"
+
+# Relaunch WITHOUT clearing state — session should persist
+- launchApp:
+    clearState: false
+
+- extendedWaitUntil:
+    visible:
+      id: "home-screen-v2"
+    timeout: 15000
+    label: "Session persists after relaunch — home screen visible"
+
+# Clean up
+- runFlow:
+    file: sub-flows/sign-out.yaml

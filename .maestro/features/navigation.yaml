@@ -1,0 +1,154 @@
+# .maestro/features/navigation.yaml
+# =============================================================================
+# NAVIGATION TESTS — Tab switching, FAB, notification bell
+# =============================================================================
+#
+# Covers:
+#   - All 4 tabs reachable (home, challenges, friends, profile)
+#   - Create FAB visible on home
+#   - Notification bell visible
+#   - Full tab cycle (home → challenges → friends → profile → home)
+#   - Create wizard opens from FAB and can be dismissed
+#
+# Replaces: e2e/navigation.e2e.ts
+
+appId: com.sps.fitchallenge
+
+---
+# ===========================================================================
+# SETUP: Ensure logged in
+# ===========================================================================
+
+- runFlow:
+    file: sub-flows/ensure-logged-out.yaml
+
+- runFlow:
+    file: sub-flows/sign-in.yaml
+    env:
+      EMAIL: "e2e-primary@test.local"
+      PASSWORD: "E2eTestPassword123!"
+
+# ===========================================================================
+# TAB NAVIGATION
+# ===========================================================================
+
+# Home tab (starting position)
+- assertVisible:
+    id: "home-screen-v2"
+    label: "Home tab active after sign-in"
+
+# Challenges tab
+- tapOn:
+    id: "tab-challenges"
+    label: "Navigate to challenges tab"
+
+- assertVisible:
+    id: "challenges-screen-v2"
+    label: "Challenges screen visible"
+
+# Friends tab
+- tapOn:
+    id: "tab-friends"
+    label: "Navigate to friends tab"
+
+- assertVisible:
+    id: "friends-screen-v2"
+    label: "Friends screen visible"
+
+# Profile tab
+- tapOn:
+    id: "tab-profile"
+    label: "Navigate to profile tab"
+
+- assertVisible:
+    id: "profile-screen-v2"
+    label: "Profile screen visible"
+
+# Back to home
+- tapOn:
+    id: "tab-home"
+    label: "Navigate back to home"
+
+- assertVisible:
+    id: "home-screen-v2"
+    label: "Home screen visible after tab cycle"
+
+# ===========================================================================
+# FAB AND NOTIFICATION BELL
+# ===========================================================================
+
+- assertVisible:
+    id: "create-challenge-fab"
+    label: "Create FAB visible on home"
+
+- assertVisible:
+    id: "notification-bell"
+    label: "Notification bell visible on home"
+
+# ===========================================================================
+# FAB OPENS WIZARD AND CAN BE DISMISSED
+# ===========================================================================
+
+- tapOn:
+    id: "create-challenge-fab"
+    label: "Open create wizard via FAB"
+
+- assertVisible:
+    id: "create-challenge-screen"
+
+- assertVisible:
+    id: "wizard-step-mode"
+    label: "Wizard opens at mode selection step"
+
+# Dismiss wizard via back button (on mode step, this closes the wizard)
+- tapOn:
+    id: "wizard-back-button"
+    label: "Close wizard via back button"
+
+- assertVisible:
+    id: "home-screen-v2"
+    label: "Back on home after dismissing wizard"
+
+# ===========================================================================
+# PROFILE SCREEN CONTENT
+# ===========================================================================
+
+- tapOn:
+    id: "tab-profile"
+
+- assertVisible:
+    id: "profile-screen-v2"
+
+# Primary test user's display name should appear
+- assertVisible:
+    text: "E2E Primary User"
+    label: "User display name visible on profile"
+
+# Settings gear should be accessible
+- assertVisible:
+    id: "settings-button"
+    label: "Settings gear icon visible"
+
+# ===========================================================================
+# FRIENDS SCREEN CONTENT
+# ===========================================================================
+
+- tapOn:
+    id: "tab-friends"
+
+- assertVisible:
+    id: "friends-screen-v2"
+
+- assertVisible:
+    text: "Search by username..."
+    label: "Friends search placeholder visible"
+
+# ===========================================================================
+# CLEANUP: Return to home
+# ===========================================================================
+
+- tapOn:
+    id: "tab-home"
+
+- assertVisible:
+    id: "home-screen-v2"

@@ -1,0 +1,182 @@
+# .maestro/features/invite-flow.yaml
+# =============================================================================
+# INVITE FLOW — Creator invite UI, multi-user switching
+# =============================================================================
+#
+# Covers:
+#   - Creator sees invite button on challenge detail
+#   - Invite modal opens and shows search input
+#   - Invite modal closes when tapping close
+#   - Multi-user login switching (sign out primary → sign in secondary)
+#   - Secondary user sees home screen after switching
+#
+# NOT COVERED (documented gap):
+#   - Invite acceptance by recipient (requires deterministic notification
+#     delivery infrastructure we don't have yet)
+#   - Invite decline flow
+#   - Leaderboard visibility for pending vs accepted invitees
+#
+# The original Detox tests marked every Phase 3 assertion as try/catch
+# which meant they passed whether the feature worked or not.
+# We document the gap honestly rather than ship false coverage.
+#
+# Replaces: e2e/invite-flow.e2e.ts
+
+appId: com.sps.fitchallenge
+
+---
+# ===========================================================================
+# SETUP: Sign in as primary user and create a challenge
+# ===========================================================================
+
+- runFlow:
+    file: sub-flows/ensure-logged-out.yaml
+
+- runFlow:
+    file: sub-flows/sign-in.yaml
+    env:
+      EMAIL: "e2e-primary@test.local"
+      PASSWORD: "E2eTestPassword123!"
+
+# Generate unique title to avoid collisions across runs
+- evalScript: ${output.testId = '' + Date.now()}
+
+- runFlow:
+    file: sub-flows/create-challenge.yaml
+    env:
+      CHALLENGE_TITLE: "Invite Test ${output.testId}"
+      CHALLENGE_GOAL: "50000"
+
+# ===========================================================================
+# CREATOR: INVITE BUTTON VISIBLE
+# ===========================================================================
+
+# Navigate to the challenge
+- tapOn:
+    text: "Invite Test ${output.testId}"
+    label: "Open challenge for invite testing"
+
+- assertVisible:
+    id: "challenge-detail-screen"
+
+- assertVisible:
+    id: "invite-button"
+    label: "Creator sees invite button"
+
+# ===========================================================================
+# CREATOR: INVITE MODAL OPENS
+# ===========================================================================
+
+- tapOn:
+    id: "invite-button"
+    label: "Open invite modal"
+
+- assertVisible:
+    id: "invite-modal"
+
+- assertVisible:
+    id: "user-search-input"
+    label: "Search input visible in invite modal"
+
+# ===========================================================================
+# CREATOR: INVITE MODAL CLOSES
+# ===========================================================================
+
+- tapOn:
+    id: "close-modal-button"
+    label: "Close invite modal"
+
+- extendedWaitUntil:
+    notVisible:
+      id: "invite-modal"
+    timeout: 5000
+
+- assertVisible:
+    id: "challenge-detail-screen"
+    label: "Back on detail after closing invite modal"
+
+# ===========================================================================
+# CREATOR: LEADERBOARD VISIBLE (creator is auto-accepted)
+# ===========================================================================
+
+- assertVisible:
+    id: "leaderboard-section"
+    label: "Creator sees leaderboard (auto-accepted participant)"
+
+# ===========================================================================
+# MULTI-USER SWITCHING: PRIMARY → SECONDARY
+# ===========================================================================
+
+# Sign out primary
+- runFlow:
+    file: sub-flows/sign-out.yaml
+
+- assertVisible:
+    id: "welcome-screen"
+    label: "Welcome screen after primary sign-out"
+
+# Sign in as secondary user
+- runFlow:
+    file: sub-flows/sign-in.yaml
+    env:
+      EMAIL: "e2e-secondary@test.local"
+      PASSWORD: "E2eTestPassword123!"
+
+- assertVisible:
+    id: "home-screen-v2"
+    label: "Secondary user sees home screen"
+
+# ===========================================================================
+# SECONDARY USER: HOME SCREEN RENDERS
+# ===========================================================================
+
+# Verify secondary user's home screen loads without errors
+# (This confirms multi-user auth switching works end-to-end)
+- assertVisible:
+    id: "tab-home"
+    label: "Tab bar visible for secondary user"
+
+- assertVisible:
+    id: "tab-challenges"
+
+- assertVisible:
+    id: "tab-friends"
+
+- assertVisible:
+    id: "tab-profile"
+
+# ===========================================================================
+# SECONDARY USER: CAN CREATE THEIR OWN CHALLENGE
+# ===========================================================================
+
+- runFlow:
+    file: sub-flows/create-challenge.yaml
+    env:
+      CHALLENGE_TITLE: "Secondary ${output.testId}"
+      CHALLENGE_GOAL: "25000"
+
+- assertVisible:
+    text: "Secondary ${output.testId}"
+    label: "Secondary user can create challenges"
+
+# ===========================================================================
+# SWITCH BACK TO PRIMARY
+# ===========================================================================
+
+- runFlow:
+    file: sub-flows/sign-out.yaml
+
+- runFlow:
+    file: sub-flows/sign-in.yaml
+    env:
+      EMAIL: "e2e-primary@test.local"
+      PASSWORD: "E2eTestPassword123!"
+
+- assertVisible:
+    id: "home-screen-v2"
+    label: "Primary user back on home"
+
+# Verify original challenge still exists
+- assertVisible:
+    text: "Invite Test ${output.testId}"
+    label: "Primary user's challenge persisted through user switching"

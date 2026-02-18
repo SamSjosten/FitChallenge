@@ -1,0 +1,13 @@
+# .maestro/sub-flows/ensure-logged-out.yaml
+# Clears all app state and relaunches to a clean welcome screen.
+# This is the nuclear reset — use at the start of any test that
+# needs a guaranteed unauthenticated state.
+
+appId: com.sps.fitchallenge
+
+- launchApp:
+    clearState: true
+    clearKeychain: true
+
+- assertVisible:
+    id: "welcome-screen"

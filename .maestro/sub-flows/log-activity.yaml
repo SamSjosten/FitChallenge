@@ -1,0 +1,45 @@
+# .maestro/sub-flows/log-activity.yaml
+# Log activity from the challenge detail screen.
+#
+# Parameters (passed via env):
+#   ACTIVITY_VALUE - Value to log as string, e.g. "5000" (required)
+#
+# Assumes: User is on the challenge detail screen with an active challenge.
+#
+# Usage:
+#   - runFlow:
+#       file: sub-flows/log-activity.yaml
+#       env:
+#         ACTIVITY_VALUE: "5000"
+
+appId: com.sps.fitchallenge
+
+# Open log activity modal
+- tapOn:
+    id: "log-activity-button"
+
+- assertVisible:
+    id: "log-activity-modal"
+
+# Clear existing value and enter new one
+- tapOn:
+    id: "activity-value-input"
+- eraseText
+- inputText: ${ACTIVITY_VALUE}
+
+# Dismiss keyboard
+- hideKeyboard
+
+# Submit
+- tapOn:
+    id: "submit-activity-button"
+
+# Wait for modal to close (element becomes not visible)
+- extendedWaitUntil:
+    notVisible:
+      id: "log-activity-modal"
+    timeout: 10000
+
+# Verify we're back on challenge detail
+- assertVisible:
+    id: "challenge-detail-screen"

@@ -1,0 +1,148 @@
+# .maestro/features/settings.yaml
+# =============================================================================
+# SETTINGS TESTS — Screen access, items visibility, sign-out flow
+# =============================================================================
+#
+# Covers:
+#   - Navigate to settings via profile → gear icon
+#   - All settings items visible (Account, Notifications, Privacy, etc.)
+#   - Sign-out button present
+#   - Health Data option present
+#   - Version info displayed
+#   - Sign-out confirmation alert (cancel stays, confirm signs out)
+#
+# Replaces: e2e/settings.e2e.ts
+
+appId: com.sps.fitchallenge
+
+---
+# ===========================================================================
+# SETUP
+# ===========================================================================
+
+- runFlow:
+    file: sub-flows/ensure-logged-out.yaml
+
+- runFlow:
+    file: sub-flows/sign-in.yaml
+    env:
+      EMAIL: "e2e-primary@test.local"
+      PASSWORD: "E2eTestPassword123!"
+
+# ===========================================================================
+# NAVIGATE TO SETTINGS
+# ===========================================================================
+
+- tapOn:
+    id: "tab-profile"
+
+- assertVisible:
+    id: "profile-screen-v2"
+
+- tapOn:
+    id: "settings-button"
+    label: "Tap gear icon"
+
+- assertVisible:
+    id: "settings-screen"
+    label: "Settings screen visible"
+
+# ===========================================================================
+# SETTINGS ITEMS VISIBILITY
+# ===========================================================================
+
+- assertVisible:
+    text: "Settings"
+    label: "Settings header text"
+
+- assertVisible:
+    id: "signout-button"
+    label: "Sign out button present"
+
+- assertVisible:
+    id: "health-data-button"
+    label: "Health Data option present"
+
+- assertVisible:
+    text: "Account"
+    label: "Account section visible"
+
+- assertVisible:
+    text: "Notifications"
+    label: "Notifications section visible"
+
+- assertVisible:
+    text: "Privacy"
+    label: "Privacy section visible"
+
+- assertVisible:
+    text: "Security"
+    label: "Security section visible"
+
+- assertVisible:
+    text: "Help & Support"
+    label: "Help & Support section visible"
+
+- assertVisible:
+    text: "FitChallenge v1.0.0"
+    label: "Version info displayed"
+
+# ===========================================================================
+# SIGN-OUT CANCEL STAYS ON SETTINGS
+# ===========================================================================
+
+- tapOn:
+    id: "signout-button"
+
+# Alert: "Are you sure you want to sign out?"
+- assertVisible:
+    text: "Are you sure you want to sign out?"
+
+# Tap Cancel — should stay on settings
+- tapOn: "Cancel"
+
+- assertVisible:
+    id: "settings-screen"
+    label: "Still on settings after cancelling sign-out"
+
+# ===========================================================================
+# HEALTH DATA NAVIGATION
+# ===========================================================================
+
+- tapOn:
+    id: "health-data-button"
+    label: "Navigate to Health Data"
+
+- assertVisible:
+    text: "Health Data"
+    label: "Health Data screen visible"
+
+# Navigate back to settings (iOS edge swipe)
+- swipe:
+    start: 0%, 50%
+    end: 80%, 50%
+
+- assertVisible:
+    id: "settings-screen"
+    label: "Back on settings after Health Data"
+
+# ===========================================================================
+# SIGN-OUT CONFIRMATION WORKS
+# ===========================================================================
+
+- tapOn:
+    id: "signout-button"
+
+- assertVisible:
+    text: "Are you sure you want to sign out?"
+
+# Confirm sign out — index 1 targets the button, not the alert title
+- tapOn:
+    text: "Sign Out"
+    index: 1
+
+- extendedWaitUntil:
+    visible:
+      id: "welcome-screen"
+    timeout: 10000
+    label: "Welcome screen visible after confirmed sign-out"

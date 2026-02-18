@@ -18,6 +18,16 @@
         "SENTRY_PROJECT": "react-native"
       }
     },
+    "e2e-test": {
+      "withoutCredentials": true,
+      "ios": {
+        "simulator": true
+      },
+      "env": {
+        "EXPO_PUBLIC_E2E": "true",
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
+      }
+    },
     "production": {
       "autoIncrement": true,
       "env": {

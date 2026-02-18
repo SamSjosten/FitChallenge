@@ -1,0 +1,591 @@
+# .maestro/features/challenge-creation.yaml
+# =============================================================================
+# CHALLENGE CREATION — Wizard navigation, types, validation, review
+# =============================================================================
+#
+# Covers:
+#   - Wizard opens from FAB showing mode selection
+#   - Back navigation through wizard steps (mode ← type ← details)
+#   - Solo steps challenge (full flow)
+#   - Solo active minutes challenge (2-week duration)
+#   - Solo distance challenge (1-month duration)
+#   - Solo workouts challenge (workout picker step)
+#   - Solo custom type challenge (custom unit field)
+#   - Social challenge with invite step (skip inviting)
+#   - Form validation: empty name, empty goal prevent advancement
+#   - Review step shows correct details
+#
+# Replaces: e2e/challenge-creation.e2e.ts
+#
+# NOTE: `back` command is Android-only. Wizard back uses testID wizard-back-button.
+# iOS edge swipe is NOT used here because the wizard has its own back button.
+
+appId: com.sps.fitchallenge
+
+---
+# ===========================================================================
+# SETUP
+# ===========================================================================
+
+- runFlow:
+    file: sub-flows/ensure-logged-out.yaml
+
+- runFlow:
+    file: sub-flows/sign-in.yaml
+    env:
+      EMAIL: "e2e-primary@test.local"
+      PASSWORD: "E2eTestPassword123!"
+
+# Generate unique suffix to avoid title collisions across runs
+- evalScript: ${output.testId = '' + Date.now()}
+
+# ===========================================================================
+# WIZARD OPENS AND SHOWS MODE SELECTION
+# ===========================================================================
+
+- tapOn:
+    id: "create-challenge-fab"
+    label: "Open wizard via FAB"
+
+- assertVisible:
+    id: "create-challenge-screen"
+
+- assertVisible:
+    id: "wizard-step-mode"
+
+- assertVisible:
+    id: "mode-social"
+    label: "Social mode option visible"
+
+- assertVisible:
+    id: "mode-solo"
+    label: "Solo mode option visible"
+
+# ===========================================================================
+# BACK NAVIGATION: MODE → CLOSE
+# ===========================================================================
+
+- tapOn:
+    id: "wizard-back-button"
+    label: "Back from mode step closes wizard"
+
+- assertVisible:
+    id: "home-screen-v2"
+
+# ===========================================================================
+# BACK NAVIGATION: TYPE → MODE
+# ===========================================================================
+
+- tapOn:
+    id: "create-challenge-fab"
+
+- assertVisible:
+    id: "wizard-step-mode"
+
+# Select solo to advance to type
+- tapOn:
+    id: "mode-solo"
+
+- assertVisible:
+    id: "wizard-step-type"
+
+# Back to mode
+- tapOn:
+    id: "wizard-back-button"
+
+- assertVisible:
+    id: "wizard-step-mode"
+    label: "Back from type returns to mode"
+
+# Close wizard
+- tapOn:
+    id: "wizard-back-button"
+
+- assertVisible:
+    id: "home-screen-v2"
+
+# ===========================================================================
+# BACK NAVIGATION: DETAILS → TYPE
+# ===========================================================================
+
+- tapOn:
+    id: "create-challenge-fab"
+
+- assertVisible:
+    id: "wizard-step-mode"
+
+- tapOn:
+    id: "mode-solo"
+
+- assertVisible:
+    id: "wizard-step-type"
+
+- tapOn:
+    id: "challenge-type-steps"
+
+- assertVisible:
+    id: "wizard-step-details"
+
+# Back to type
+- tapOn:
+    id: "wizard-back-button"
+
+- assertVisible:
+    id: "wizard-step-type"
+    label: "Back from details returns to type"
+
+# Back to mode, then close
+- tapOn:
+    id: "wizard-back-button"
+
+- assertVisible:
+    id: "wizard-step-mode"
+
+- tapOn:
+    id: "wizard-back-button"
+
+- assertVisible:
+    id: "home-screen-v2"
+
+# ===========================================================================
+# SOLO STEPS — FULL FLOW
+# ===========================================================================
+
+- runFlow:
+    file: sub-flows/create-challenge.yaml
+    env:
+      CHALLENGE_TITLE: "Steps ${output.testId}"
+      CHALLENGE_GOAL: "70000"
+
+- assertVisible:
+    text: "Steps ${output.testId}"
+    label: "Steps challenge appears on home screen"
+
+# ===========================================================================
+# SOLO ACTIVE MINUTES — 2 WEEK DURATION
+# ===========================================================================
+
+- tapOn:
+    id: "create-challenge-fab"
+
+- assertVisible:
+    id: "wizard-step-mode"
+
+- tapOn:
+    id: "mode-solo"
+
+- assertVisible:
+    id: "wizard-step-type"
+
+- tapOn:
+    id: "challenge-type-active_minutes"
+
+- assertVisible:
+    id: "wizard-step-details"
+
+- tapOn:
+    id: "challenge-title-input"
+- eraseText
+- inputText: "Minutes ${output.testId}"
+
+- tapOn:
+    id: "challenge-goal-input"
+- eraseText
+- inputText: "150"
+
+- tapOn:
+    id: "duration-2weeks"
+
+- hideKeyboard
+
+- tapOn:
+    id: "wizard-cta-button"
+
+# Review
+- assertVisible:
+    id: "wizard-step-review"
+
+- tapOn:
+    id: "wizard-cta-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "wizard-step-success"
+    timeout: 20000
+
+- tapOn:
+    id: "wizard-done-button"
+
+- assertVisible:
+    id: "home-screen-v2"
+
+- assertVisible:
+    text: "Minutes ${output.testId}"
+    label: "Active minutes challenge on home"
+
+# ===========================================================================
+# SOLO WORKOUTS — WORKOUT PICKER STEP
+# ===========================================================================
+
+- tapOn:
+    id: "create-challenge-fab"
+
+- assertVisible:
+    id: "wizard-step-mode"
+
+- tapOn:
+    id: "mode-solo"
+
+- assertVisible:
+    id: "wizard-step-type"
+
+- tapOn:
+    id: "challenge-type-workouts"
+
+# Workouts type shows workout picker BEFORE details
+- assertVisible:
+    id: "wizard-step-workout-picker"
+    label: "Workout picker step appears for workouts type"
+
+- assertVisible:
+    id: "workout-select-all"
+
+# Select all workouts
+- tapOn:
+    id: "workout-select-all"
+
+- tapOn:
+    id: "wizard-cta-button"
+
+# Now on details
+- assertVisible:
+    id: "wizard-step-details"
+
+- tapOn:
+    id: "challenge-title-input"
+- eraseText
+- inputText: "Workouts ${output.testId}"
+
+- tapOn:
+    id: "challenge-goal-input"
+- eraseText
+- inputText: "20"
+
+- tapOn:
+    id: "duration-1week"
+
+- hideKeyboard
+
+- tapOn:
+    id: "wizard-cta-button"
+
+- assertVisible:
+    id: "wizard-step-review"
+
+- tapOn:
+    id: "wizard-cta-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "wizard-step-success"
+    timeout: 20000
+
+- tapOn:
+    id: "wizard-done-button"
+
+- assertVisible:
+    text: "Workouts ${output.testId}"
+    label: "Workouts challenge on home"
+
+# ===========================================================================
+# SOLO CUSTOM TYPE — CUSTOM UNIT FIELD
+# ===========================================================================
+
+- tapOn:
+    id: "create-challenge-fab"
+
+- assertVisible:
+    id: "wizard-step-mode"
+
+- tapOn:
+    id: "mode-solo"
+
+- tapOn:
+    id: "challenge-type-custom"
+
+- assertVisible:
+    id: "wizard-step-details"
+
+- tapOn:
+    id: "challenge-title-input"
+- eraseText
+- inputText: "Custom ${output.testId}"
+
+# Custom type requires the unit field
+- tapOn:
+    id: "challenge-custom-unit-input"
+- eraseText
+- inputText: "glasses of water"
+
+- tapOn:
+    id: "challenge-goal-input"
+- eraseText
+- inputText: "30"
+
+- tapOn:
+    id: "duration-1week"
+
+- hideKeyboard
+
+- tapOn:
+    id: "wizard-cta-button"
+
+# Review should show the custom goal
+- assertVisible:
+    id: "wizard-step-review"
+
+- assertVisible:
+    text: "Custom ${output.testId}"
+
+- tapOn:
+    id: "wizard-cta-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "wizard-step-success"
+    timeout: 20000
+
+- tapOn:
+    id: "wizard-done-button"
+
+- assertVisible:
+    text: "Custom ${output.testId}"
+    label: "Custom challenge on home"
+
+# ===========================================================================
+# SOCIAL CHALLENGE — WITH INVITE STEP (SKIP)
+# ===========================================================================
+
+- tapOn:
+    id: "create-challenge-fab"
+
+- assertVisible:
+    id: "wizard-step-mode"
+
+- tapOn:
+    id: "mode-social"
+
+- assertVisible:
+    id: "wizard-step-type"
+
+- tapOn:
+    id: "challenge-type-steps"
+
+- assertVisible:
+    id: "wizard-step-details"
+
+- tapOn:
+    id: "challenge-title-input"
+- eraseText
+- inputText: "Social ${output.testId}"
+
+- tapOn:
+    id: "challenge-goal-input"
+- eraseText
+- inputText: "100000"
+
+# Social mode shows win condition
+- tapOn:
+    id: "win-condition-highest_total"
+
+- tapOn:
+    id: "duration-1week"
+
+- hideKeyboard
+
+- tapOn:
+    id: "wizard-cta-button"
+
+# Invite step — skip inviting
+- assertVisible:
+    id: "wizard-step-invite"
+    label: "Invite step appears for social mode"
+
+- assertVisible:
+    id: "invite-search-input"
+
+- assertVisible:
+    text: "Skip — invite later"
+    label: "Skip option visible when no friends selected"
+
+- tapOn:
+    id: "wizard-cta-button"
+
+# Review
+- assertVisible:
+    id: "wizard-step-review"
+
+- tapOn:
+    id: "wizard-cta-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "wizard-step-success"
+    timeout: 20000
+
+- tapOn:
+    id: "wizard-done-button"
+
+- assertVisible:
+    text: "Social ${output.testId}"
+    label: "Social challenge on home"
+
+# ===========================================================================
+# FORM VALIDATION: EMPTY NAME BLOCKS ADVANCEMENT
+# ===========================================================================
+
+- tapOn:
+    id: "create-challenge-fab"
+
+- assertVisible:
+    id: "wizard-step-mode"
+
+- tapOn:
+    id: "mode-solo"
+
+- tapOn:
+    id: "challenge-type-steps"
+
+- assertVisible:
+    id: "wizard-step-details"
+
+# Fill goal but leave name empty
+- tapOn:
+    id: "challenge-goal-input"
+- eraseText
+- inputText: "10000"
+
+- hideKeyboard
+
+# CTA should be disabled — tapping it should NOT advance
+- tapOn:
+    id: "wizard-cta-button"
+
+- assertVisible:
+    id: "wizard-step-details"
+    label: "Still on details (empty name blocks CTA)"
+
+# ===========================================================================
+# FORM VALIDATION: EMPTY GOAL BLOCKS ADVANCEMENT
+# ===========================================================================
+
+# Now fill name but clear goal
+- tapOn:
+    id: "challenge-title-input"
+- eraseText
+- inputText: "Validate ${output.testId}"
+
+- tapOn:
+    id: "challenge-goal-input"
+- eraseText
+
+- hideKeyboard
+
+- tapOn:
+    id: "wizard-cta-button"
+
+- assertVisible:
+    id: "wizard-step-details"
+    label: "Still on details (empty goal blocks CTA)"
+
+# Close wizard
+- tapOn:
+    id: "wizard-back-button"
+- tapOn:
+    id: "wizard-back-button"
+- tapOn:
+    id: "wizard-back-button"
+
+- assertVisible:
+    id: "home-screen-v2"
+
+# ===========================================================================
+# REVIEW STEP CONTENT VERIFICATION
+# ===========================================================================
+
+- tapOn:
+    id: "create-challenge-fab"
+
+- tapOn:
+    id: "mode-solo"
+
+- tapOn:
+    id: "challenge-type-steps"
+
+- assertVisible:
+    id: "wizard-step-details"
+
+- tapOn:
+    id: "challenge-title-input"
+- eraseText
+- inputText: "Review ${output.testId}"
+
+- tapOn:
+    id: "challenge-goal-input"
+- eraseText
+- inputText: "50000"
+
+- tapOn:
+    id: "duration-2weeks"
+
+- hideKeyboard
+
+- tapOn:
+    id: "wizard-cta-button"
+
+- assertVisible:
+    id: "wizard-step-review"
+
+# Verify review content
+- assertVisible:
+    id: "review-challenge-name"
+    label: "Challenge name on review"
+
+- assertVisible:
+    id: "review-row-goal"
+    label: "Goal row on review"
+
+- assertVisible:
+    id: "review-row-duration"
+    label: "Duration row on review"
+
+- assertVisible:
+    id: "review-row-starts"
+    label: "Starts row on review"
+
+- assertVisible:
+    text: "50,000 steps"
+    label: "Goal value formatted correctly"
+
+- assertVisible:
+    text: "2 Weeks"
+    label: "Duration label correct"
+
+- assertVisible:
+    text: "Immediately"
+    label: "Start mode shows Immediately"
+
+# Complete the flow to clean up
+- tapOn:
+    id: "wizard-cta-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "wizard-step-success"
+    timeout: 20000
+
+- tapOn:
+    id: "wizard-done-button"
+
+- assertVisible:
+    id: "home-screen-v2"
