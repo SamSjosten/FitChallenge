@@ -121,36 +121,38 @@ jobs:
         env:
           SENTRY_DISABLE_AUTO_UPLOAD: "true"
         run: |
+          set -o pipefail
+          mkdir -p ios/build
           xcodebuild \
             -workspace ios/FitChallenge.xcworkspace \
             -scheme FitChallenge \
             -configuration Release \
             -sdk iphonesimulator \
             -derivedDataPath ios/build \
-            2>&1 | tail -50
+            2>&1 | tee ios/build/xcodebuild.log | tail -5
+          echo ""
+          echo "=== Metro env loading (from xcodebuild.log) ==="
+          grep -E "env: (load|export)" ios/build/xcodebuild.log || echo "WARNING: No env loading messages found — @expo/env may not have run"
 
-      - name: Verify JS bundle in app
+      - name: Verify JS bundle contains config
         run: |
           APP="ios/build/Build/Products/Release-iphonesimulator/FitChallenge.app"
-          echo "=== JS bundle check ==="
-          if [ -f "$APP/main.jsbundle" ]; then
-            SIZE=$(wc -c < "$APP/main.jsbundle")
-            echo "✅ main.jsbundle found ($SIZE bytes)"
-            if [ "$SIZE" -lt 1000 ]; then
-              echo "⚠️  Bundle suspiciously small — may be empty/stub"
-            fi
-          else
-            echo "❌ main.jsbundle NOT FOUND"
-            find "$APP" -maxdepth 1 -type f | sort
+          if [ ! -f "$APP/main.jsbundle" ]; then
+            echo "::error::main.jsbundle not found in app bundle"
+            ls -la "$APP/" || true
+            exit 1
           fi
-          echo ""
-          echo "=== .env verification ==="
-          if [ -f .env ]; then
-            echo "✅ .env exists"
-            grep -c "EXPO_PUBLIC" .env | xargs -I{} echo "  {} EXPO_PUBLIC vars"
-          else
-            echo "❌ .env missing!"
+          SIZE=$(wc -c < "$APP/main.jsbundle")
+          echo "main.jsbundle: $SIZE bytes"
+          # Hermes bytecode stores string literals in a searchable string table
+          if ! grep -q "supabase" "$APP/main.jsbundle"; then
+            echo "::error::Supabase URL not found in JS bundle"
+            echo "The .env values were NOT inlined by Metro during xcodebuild."
+            echo "Check 'Metro env loading' output in the build step above."
+            echo "Full build log available in artifacts: ios/build/xcodebuild.log"
+            exit 1
           fi
+          echo "Supabase config verified in bundle"
 
       # --- Install Maestro ---
       - name: Install Maestro CLI
@@ -173,41 +175,11 @@ jobs:
         run: |
           xcrun simctl install booted ios/build/Build/Products/Release-iphonesimulator/FitChallenge.app
 
-      # --- Pre-flight: manually launch app and capture what it shows ---
-      - name: Pre-flight app screenshot
-        run: |
-          # Launch the app manually
-          xcrun simctl launch booted com.sps.fitchallenge
-          echo "App launched, waiting 15 seconds for initialization..."
-          sleep 15
-
-          # Capture what the simulator is showing
-          mkdir -p test-screenshots
-          xcrun simctl io booted screenshot test-screenshots/pre-maestro-app-state.png
-          echo "✅ Screenshot captured: test-screenshots/pre-maestro-app-state.png"
-
-          # Also dump the view hierarchy if possible
-          xcrun simctl spawn booted log show --last 30s --predicate 'process == "FitChallenge"' > test-screenshots/app-console-log.txt 2>&1 || true
-          echo "Console log captured (last 30s)"
-
-          # Kill the app so Maestro can do a clean launch
-          xcrun simctl terminate booted com.sps.fitchallenge || true
-        continue-on-error: true
-
       # --- Run Maestro Tests ---
-      # DIAGNOSTIC ONLY: Run just the diagnostic test until it passes.
-      # The diagnostic test captures screenshots showing what the app
-      # displays after launch — critical for debugging the welcome-screen issue.
-      # Once diagnostic passes, revert to: maestro test .maestro/ --format junit --output report.xml
       - name: Run E2E tests (iOS - ${{ matrix.device.name }})
-        continue-on-error: true
         run: |
           export PATH="$HOME/.maestro/bin:$PATH"
-          mkdir -p maestro-output
-          maestro test .maestro/smoke/diagnostic.yaml \
-            --format junit \
-            --output maestro-output/report.xml \
-            || echo "::warning::Maestro tests failed — check artifacts for screenshots"
+          maestro test .maestro/ --format junit --output report.xml
 
       # --- Artifacts ---
       - name: Upload test report
@@ -216,10 +188,9 @@ jobs:
         with:
           name: maestro-report-${{ matrix.device.name }}
           path: |
-            maestro-output/
+            report.xml
             ~/.maestro/tests/**
-            ~/Library/Logs/maestro/**
-            test-screenshots/**
+            ios/build/xcodebuild.log
           retention-days: 7
 
   # ===========================================================================
@@ -304,13 +275,38 @@ jobs:
         env:
           SENTRY_DISABLE_AUTO_UPLOAD: "true"
         run: |
+          set -o pipefail
+          mkdir -p ios/build
           xcodebuild \
             -workspace ios/FitChallenge.xcworkspace \
             -scheme FitChallenge \
             -configuration Release \
             -sdk iphonesimulator \
             -derivedDataPath ios/build \
-            | tail -20
+            2>&1 | tee ios/build/xcodebuild.log | tail -5
+          echo ""
+          echo "=== Metro env loading (from xcodebuild.log) ==="
+          grep -E "env: (load|export)" ios/build/xcodebuild.log || echo "WARNING: No env loading messages found — @expo/env may not have run"
+
+      - name: Verify JS bundle contains config
+        run: |
+          APP="ios/build/Build/Products/Release-iphonesimulator/FitChallenge.app"
+          if [ ! -f "$APP/main.jsbundle" ]; then
+            echo "::error::main.jsbundle not found in app bundle"
+            ls -la "$APP/" || true
+            exit 1
+          fi
+          SIZE=$(wc -c < "$APP/main.jsbundle")
+          echo "main.jsbundle: $SIZE bytes"
+          # Hermes bytecode stores string literals in a searchable string table
+          if ! grep -q "supabase" "$APP/main.jsbundle"; then
+            echo "::error::Supabase URL not found in JS bundle"
+            echo "The .env values were NOT inlined by Metro during xcodebuild."
+            echo "Check 'Metro env loading' output in the build step above."
+            echo "Full build log available in artifacts: ios/build/xcodebuild.log"
+            exit 1
+          fi
+          echo "Supabase config verified in bundle"
 
       # --- Install Maestro ---
       - name: Install Maestro CLI
@@ -356,10 +352,9 @@ jobs:
         with:
           name: maestro-report-${{ env.DEVICE_NAME }}
           path: |
-            maestro-output/
+            report.xml
             ~/.maestro/tests/**
-            ~/Library/Logs/maestro/**
-            test-screenshots/**
+            ios/build/xcodebuild.log
           retention-days: 7
 
   # ===========================================================================
