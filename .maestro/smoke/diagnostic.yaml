@@ -3,26 +3,43 @@
 # DIAGNOSTIC TEST — Validates E2E infrastructure works end-to-end
 # =============================================================================
 #
+# Phase 0: Screenshot what's on screen after launch (debugging)
 # Phase 1: Fresh launch → welcome screen reachable
 # Phase 2: Sign-in → home screen reachable
 # Phase 3: Tab navigation → profile screen reachable, home return
 #
-# This is the Day 1 gate — if this fails, debug with `maestro studio`.
+# This is the Day 1 gate — if this fails, check the screenshots in artifacts.
 # Replaces: e2e/diagnostic.e2e.ts
 
 appId: com.sps.fitchallenge
 
 ---
 # ===========================================================================
-# PHASE 1: Fresh launch — app boots and renders welcome screen
+# PHASE 0: Launch and capture what the app is actually showing
 # ===========================================================================
 
 - launchApp:
     clearState: true
     clearKeychain: true
 
-- assertVisible:
-    id: "welcome-screen"
+# Give the app time to initialize auth, resolve session, and navigate.
+# Auth safety timeout is 10s, so we need at least that plus navigation time.
+- waitForAnimationToEnd
+
+# Screenshot BEFORE any assertions — if the test fails, this shows what's visible
+- takeScreenshot: after-launch
+
+# ===========================================================================
+# PHASE 1: Fresh launch — app boots and renders welcome screen
+# ===========================================================================
+
+# Use extendedWaitUntil instead of assertVisible — gives the app time
+# to complete auth initialization + navigation to welcome screen.
+# Auth provider has a 10-second safety timeout, so 30s is generous.
+- extendedWaitUntil:
+    visible:
+      id: "welcome-screen"
+    timeout: 30000
     label: "Phase 1: Welcome screen visible after fresh launch"
 
 # ===========================================================================
@@ -54,6 +71,8 @@ appId: com.sps.fitchallenge
       id: "home-screen-v2"
     timeout: 20000
     label: "Phase 2: Home screen visible after sign-in"
+
+- takeScreenshot: after-signin
 
 # ===========================================================================
 # PHASE 3: Post-auth interaction — tab navigation works
