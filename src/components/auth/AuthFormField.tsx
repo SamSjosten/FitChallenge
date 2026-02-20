@@ -15,6 +15,8 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 
 interface AuthFormFieldProps {
+  /** Test identifier for E2E testing */
+  testID?: string;
   /** Ionicons icon name displayed on the left */
   icon: keyof typeof Ionicons.glyphMap;
   /** Input placeholder text */
@@ -42,6 +44,7 @@ interface AuthFormFieldProps {
 }
 
 export function AuthFormField({
+  testID,
   icon,
   placeholder,
   value,
@@ -60,6 +63,7 @@ export function AuthFormField({
       <View style={[fieldStyles.container, error ? fieldStyles.containerError : undefined]}>
         <Ionicons name={icon} size={18} color="#9CA3AF" style={fieldStyles.icon} />
         <TextInput
+          testID={testID}
           style={fieldStyles.input}
           placeholder={placeholder}
           placeholderTextColor="#9CA3AF"
