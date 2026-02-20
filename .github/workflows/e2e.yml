@@ -6,7 +6,7 @@
 #
 # Uses Supabase cloud test branch for isolation.
 # Replaces Detox test runner (DetoxSync deadlock with New Architecture, GitHub #4506).
-# Build pipeline (expo prebuild + xcodebuild) is unchanged.
+# Build pipeline uses eas build --local with e2e-test profile (see eas.json).
 
 name: E2E Tests
 
@@ -93,66 +93,32 @@ jobs:
           echo "EXPO_PUBLIC_ENABLE_REALTIME=false" >> .env
           echo "EXPO_PUBLIC_E2E=true" >> .env
 
-      # --- iOS Build (same as before — prebuild + xcodebuild) ---
+      # --- iOS Build via EAS (see MAESTRO-MIGRATION.md §"Build the App") ---
       - name: Setup Ruby (for CocoaPods)
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: "3.2"
           bundler-cache: true
 
-      - name: Prebuild iOS
+      - name: Build iOS app (eas build --local)
         env:
-          SENTRY_DISABLE_AUTO_UPLOAD: "true"
-        run: npx expo prebuild --platform ios --clean
-
-      - name: Cache CocoaPods
-        uses: actions/cache@v4
-        with:
-          path: ios/Pods
-          key: ${{ runner.os }}-pods-${{ hashFiles('ios/Podfile.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-pods-
-
-      - name: Install CocoaPods
-        working-directory: ios
-        run: pod install --repo-update
-
-      - name: Build iOS app (Release for simulator)
-        env:
+          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.TEST_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.TEST_SUPABASE_ANON_KEY }}
+          EXPO_PUBLIC_ENABLE_REALTIME: "false"
+          EXPO_PUBLIC_E2E: "true"
           SENTRY_DISABLE_AUTO_UPLOAD: "true"
         run: |
-          set -o pipefail
-          mkdir -p ios/build
-          xcodebuild \
-            -workspace ios/FitChallenge.xcworkspace \
-            -scheme FitChallenge \
-            -configuration Release \
-            -sdk iphonesimulator \
-            -derivedDataPath ios/build \
-            2>&1 | tee ios/build/xcodebuild.log | tail -5
-          echo ""
-          echo "=== Metro env loading (from xcodebuild.log) ==="
-          grep -E "env: (load|export)" ios/build/xcodebuild.log || echo "WARNING: No env loading messages found — @expo/env may not have run"
-
-      - name: Verify JS bundle contains config
-        run: |
-          APP="ios/build/Build/Products/Release-iphonesimulator/FitChallenge.app"
-          if [ ! -f "$APP/main.jsbundle" ]; then
-            echo "::error::main.jsbundle not found in app bundle"
-            ls -la "$APP/" || true
-            exit 1
-          fi
-          SIZE=$(wc -c < "$APP/main.jsbundle")
-          echo "main.jsbundle: $SIZE bytes"
-          # Hermes bytecode stores string literals in a searchable string table
-          if ! grep -q "supabase" "$APP/main.jsbundle"; then
-            echo "::error::Supabase URL not found in JS bundle"
-            echo "The .env values were NOT inlined by Metro during xcodebuild."
-            echo "Check 'Metro env loading' output in the build step above."
-            echo "Full build log available in artifacts: ios/build/xcodebuild.log"
-            exit 1
-          fi
-          echo "Supabase config verified in bundle"
+          npx eas-cli@latest build \
+            --profile e2e-test \
+            --platform ios \
+            --local \
+            --non-interactive \
+            --output build/app.tar.gz
+          mkdir -p build/output
+          tar -xzf build/app.tar.gz -C build/output
+          APP_PATH=$(find build/output -name "*.app" -type d | head -1)
+          echo "Built app at: $APP_PATH"
+          echo "APP_PATH=$APP_PATH" >> $GITHUB_ENV
 
       # --- Install Maestro ---
       - name: Install Maestro CLI
@@ -173,7 +139,7 @@ jobs:
 
       - name: Install app on simulator
         run: |
-          xcrun simctl install booted ios/build/Build/Products/Release-iphonesimulator/FitChallenge.app
+          xcrun simctl install booted "$APP_PATH"
 
       # --- Run Maestro Tests ---
       - name: Run E2E tests (iOS - ${{ matrix.device.name }})
@@ -190,7 +156,6 @@ jobs:
           path: |
             report.xml
             ~/.maestro/tests/**
-            ios/build/xcodebuild.log
           retention-days: 7
 
   # ===========================================================================
@@ -247,66 +212,32 @@ jobs:
           echo "EXPO_PUBLIC_ENABLE_REALTIME=false" >> .env
           echo "EXPO_PUBLIC_E2E=true" >> .env
 
-      # --- iOS Build (same as before — prebuild + xcodebuild) ---
+      # --- iOS Build via EAS (see MAESTRO-MIGRATION.md §"Build the App") ---
       - name: Setup Ruby (for CocoaPods)
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: "3.2"
           bundler-cache: true
 
-      - name: Prebuild iOS
+      - name: Build iOS app (eas build --local)
         env:
-          SENTRY_DISABLE_AUTO_UPLOAD: "true"
-        run: npx expo prebuild --platform ios --clean
-
-      - name: Cache CocoaPods
-        uses: actions/cache@v4
-        with:
-          path: ios/Pods
-          key: ${{ runner.os }}-pods-${{ hashFiles('ios/Podfile.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-pods-
-
-      - name: Install CocoaPods
-        working-directory: ios
-        run: pod install --repo-update
-
-      - name: Build iOS app (Release for simulator)
-        env:
+          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.TEST_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.TEST_SUPABASE_ANON_KEY }}
+          EXPO_PUBLIC_ENABLE_REALTIME: "false"
+          EXPO_PUBLIC_E2E: "true"
           SENTRY_DISABLE_AUTO_UPLOAD: "true"
         run: |
-          set -o pipefail
-          mkdir -p ios/build
-          xcodebuild \
-            -workspace ios/FitChallenge.xcworkspace \
-            -scheme FitChallenge \
-            -configuration Release \
-            -sdk iphonesimulator \
-            -derivedDataPath ios/build \
-            2>&1 | tee ios/build/xcodebuild.log | tail -5
-          echo ""
-          echo "=== Metro env loading (from xcodebuild.log) ==="
-          grep -E "env: (load|export)" ios/build/xcodebuild.log || echo "WARNING: No env loading messages found — @expo/env may not have run"
-
-      - name: Verify JS bundle contains config
-        run: |
-          APP="ios/build/Build/Products/Release-iphonesimulator/FitChallenge.app"
-          if [ ! -f "$APP/main.jsbundle" ]; then
-            echo "::error::main.jsbundle not found in app bundle"
-            ls -la "$APP/" || true
-            exit 1
-          fi
-          SIZE=$(wc -c < "$APP/main.jsbundle")
-          echo "main.jsbundle: $SIZE bytes"
-          # Hermes bytecode stores string literals in a searchable string table
-          if ! grep -q "supabase" "$APP/main.jsbundle"; then
-            echo "::error::Supabase URL not found in JS bundle"
-            echo "The .env values were NOT inlined by Metro during xcodebuild."
-            echo "Check 'Metro env loading' output in the build step above."
-            echo "Full build log available in artifacts: ios/build/xcodebuild.log"
-            exit 1
-          fi
-          echo "Supabase config verified in bundle"
+          npx eas-cli@latest build \
+            --profile e2e-test \
+            --platform ios \
+            --local \
+            --non-interactive \
+            --output build/app.tar.gz
+          mkdir -p build/output
+          tar -xzf build/app.tar.gz -C build/output
+          APP_PATH=$(find build/output -name "*.app" -type d | head -1)
+          echo "Built app at: $APP_PATH"
+          echo "APP_PATH=$APP_PATH" >> $GITHUB_ENV
 
       # --- Install Maestro ---
       - name: Install Maestro CLI
@@ -327,7 +258,7 @@ jobs:
 
       - name: Install app on simulator
         run: |
-          xcrun simctl install booted ios/build/Build/Products/Release-iphonesimulator/FitChallenge.app
+          xcrun simctl install booted "$APP_PATH"
 
       # --- Run Maestro Tests ---
       - name: Run E2E tests (iOS)
@@ -354,7 +285,6 @@ jobs:
           path: |
             report.xml
             ~/.maestro/tests/**
-            ios/build/xcodebuild.log
           retention-days: 7
 
   # ===========================================================================
