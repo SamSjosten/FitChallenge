@@ -6,7 +6,7 @@
 #
 # Uses Supabase cloud test branch for isolation.
 # Replaces Detox test runner (DetoxSync deadlock with New Architecture, GitHub #4506).
-# Build pipeline uses eas build --local with e2e-test profile (see eas.json).
+# Build pipeline (expo prebuild + xcodebuild) is unchanged.
 
 name: E2E Tests
 
@@ -93,32 +93,45 @@ jobs:
           echo "EXPO_PUBLIC_ENABLE_REALTIME=false" >> .env
           echo "EXPO_PUBLIC_E2E=true" >> .env
 
-      # --- iOS Build via EAS (see MAESTRO-MIGRATION.md §"Build the App") ---
+      # --- iOS Build (same as before — prebuild + xcodebuild) ---
       - name: Setup Ruby (for CocoaPods)
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: "3.2"
           bundler-cache: true
 
-      - name: Build iOS app (eas build --local)
+      - name: Prebuild iOS
         env:
+          SENTRY_DISABLE_AUTO_UPLOAD: "true"
+        run: npx expo prebuild --platform ios --clean
+
+      - name: Cache CocoaPods
+        uses: actions/cache@v4
+        with:
+          path: ios/Pods
+          key: ${{ runner.os }}-pods-${{ hashFiles('ios/Podfile.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pods-
+
+      - name: Install CocoaPods
+        working-directory: ios
+        run: pod install --repo-update
+
+      - name: Build iOS app (Release for simulator)
+        env:
+          SENTRY_DISABLE_AUTO_UPLOAD: "true"
           EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.TEST_SUPABASE_URL }}
           EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.TEST_SUPABASE_ANON_KEY }}
           EXPO_PUBLIC_ENABLE_REALTIME: "false"
           EXPO_PUBLIC_E2E: "true"
-          SENTRY_DISABLE_AUTO_UPLOAD: "true"
         run: |
-          npx eas-cli@latest build \
-            --profile e2e-test \
-            --platform ios \
-            --local \
-            --non-interactive \
-            --output build/app.tar.gz
-          mkdir -p build/output
-          tar -xzf build/app.tar.gz -C build/output
-          APP_PATH=$(find build/output -name "*.app" -type d | head -1)
-          echo "Built app at: $APP_PATH"
-          echo "APP_PATH=$APP_PATH" >> $GITHUB_ENV
+          xcodebuild \
+            -workspace ios/FitChallenge.xcworkspace \
+            -scheme FitChallenge \
+            -configuration Release \
+            -sdk iphonesimulator \
+            -derivedDataPath ios/build \
+            | tail -20
 
       # --- Install Maestro ---
       - name: Install Maestro CLI
@@ -139,7 +152,7 @@ jobs:
 
       - name: Install app on simulator
         run: |
-          xcrun simctl install booted "$APP_PATH"
+          xcrun simctl install booted ios/build/Build/Products/Release-iphonesimulator/FitChallenge.app
 
       # --- Run Maestro Tests ---
       - name: Run E2E tests (iOS - ${{ matrix.device.name }})
@@ -212,32 +225,45 @@ jobs:
           echo "EXPO_PUBLIC_ENABLE_REALTIME=false" >> .env
           echo "EXPO_PUBLIC_E2E=true" >> .env
 
-      # --- iOS Build via EAS (see MAESTRO-MIGRATION.md §"Build the App") ---
+      # --- iOS Build (same as before — prebuild + xcodebuild) ---
       - name: Setup Ruby (for CocoaPods)
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: "3.2"
           bundler-cache: true
 
-      - name: Build iOS app (eas build --local)
+      - name: Prebuild iOS
         env:
+          SENTRY_DISABLE_AUTO_UPLOAD: "true"
+        run: npx expo prebuild --platform ios --clean
+
+      - name: Cache CocoaPods
+        uses: actions/cache@v4
+        with:
+          path: ios/Pods
+          key: ${{ runner.os }}-pods-${{ hashFiles('ios/Podfile.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pods-
+
+      - name: Install CocoaPods
+        working-directory: ios
+        run: pod install --repo-update
+
+      - name: Build iOS app (Release for simulator)
+        env:
+          SENTRY_DISABLE_AUTO_UPLOAD: "true"
           EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.TEST_SUPABASE_URL }}
           EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.TEST_SUPABASE_ANON_KEY }}
           EXPO_PUBLIC_ENABLE_REALTIME: "false"
           EXPO_PUBLIC_E2E: "true"
-          SENTRY_DISABLE_AUTO_UPLOAD: "true"
         run: |
-          npx eas-cli@latest build \
-            --profile e2e-test \
-            --platform ios \
-            --local \
-            --non-interactive \
-            --output build/app.tar.gz
-          mkdir -p build/output
-          tar -xzf build/app.tar.gz -C build/output
-          APP_PATH=$(find build/output -name "*.app" -type d | head -1)
-          echo "Built app at: $APP_PATH"
-          echo "APP_PATH=$APP_PATH" >> $GITHUB_ENV
+          xcodebuild \
+            -workspace ios/FitChallenge.xcworkspace \
+            -scheme FitChallenge \
+            -configuration Release \
+            -sdk iphonesimulator \
+            -derivedDataPath ios/build \
+            | tail -20
 
       # --- Install Maestro ---
       - name: Install Maestro CLI
@@ -258,7 +284,7 @@ jobs:
 
       - name: Install app on simulator
         run: |
-          xcrun simctl install booted "$APP_PATH"
+          xcrun simctl install booted ios/build/Build/Products/Release-iphonesimulator/FitChallenge.app
 
       # --- Run Maestro Tests ---
       - name: Run E2E tests (iOS)
