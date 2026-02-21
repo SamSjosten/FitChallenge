@@ -8,8 +8,11 @@
 //
 // This file owns: navigation locks, biometric auto-trigger,
 // biometric setup modal, and screen layout.
+//
+// V2 Visual: Deep emerald gradient, AVVIO wordmark, orbital arcs,
+// diamond ornament, PlusJakartaSans fonts, terms pinned to bottom.
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -21,7 +24,11 @@ import {
   ActivityIndicator,
   Switch,
   InteractionManager,
+  Animated,
+  Dimensions,
+  Easing,
 } from "react-native";
+import Svg, { Path } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useLocalSearchParams, useFocusEffect } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
@@ -43,12 +50,161 @@ import { TestIDs } from "@/constants/testIDs";
 const LOG = "📱 [AuthScreen]";
 const LOCK_TIMEOUT_MS = 10_000;
 
+const SCREEN_W = Dimensions.get("window").width;
+
+// =============================================================================
+// DEEP EMERALD GRADIENT (matches welcome screen)
+// =============================================================================
+
+const AUTH_GRADIENT = {
+  colors: ["#065F46", "#047857", "#0D9488", "#0F766E"] as const,
+  locations: [0, 0.35, 0.65, 1] as const,
+};
+
+// =============================================================================
+// ORBITAL ARCS (same seed as welcome, fewer arcs for smaller header)
+// =============================================================================
+
+interface ArcConfig {
+  radius: number;
+  startAngle: number;
+  endAngle: number;
+  strokeWidth: number;
+  opacity: number;
+  duration: number;
+  direction: 1 | -1;
+}
+
+function seededRng(s: number) {
+  let v = s;
+  return () => {
+    v = (v * 16807 + 0) % 2147483647;
+    return (v & 0x7fffffff) / 0x7fffffff;
+  };
+}
+
+function generateAuthArcs(): ArcConfig[] {
+  const rng = seededRng(61);
+  const arcs: ArcConfig[] = [];
+  for (let i = 0; i < 20; i++) {
+    const radius = 15 + i * 11 + (rng() - 0.5) * 3;
+    if (radius > 140) break;
+    const sweep = 0.3 + rng() * 2.8;
+    const startAngle = rng() * Math.PI * 2 - Math.PI;
+    arcs.push({
+      radius,
+      startAngle,
+      endAngle: startAngle + sweep,
+      strokeWidth: 0.3 + rng() * 1.2,
+      opacity: 0.04 + rng() * 0.09,
+      duration: (30 + rng() * 55) * 1000,
+      direction: rng() > 0.5 ? 1 : -1,
+    });
+  }
+  return arcs;
+}
+
+function buildArcPathData(
+  cx: number,
+  cy: number,
+  radius: number,
+  startAngle: number,
+  endAngle: number,
+): string {
+  const steps = 40;
+  const points: string[] = [];
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps;
+    const angle = startAngle + (endAngle - startAngle) * t;
+    const x = cx + Math.cos(angle) * radius;
+    const y = cy + Math.sin(angle) * radius;
+    points.push(`${i === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`);
+  }
+  return points.join(" ");
+}
+
+function AuthOrbitalArcs({ headerHeight }: { headerHeight: number }) {
+  const arcs = useMemo(() => generateAuthArcs(), []);
+  const rotations = useRef(arcs.map(() => new Animated.Value(0))).current;
+
+  const cx = SCREEN_W / 2;
+  const cy = headerHeight / 2;
+
+  useEffect(() => {
+    const animations = arcs.map((arc: ArcConfig, i: number) =>
+      Animated.loop(
+        Animated.timing(rotations[i], {
+          toValue: arc.direction,
+          duration: arc.duration,
+          easing: Easing.linear,
+          useNativeDriver: true,
+        }),
+      ),
+    );
+    animations.forEach((a: Animated.CompositeAnimation) => a.start());
+    return () => animations.forEach((a: Animated.CompositeAnimation) => a.stop());
+  }, []);
+
+  return (
+    <View style={styles.orbitalContainer} pointerEvents="none">
+      {arcs.map((arc: ArcConfig, i: number) => {
+        const rotation = rotations[i].interpolate({
+          inputRange: [0, 1],
+          outputRange: ["0deg", "360deg"],
+        });
+        return (
+          <Animated.View
+            key={i}
+            style={[
+              styles.orbitalArcWrapper,
+              { height: headerHeight, transform: [{ rotate: rotation }] },
+            ]}
+          >
+            <Svg width={SCREEN_W} height={headerHeight}>
+              <Path
+                d={buildArcPathData(cx, cy, arc.radius, arc.startAngle, arc.endAngle)}
+                stroke="#6EE7B7"
+                strokeWidth={arc.strokeWidth}
+                fill="none"
+                opacity={arc.opacity}
+                strokeLinecap="round"
+              />
+            </Svg>
+          </Animated.View>
+        );
+      })}
+    </View>
+  );
+}
+
+// =============================================================================
+// DIAMOND ORNAMENT (static version — no entrance animation)
+// =============================================================================
+
+function DiamondOrnament() {
+  return (
+    <View style={styles.ornamentContainer}>
+      <View style={styles.ornamentLine} />
+      <View style={styles.diamond} />
+      <View style={styles.ornamentLine} />
+    </View>
+  );
+}
+
+// =============================================================================
+// MAIN COMPONENT
+// =============================================================================
+
 export default function AuthScreenV2() {
   const { signIn, signUp, signInWithApple, signInWithGoogle } = useAuth();
   const params = useLocalSearchParams<{ mode?: string }>();
   const insets = useSafeAreaInsets();
 
   const form = useAuthForm({ signIn, signUp }, (params.mode as AuthMode) || "signup");
+
+  // Header height for orbital arc centering
+  // paddingTop (insets + 16) + content (~90) + paddingBottom (72) ≈ dynamic
+  const headerHeight = insets.top + 16 + 90 + 72;
 
   // ── Navigation Lock ───────────────────────────────────────────────────
   const isMounted = useRef(true);
@@ -245,37 +401,33 @@ export default function AuthScreenV2() {
           keyboardShouldPersistTaps="handled"
           bounces={false}
         >
-          {/* Gradient Header */}
+          {/* ═══ Deep Emerald Header ═══ */}
           <LinearGradient
-            colors={["#34D399", "#10B981", "#0D9488"]}
+            colors={[...AUTH_GRADIENT.colors]}
+            locations={[...AUTH_GRADIENT.locations]}
             start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
+            end={{ x: 0.3, y: 1 }}
             style={[styles.header, { paddingTop: insets.top + 16 }]}
           >
-            <View style={styles.circleDecor1} />
-            <View style={styles.circleDecor2} />
-            <View style={styles.circleDecor3} />
-            <View style={styles.circleDecor4} />
+            <AuthOrbitalArcs headerHeight={headerHeight} />
+
             <TouchableOpacity
               style={[styles.backButton, { top: insets.top + 8 }]}
               onPress={() => router.back()}
             >
               <Ionicons name="chevron-back" size={24} color="rgba(255,255,255,0.8)" />
             </TouchableOpacity>
+
             <View style={styles.headerContent}>
-              <View style={styles.iconContainer}>
-                <Ionicons name="trophy" size={32} color="#10B981" />
-              </View>
-              <Text style={styles.headerTitle}>
-                {form.mode === "signup" ? "Create Account" : "Welcome Back"}
-              </Text>
+              <Text style={styles.avvioTitle}>AVVIO</Text>
+              <DiamondOrnament />
               <Text style={styles.headerSubtitle}>
                 {form.mode === "signup" ? "Join the fitness community" : "Sign in to continue"}
               </Text>
             </View>
           </LinearGradient>
 
-          {/* Form Card */}
+          {/* ═══ Form Card ═══ */}
           <View style={styles.formCard}>
             {/* Mode Toggle */}
             <View style={styles.modeToggle}>
@@ -355,6 +507,8 @@ export default function AuthScreenV2() {
                 showPasswordToggle
                 passwordVisible={form.showPassword}
                 onTogglePassword={form.toggleShowPassword}
+                textContentType="password"
+                autoComplete="password"
               />
               {form.mode === "signin" && (
                 <View style={styles.rememberForgotRow}>
@@ -406,6 +560,9 @@ export default function AuthScreenV2() {
             </TouchableOpacity>
 
             <SocialLoginButtons onSocialLogin={handleSocialLogin} disabled={form.isLoading} />
+
+            {/* Spacer pushes terms to bottom */}
+            <View style={styles.termsSpacer} />
 
             {form.mode === "signup" && (
               <Text style={styles.termsText}>

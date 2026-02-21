@@ -1,18 +1,188 @@
 // app/(auth)/welcome.tsx
-// V2 Welcome Screen - Hero splash with logo, tagline, and CTA buttons
+// Avvio Welcome Screen — Deep emerald hero with AVVIO wordmark,
+// orbital arc background animation, diamond ornament, "NEVER SETTLE"
+// subtitle, and synchronized single-flow entrance animation.
 //
 // Flow: Welcome → Auth (signup/signin) → Onboarding → Home
+//
+// ANIMATION ARCHITECTURE (single-flow, no crossfade):
+// ────────────────────────────────────────────────────
+// Full-screen gradient always present. AVVIO fades in centered,
+// holds, slides up to hero while card rises in sync. Orbital arcs
+// fade in after entrance and rotate continuously. ~2.6s to settle.
+//
+// ORBITAL ARCS (HAL 9000 energy):
+// ────────────────────────────────
+// 20 concentric arcs, each at a unique radius so they never cross.
+// Random sweep lengths, speeds (30–85s/rev), and CW/CCW direction.
+// Tightly packed (~11px spacing) for dense texture.
 
-import React, { useEffect, useRef, useState, useCallback } from "react";
-import { View, Text, StyleSheet, Pressable, Animated, Dimensions } from "react-native";
+import React, { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import { View, Text, StyleSheet, Pressable, Animated, Dimensions, Easing } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
+import Svg, { Path } from "react-native-svg";
 import { useAppTheme } from "@/providers/ThemeProvider";
-import { TrophyIcon, UsersIcon, FireIcon, StarIcon } from "react-native-heroicons/solid";
+import { UsersIcon, FireIcon, StarIcon } from "react-native-heroicons/solid";
 import { Feather } from "@expo/vector-icons";
 import { TestIDs } from "@/constants/testIDs";
 
-const { width } = Dimensions.get("window");
+const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
+
+// =============================================================================
+// TIMING CONSTANTS
+// =============================================================================
+
+const TIMING = {
+  titleFadeIn: 400,
+  holdDuration: 800,
+  slideDuration: 600,
+  detailStagger: 100,
+  detailDuration: 400,
+} as const;
+
+// =============================================================================
+// DEEP EMERALD GRADIENT
+// =============================================================================
+
+const HERO_GRADIENT = {
+  fullScreen: ["#065F46", "#047857", "#0D9488", "#0F766E"] as const,
+  locations: [0, 0.35, 0.65, 1] as const,
+};
+
+// =============================================================================
+// ORBITAL ARC GENERATION
+// =============================================================================
+// Seeded PRNG for reproducible "random" arcs across renders.
+
+function seededRng(s: number) {
+  let v = s;
+  return () => {
+    v = (v * 16807 + 0) % 2147483647;
+    return (v & 0x7fffffff) / 0x7fffffff;
+  };
+}
+
+interface ArcConfig {
+  radius: number;
+  startAngle: number;
+  endAngle: number;
+  strokeWidth: number;
+  opacity: number;
+  duration: number; // ms per full revolution
+  direction: 1 | -1; // 1 = CW, -1 = CCW
+}
+
+function generateOrbitalArcs(): ArcConfig[] {
+  const rng = seededRng(61);
+  const arcs: ArcConfig[] = [];
+  for (let i = 0; i < 20; i++) {
+    const radius = 20 + i * 11 + (rng() - 0.5) * 4;
+    const sweep = 0.3 + rng() * 2.8;
+    const start = rng() * Math.PI * 2 - Math.PI;
+    arcs.push({
+      radius,
+      startAngle: start,
+      endAngle: start + sweep,
+      strokeWidth: 0.3 + rng() * 1.4,
+      opacity: 0.04 + rng() * 0.1,
+      duration: (30 + rng() * 55) * 1000,
+      direction: rng() > 0.5 ? 1 : -1,
+    });
+  }
+  return arcs;
+}
+
+function buildArcPathData(
+  cx: number,
+  cy: number,
+  radius: number,
+  startAngle: number,
+  endAngle: number,
+): string {
+  const steps = 40;
+  const parts: string[] = [];
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps;
+    const angle = startAngle + (endAngle - startAngle) * t;
+    const x = cx + Math.cos(angle) * radius;
+    const y = cy + Math.sin(angle) * radius;
+    parts.push(`${i === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`);
+  }
+  return parts.join(" ");
+}
+
+// =============================================================================
+// ORBITAL ARCS COMPONENT
+// =============================================================================
+// Each arc renders inside its own Animated.View that fills the hero
+// area. Rotation is applied to the View, whose center coincides
+// with the arc center → rotation orbits the arc correctly.
+
+function OrbitalArcs({
+  heroWidth,
+  heroHeight,
+  fadeOpacity,
+}: {
+  heroWidth: number;
+  heroHeight: number;
+  fadeOpacity: Animated.Value;
+}) {
+  const arcs = useMemo(() => generateOrbitalArcs(), []);
+  const cx = heroWidth / 2;
+  const cy = heroHeight / 2;
+
+  // One Animated.Value per arc for continuous rotation
+  const rotations = useRef(arcs.map(() => new Animated.Value(0))).current;
+
+  useEffect(() => {
+    const animations = arcs.map((arc: ArcConfig, i: number) =>
+      Animated.loop(
+        Animated.timing(rotations[i], {
+          toValue: arc.direction,
+          duration: arc.duration,
+          easing: Easing.linear,
+          useNativeDriver: true,
+        }),
+      ),
+    );
+    animations.forEach((a: Animated.CompositeAnimation) => a.start());
+    return () => animations.forEach((a: Animated.CompositeAnimation) => a.stop());
+  }, []);
+
+  return (
+    <Animated.View style={[styles.orbitalContainer, { opacity: fadeOpacity }]} pointerEvents="none">
+      {arcs.map((arc: ArcConfig, i: number) => {
+        const rotate = rotations[i].interpolate({
+          inputRange: [-1, 0, 1],
+          outputRange: ["-360deg", "0deg", "360deg"],
+        });
+
+        return (
+          <Animated.View
+            key={i}
+            style={[
+              styles.orbitalArcWrapper,
+              { width: heroWidth, height: heroHeight },
+              { transform: [{ rotate }] },
+            ]}
+          >
+            <Svg width={heroWidth} height={heroHeight} viewBox={`0 0 ${heroWidth} ${heroHeight}`}>
+              <Path
+                d={buildArcPathData(cx, cy, arc.radius, arc.startAngle, arc.endAngle)}
+                stroke="#6EE7B7"
+                strokeWidth={arc.strokeWidth}
+                fill="none"
+                opacity={arc.opacity}
+                strokeLinecap="round"
+              />
+            </Svg>
+          </Animated.View>
+        );
+      })}
+    </Animated.View>
+  );
+}
 
 // =============================================================================
 // FEATURE ICONS CONFIG
@@ -65,33 +235,6 @@ const welcomeFeatures: FeatureItem[] = [
   },
 ];
 
-// =============================================================================
-// BACKGROUND CIRCLES
-// =============================================================================
-
-function BackgroundCircles() {
-  return (
-    <View style={styles.circlesContainer}>
-      {[...Array(6)].map((_, i) => (
-        <View
-          key={i}
-          style={[
-            styles.circle,
-            {
-              left: `${20 + (i % 3) * 30}%`,
-              top: `${20 + Math.floor(i / 3) * 40}%`,
-            },
-          ]}
-        />
-      ))}
-    </View>
-  );
-}
-
-// =============================================================================
-// FEATURE ICON COMPONENT
-// =============================================================================
-
 function FeatureIcon({ item }: { item: FeatureItem }) {
   if (item.type === "heroicon") {
     const IconComponent = item.icon;
@@ -102,108 +245,256 @@ function FeatureIcon({ item }: { item: FeatureItem }) {
 }
 
 // =============================================================================
+// DIAMOND ORNAMENT
+// =============================================================================
+
+function DiamondOrnament({
+  lineScale,
+  diamondScale,
+  diamondRotate,
+}: {
+  lineScale: Animated.Value;
+  diamondScale: Animated.Value;
+  diamondRotate: Animated.Value;
+}) {
+  const rotation = diamondRotate.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0deg", "45deg"],
+  });
+
+  return (
+    <View style={styles.ornamentContainer}>
+      <Animated.View style={[styles.ornamentLine, { transform: [{ scaleX: lineScale }] }]} />
+      <Animated.View
+        style={[styles.diamond, { transform: [{ rotate: rotation }, { scale: diamondScale }] }]}
+      />
+      <Animated.View style={[styles.ornamentLine, { transform: [{ scaleX: lineScale }] }]} />
+    </View>
+  );
+}
+
+// =============================================================================
 // MAIN COMPONENT
 // =============================================================================
 
-export default function WelcomeScreenV2() {
+export default function WelcomeScreen() {
   const { colors, shadows } = useAppTheme();
   const [isExiting, setIsExiting] = useState(false);
 
-  // Animation values
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(30)).current;
-  const cardFadeAnim = useRef(new Animated.Value(0)).current;
-  const exitAnim = useRef(new Animated.Value(1)).current;
-  const exitScaleAnim = useRef(new Animated.Value(1)).current;
+  // Phase 1: Splash
+  const titleOpacity = useRef(new Animated.Value(0)).current;
+  const titleScale = useRef(new Animated.Value(0.92)).current;
+  const splashBarScale = useRef(new Animated.Value(0)).current;
+  const splashBarOpacity = useRef(new Animated.Value(0)).current;
 
-  useEffect(() => {
-    // Entrance animation sequence
+  // Phase 2: Synchronized slide
+  const titleSlide = useRef(new Animated.Value(0)).current;
+  const cardTranslateY = useRef(new Animated.Value(60)).current;
+  const cardOpacity = useRef(new Animated.Value(0)).current;
+
+  // Phase 3: Details
+  const topBarScale = useRef(new Animated.Value(0)).current;
+  const orbitalOpacity = useRef(new Animated.Value(0)).current;
+  const lineScale = useRef(new Animated.Value(0)).current;
+  const diamondScale = useRef(new Animated.Value(0)).current;
+  const diamondRotate = useRef(new Animated.Value(0)).current;
+  const subtitleOpacity = useRef(new Animated.Value(0)).current;
+  const subtitleLetterSpacing = useRef(new Animated.Value(12)).current;
+
+  // Exit
+  const exitOpacity = useRef(new Animated.Value(1)).current;
+
+  // Title vertical position
+  const heroHeight = SCREEN_H * 0.55;
+  const heroCenter = heroHeight / 2;
+  const screenCenter = SCREEN_H / 2;
+  const slideDistance = screenCenter - heroCenter;
+
+  const titleTranslateY = titleSlide.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, -slideDistance],
+  });
+
+  const runEntrance = useCallback(() => {
+    // Reset all
+    titleOpacity.setValue(0);
+    titleScale.setValue(0.92);
+    splashBarScale.setValue(0);
+    splashBarOpacity.setValue(0);
+    titleSlide.setValue(0);
+    cardTranslateY.setValue(60);
+    cardOpacity.setValue(0);
+    topBarScale.setValue(0);
+    orbitalOpacity.setValue(0);
+    lineScale.setValue(0);
+    diamondScale.setValue(0);
+    diamondRotate.setValue(0);
+    subtitleOpacity.setValue(0);
+    subtitleLetterSpacing.setValue(12);
+    exitOpacity.setValue(1);
+    setIsExiting(false);
+
+    const easeOut = Easing.out(Easing.cubic);
+    const easeInOut = Easing.inOut(Easing.cubic);
+
     Animated.sequence([
-      Animated.delay(200),
+      // Phase 1: AVVIO fades in centered
       Animated.parallel([
-        Animated.timing(fadeAnim, {
+        Animated.timing(titleOpacity, {
           toValue: 1,
-          duration: 700,
+          duration: TIMING.titleFadeIn,
           useNativeDriver: true,
         }),
-        Animated.timing(slideAnim, {
+        Animated.timing(titleScale, {
+          toValue: 1,
+          duration: TIMING.titleFadeIn,
+          easing: easeOut,
+          useNativeDriver: true,
+        }),
+        Animated.sequence([
+          Animated.delay(200),
+          Animated.parallel([
+            Animated.timing(splashBarScale, {
+              toValue: 1,
+              duration: 300,
+              easing: easeOut,
+              useNativeDriver: true,
+            }),
+            Animated.timing(splashBarOpacity, {
+              toValue: 1,
+              duration: 300,
+              useNativeDriver: true,
+            }),
+          ]),
+        ]),
+      ]),
+
+      // Hold
+      Animated.delay(TIMING.holdDuration),
+
+      // Phase 2: Synchronized slide
+      Animated.parallel([
+        Animated.timing(titleSlide, {
+          toValue: 1,
+          duration: TIMING.slideDuration,
+          easing: easeInOut,
+          useNativeDriver: true,
+        }),
+        Animated.timing(cardTranslateY, {
           toValue: 0,
-          duration: 700,
+          duration: TIMING.slideDuration,
+          easing: easeInOut,
+          useNativeDriver: true,
+        }),
+        Animated.timing(cardOpacity, {
+          toValue: 1,
+          duration: TIMING.slideDuration,
+          easing: easeInOut,
+          useNativeDriver: true,
+        }),
+        Animated.timing(splashBarOpacity, {
+          toValue: 0,
+          duration: TIMING.slideDuration * 0.5,
+          useNativeDriver: true,
+        }),
+        Animated.timing(splashBarScale, {
+          toValue: 0.3,
+          duration: TIMING.slideDuration * 0.5,
           useNativeDriver: true,
         }),
       ]),
-      Animated.timing(cardFadeAnim, {
-        toValue: 1,
-        duration: 400,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, []);
 
-  // Reset and replay animations when screen regains focus (e.g., back navigation)
-  useFocusEffect(
-    useCallback(() => {
-      // Reset exit state
-      setIsExiting(false);
-      exitAnim.setValue(1);
-      exitScaleAnim.setValue(1);
-
-      // Reset entrance animations to initial values
-      fadeAnim.setValue(0);
-      slideAnim.setValue(30);
-      cardFadeAnim.setValue(0);
-
-      // Replay entrance animation sequence
-      Animated.sequence([
-        Animated.delay(200),
-        Animated.parallel([
-          Animated.timing(fadeAnim, {
+      // Phase 3: Detail elements
+      Animated.parallel([
+        // Top accent bar
+        Animated.timing(topBarScale, {
+          toValue: 1,
+          duration: TIMING.detailDuration,
+          easing: easeOut,
+          useNativeDriver: true,
+        }),
+        // Orbital arcs fade in
+        Animated.timing(orbitalOpacity, {
+          toValue: 1,
+          duration: TIMING.detailDuration + 400,
+          useNativeDriver: true,
+        }),
+        // Diamond ornament (staggered)
+        Animated.sequence([
+          Animated.delay(TIMING.detailStagger),
+          Animated.timing(lineScale, {
             toValue: 1,
-            duration: 700,
-            useNativeDriver: true,
-          }),
-          Animated.timing(slideAnim, {
-            toValue: 0,
-            duration: 700,
+            duration: TIMING.detailDuration,
+            easing: easeOut,
             useNativeDriver: true,
           }),
         ]),
-        Animated.timing(cardFadeAnim, {
-          toValue: 1,
-          duration: 400,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    }, []),
+        Animated.sequence([
+          Animated.delay(TIMING.detailStagger * 2),
+          Animated.parallel([
+            Animated.spring(diamondScale, {
+              toValue: 1,
+              tension: 200,
+              friction: 12,
+              useNativeDriver: true,
+            }),
+            Animated.timing(diamondRotate, {
+              toValue: 1,
+              duration: TIMING.detailDuration + 100,
+              easing: easeOut,
+              useNativeDriver: true,
+            }),
+          ]),
+        ]),
+        // NEVER SETTLE subtitle
+        Animated.sequence([
+          Animated.delay(TIMING.detailStagger * 3),
+          Animated.parallel([
+            Animated.timing(subtitleOpacity, {
+              toValue: 0.5,
+              duration: TIMING.detailDuration + 200,
+              useNativeDriver: true,
+            }),
+            Animated.timing(subtitleLetterSpacing, {
+              toValue: 4,
+              duration: TIMING.detailDuration + 200,
+              easing: easeOut,
+              useNativeDriver: false,
+            }),
+          ]),
+        ]),
+      ]),
+    ]).start();
+  }, []);
+
+  useEffect(() => {
+    runEntrance();
+  }, [runEntrance]);
+
+  useFocusEffect(
+    useCallback(() => {
+      runEntrance();
+    }, [runEntrance]),
   );
 
   const handleGetStarted = () => {
     setIsExiting(true);
-    Animated.parallel([
-      Animated.timing(exitAnim, {
-        toValue: 0,
-        duration: 500,
-        useNativeDriver: true,
-      }),
-      Animated.timing(exitScaleAnim, {
-        toValue: 1.05,
-        duration: 500,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
+    Animated.timing(exitOpacity, {
+      toValue: 0,
+      duration: 400,
+      useNativeDriver: true,
+    }).start(() => {
       router.push("/(auth)/auth?mode=signup");
     });
   };
 
   const handleSignIn = () => {
     setIsExiting(true);
-    Animated.parallel([
-      Animated.timing(exitAnim, {
-        toValue: 0,
-        duration: 400,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
+    Animated.timing(exitOpacity, {
+      toValue: 0,
+      duration: 400,
+      useNativeDriver: true,
+    }).start(() => {
       router.push("/(auth)/auth?mode=signin");
     });
   };
@@ -211,43 +502,82 @@ export default function WelcomeScreenV2() {
   return (
     <Animated.View
       testID={TestIDs.screens.welcome}
-      style={[
-        styles.container,
-        {
-          opacity: exitAnim,
-          transform: [{ scale: exitScaleAnim }],
-        },
-      ]}
+      style={[styles.container, { opacity: exitOpacity }]}
     >
-      {/* Hero Top Section with Gradient */}
+      {/* Full-screen gradient — no color seams */}
       <LinearGradient
-        colors={["#34D399", "#10B981", "#0D9488"]}
+        colors={[...HERO_GRADIENT.fullScreen]}
+        locations={[...HERO_GRADIENT.locations]}
         start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.heroSection}
-      >
-        <BackgroundCircles />
+        end={{ x: 0.3, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
 
-        {/* Logo and App Name */}
-        <Animated.View
+      {/* Hero area */}
+      <View style={styles.heroSection}>
+        {/* Orbital arcs — continuous rotation, clipped to hero */}
+        <OrbitalArcs heroWidth={SCREEN_W} heroHeight={heroHeight} fadeOpacity={orbitalOpacity} />
+
+        {/* Top accent bar */}
+        <Animated.View style={[styles.topAccentBar, { transform: [{ scaleX: topBarScale }] }]} />
+      </View>
+
+      {/* AVVIO title — starts centered, slides to hero */}
+      <Animated.View
+        style={[
+          styles.titleContainer,
+          {
+            opacity: titleOpacity,
+            transform: [{ translateY: titleTranslateY }, { scale: titleScale }],
+          },
+        ]}
+        pointerEvents="none"
+      >
+        <Text style={styles.avvioTitle}>AVVIO</Text>
+      </Animated.View>
+
+      {/* Splash accent bar — under centered title */}
+      <Animated.View
+        style={[
+          styles.splashBar,
+          {
+            opacity: splashBarOpacity,
+            transform: [{ scaleX: splashBarScale }],
+          },
+        ]}
+        pointerEvents="none"
+      />
+
+      {/* Diamond ornament + NEVER SETTLE (hero position) */}
+      <View style={styles.heroOrnamentArea}>
+        <DiamondOrnament
+          lineScale={lineScale}
+          diamondScale={diamondScale}
+          diamondRotate={diamondRotate}
+        />
+        <Animated.Text
           style={[
-            styles.logoContainer,
+            styles.subtitle,
             {
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }],
+              opacity: subtitleOpacity,
+              letterSpacing: subtitleLetterSpacing,
             },
           ]}
         >
-          <View style={[styles.logoBox, shadows.float]}>
-            <TrophyIcon size={48} color="#10B981" />
-          </View>
-          <Text style={styles.appName}>FitChallenge</Text>
-        </Animated.View>
-      </LinearGradient>
+          NEVER SETTLE
+        </Animated.Text>
+      </View>
 
-      {/* White Bottom Card */}
+      {/* White bottom card — rises in sync with title slide */}
       <Animated.View
-        style={[styles.bottomCard, { backgroundColor: colors.surface, opacity: cardFadeAnim }]}
+        style={[
+          styles.bottomCard,
+          {
+            backgroundColor: colors.surface,
+            opacity: cardOpacity,
+            transform: [{ translateY: cardTranslateY }],
+          },
+        ]}
       >
         <Text style={[styles.headline, { color: colors.textPrimary }]}>
           Your Fitness Journey,{"\n"}Together
@@ -256,7 +586,6 @@ export default function WelcomeScreenV2() {
           Challenge friends, track your progress, and celebrate every win
         </Text>
 
-        {/* Feature Icons */}
         <View style={styles.featuresRow}>
           {welcomeFeatures.map((item, i) => (
             <View key={i} style={styles.featureItem}>
@@ -268,12 +597,11 @@ export default function WelcomeScreenV2() {
           ))}
         </View>
 
-        {/* Get Started Button */}
         <Pressable
           testID={TestIDs.welcome.getStartedButton}
           onPress={handleGetStarted}
           disabled={isExiting}
-          style={({ pressed }) => [
+          style={({ pressed }: { pressed: boolean }) => [
             styles.primaryButton,
             {
               backgroundColor: colors.primary.main,
@@ -286,7 +614,6 @@ export default function WelcomeScreenV2() {
           <Text style={styles.primaryButtonText}>Get Started</Text>
         </Pressable>
 
-        {/* Sign In Link */}
         <Pressable
           testID={TestIDs.welcome.signInLink}
           onPress={handleSignIn}
@@ -309,51 +636,112 @@ export default function WelcomeScreenV2() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#111827", // gray-900
   },
   heroSection: {
-    flex: 1,
-    minHeight: "55%",
-    alignItems: "center",
-    justifyContent: "center",
+    height: "55%",
     position: "relative",
     overflow: "hidden",
   },
-  circlesContainer: {
+
+  // ─── Orbital arcs ───
+  orbitalContainer: {
     ...StyleSheet.absoluteFillObject,
-    opacity: 0.1,
   },
-  circle: {
+  orbitalArcWrapper: {
     position: "absolute",
-    width: 128,
-    height: 128,
-    borderRadius: 64,
-    borderWidth: 2,
-    borderColor: "#FFFFFF",
-    transform: [{ translateX: -64 }, { translateY: -64 }],
+    top: 0,
+    left: 0,
   },
-  logoContainer: {
-    alignItems: "center",
-    zIndex: 10,
+
+  // ─── Top accent bar ───
+  topAccentBar: {
+    position: "absolute",
+    top: "50%",
+    alignSelf: "center",
+    marginTop: -58,
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "#34D399",
+    opacity: 0.6,
   },
-  logoBox: {
-    width: 96,
-    height: 96,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 24,
+
+  // ─── AVVIO title ───
+  titleContainer: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 24,
+    zIndex: 10,
   },
-  appName: {
-    fontSize: 36,
-    fontFamily: "PlusJakartaSans_700Bold",
+  avvioTitle: {
+    fontSize: 52,
+    fontFamily: "PlusJakartaSans_800ExtraBold",
+    color: "#FFFFFF",
+    letterSpacing: -2,
+  },
+
+  // ─── Splash accent bar ───
+  splashBar: {
+    position: "absolute",
+    top: "50%",
+    alignSelf: "center",
+    marginTop: 20,
+    width: 32,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: "#34D399",
+    opacity: 0.5,
+  },
+
+  // ─── Diamond ornament area ───
+  heroOrnamentArea: {
+    position: "absolute",
+    top: "27.5%",
+    left: 0,
+    right: 0,
+    alignItems: "center",
+    marginTop: 20,
+    zIndex: 5,
+  },
+  ornamentContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  ornamentLine: {
+    width: 40,
+    height: 1,
+    backgroundColor: "#34D399",
+    opacity: 0.35,
+  },
+  diamond: {
+    width: 7,
+    height: 7,
+    borderRadius: 1,
+    backgroundColor: "#34D399",
+    opacity: 0.5,
+  },
+
+  // ─── NEVER SETTLE subtitle ───
+  subtitle: {
+    marginTop: 12,
+    fontSize: 11,
+    fontFamily: "PlusJakartaSans_600SemiBold",
     color: "#FFFFFF",
   },
+
+  // ─── Bottom card ───
   bottomCard: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
-    marginTop: -32,
     paddingHorizontal: 32,
     paddingTop: 32,
     paddingBottom: 48,

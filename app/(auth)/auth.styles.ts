@@ -1,7 +1,16 @@
 // app/(auth)/auth.styles.ts
-// Extracted from auth.tsx — StyleSheet for V2 auth screen
+// V2 Auth screen styles — deep emerald, AVVIO branding, PlusJakartaSans
+//
+// Key changes from V1:
+// - Deep emerald gradient (matches welcome screen)
+// - AVVIO wordmark + diamond ornament (replaces trophy icon + circles)
+// - PlusJakartaSans font family throughout
+// - Terms pinned to bottom via flex spacer
+// - Orbital arc styles for animated header background
 
-import { StyleSheet } from "react-native";
+import { StyleSheet, Dimensions } from "react-native";
+
+const { width: SCREEN_W } = Dimensions.get("window");
 
 export const styles = StyleSheet.create({
   container: {
@@ -13,56 +22,27 @@ export const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    justifyContent: "flex-end",
   },
 
-  // Header
+  // ── Header (deep emerald gradient area) ────────────────────────────────
   header: {
-    paddingBottom: 100,
+    paddingBottom: 72,
     paddingHorizontal: 24,
     position: "relative",
     overflow: "hidden",
   },
-  circleDecor1: {
-    position: "absolute",
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    borderWidth: 2,
-    borderColor: "rgba(255,255,255,0.1)",
-    left: "10%",
-    top: "20%",
+
+  // Orbital arcs
+  orbitalContainer: {
+    ...StyleSheet.absoluteFillObject,
+    overflow: "hidden",
   },
-  circleDecor2: {
+  orbitalArcWrapper: {
     position: "absolute",
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    borderWidth: 2,
-    borderColor: "rgba(255,255,255,0.1)",
-    left: "70%",
-    top: "20%",
+    width: SCREEN_W,
+    height: "100%",
   },
-  circleDecor3: {
-    position: "absolute",
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    borderWidth: 2,
-    borderColor: "rgba(255,255,255,0.1)",
-    left: "10%",
-    top: "70%",
-  },
-  circleDecor4: {
-    position: "absolute",
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    borderWidth: 2,
-    borderColor: "rgba(255,255,255,0.1)",
-    left: "70%",
-    top: "70%",
-  },
+
   backButton: {
     position: "absolute",
     left: 16,
@@ -73,32 +53,45 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 24,
   },
-  iconContainer: {
-    width: 64,
-    height: 64,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: "700",
+
+  // AVVIO wordmark (replaces trophy icon)
+  avvioTitle: {
+    fontSize: 32,
+    fontFamily: "PlusJakartaSans_800ExtraBold",
     color: "#FFFFFF",
-    marginBottom: 4,
+    letterSpacing: -1.5,
+    marginBottom: 8,
   },
+
+  // Diamond ornament
+  ornamentContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 10,
+  },
+  ornamentLine: {
+    width: 30,
+    height: 1,
+    backgroundColor: "#34D399",
+    opacity: 0.35,
+  },
+  diamond: {
+    width: 6,
+    height: 6,
+    borderRadius: 1,
+    backgroundColor: "#34D399",
+    opacity: 0.5,
+    transform: [{ rotate: "45deg" }],
+  },
+
   headerSubtitle: {
     fontSize: 14,
+    fontFamily: "PlusJakartaSans_400Regular",
     color: "rgba(236, 253, 245, 0.9)",
   },
 
-  // Form Card
+  // ── Form Card ──────────────────────────────────────────────────────────
   formCard: {
     flex: 1,
     backgroundColor: "#FFFFFF",
@@ -134,7 +127,7 @@ export const styles = StyleSheet.create({
   },
   modeButtonText: {
     fontSize: 14,
-    fontWeight: "600",
+    fontFamily: "PlusJakartaSans_600SemiBold",
     color: "#6B7280",
   },
   modeButtonTextActive: {
@@ -160,6 +153,7 @@ export const styles = StyleSheet.create({
     flex: 1,
     color: "#DC2626",
     fontSize: 14,
+    fontFamily: "PlusJakartaSans_400Regular",
     lineHeight: 20,
   },
   rememberForgotRow: {
@@ -179,6 +173,7 @@ export const styles = StyleSheet.create({
   },
   rememberMeText: {
     fontSize: 14,
+    fontFamily: "PlusJakartaSans_400Regular",
     color: "#6B7280",
   },
   rightControls: {
@@ -190,7 +185,7 @@ export const styles = StyleSheet.create({
   submitButton: {
     backgroundColor: "#10B981",
     paddingVertical: 16,
-    borderRadius: 12,
+    borderRadius: 16,
     alignItems: "center",
     marginBottom: 16,
     shadowColor: "#10B981",
@@ -205,16 +200,23 @@ export const styles = StyleSheet.create({
   submitButtonText: {
     color: "#FFFFFF",
     fontSize: 18,
-    fontWeight: "600",
+    fontFamily: "PlusJakartaSans_600SemiBold",
   },
 
-  // Terms
+  // Flex spacer — pushes terms to bottom of card
+  termsSpacer: {
+    flex: 1,
+    minHeight: 8,
+  },
+
+  // Terms (pinned to bottom via spacer above)
   termsText: {
     textAlign: "center",
     color: "#9CA3AF",
     fontSize: 12,
-    marginTop: 24,
+    fontFamily: "PlusJakartaSans_400Regular",
     lineHeight: 18,
+    paddingBottom: 8,
   },
   termsLink: {
     color: "#059669",

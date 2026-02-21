@@ -68,6 +68,16 @@ appId: com.sps.fitchallenge
 - tapOn:
     id: "signin-button"
 
+# iOS "Save Password?" dialog — see sign-in.yaml for full explanation.
+- extendedWaitUntil:
+    visible:
+      text: "Not Now"
+    timeout: 8000
+    optional: true
+- tapOn:
+    text: "Not Now"
+    optional: true
+
 - extendedWaitUntil:
     visible:
       id: "home-screen-v2"
