@@ -196,7 +196,9 @@ appId: com.sps.fitchallenge
 - tapOn:
     id: "duration-2weeks"
 
-- hideKeyboard
+# Dismiss keyboard — tap non-interactive area (docs.maestro.dev workaround for iOS)
+- tapOn:
+    point: "50%, 10%"
 
 - tapOn:
     id: "wizard-cta-button"
@@ -274,7 +276,9 @@ appId: com.sps.fitchallenge
 - tapOn:
     id: "duration-1week"
 
-- hideKeyboard
+# Dismiss keyboard — tap non-interactive area (docs.maestro.dev workaround for iOS)
+- tapOn:
+    point: "50%, 10%"
 
 - tapOn:
     id: "wizard-cta-button"
@@ -335,7 +339,9 @@ appId: com.sps.fitchallenge
 - tapOn:
     id: "duration-1week"
 
-- hideKeyboard
+# Dismiss keyboard — tap non-interactive area (docs.maestro.dev workaround for iOS)
+- tapOn:
+    point: "50%, 10%"
 
 - tapOn:
     id: "wizard-cta-button"
@@ -401,7 +407,9 @@ appId: com.sps.fitchallenge
 - tapOn:
     id: "duration-1week"
 
-- hideKeyboard
+# Dismiss keyboard — tap non-interactive area (docs.maestro.dev workaround for iOS)
+- tapOn:
+    point: "50%, 10%"
 
 - tapOn:
     id: "wizard-cta-button"
@@ -465,7 +473,9 @@ appId: com.sps.fitchallenge
 - eraseText
 - inputText: "10000"
 
-- hideKeyboard
+# Dismiss keyboard — tap non-interactive area (docs.maestro.dev workaround for iOS)
+- tapOn:
+    point: "50%, 10%"
 
 # CTA should be disabled — tapping it should NOT advance
 - tapOn:
@@ -489,7 +499,9 @@ appId: com.sps.fitchallenge
     id: "challenge-goal-input"
 - eraseText
 
-- hideKeyboard
+# Dismiss keyboard — tap non-interactive area (docs.maestro.dev workaround for iOS)
+- tapOn:
+    point: "50%, 10%"
 
 - tapOn:
     id: "wizard-cta-button"
@@ -538,7 +550,9 @@ appId: com.sps.fitchallenge
 - tapOn:
     id: "duration-2weeks"
 
-- hideKeyboard
+# Dismiss keyboard — tap non-interactive area (docs.maestro.dev workaround for iOS)
+- tapOn:
+    point: "50%, 10%"
 
 - tapOn:
     id: "wizard-cta-button"

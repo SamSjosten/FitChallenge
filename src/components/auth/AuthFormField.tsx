@@ -41,6 +41,10 @@ interface AuthFormFieldProps {
   autoCapitalize?: TextInputProps["autoCapitalize"];
   /** Auto-correct behavior (defaults to false) */
   autoCorrect?: boolean;
+  /** iOS textContentType — controls AutoFill and credential detection */
+  textContentType?: TextInputProps["textContentType"];
+  /** Cross-platform autoComplete hint */
+  autoComplete?: TextInputProps["autoComplete"];
 }
 
 export function AuthFormField({
@@ -57,6 +61,8 @@ export function AuthFormField({
   keyboardType,
   autoCapitalize = "none",
   autoCorrect = false,
+  textContentType,
+  autoComplete,
 }: AuthFormFieldProps) {
   return (
     <View style={fieldStyles.wrapper}>
@@ -73,6 +79,8 @@ export function AuthFormField({
           keyboardType={keyboardType}
           autoCapitalize={autoCapitalize}
           autoCorrect={autoCorrect}
+          textContentType={textContentType}
+          autoComplete={autoComplete}
         />
         {showPasswordToggle && onTogglePassword && (
           <TouchableOpacity onPress={onTogglePassword} style={fieldStyles.eyeButton}>

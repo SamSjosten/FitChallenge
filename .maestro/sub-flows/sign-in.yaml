@@ -39,14 +39,21 @@ appId: com.sps.fitchallenge
 - eraseText
 - inputText: ${PASSWORD}
 
-# Dismiss keyboard before tapping submit
-- hideKeyboard
+# Dismiss keyboard — tap non-interactive area (docs.maestro.dev workaround for iOS)
+- tapOn:
+    point: "50%, 10%"
 
 # Tap sign in
 - tapOn:
     id: "signin-button"
 
-# Wait for home screen (V2 screen ID)
+# Dismiss iOS "Save Password?" Keychain dialog if present.
+# tapOn auto-waits for element visibility; optional continues if dialog doesn't appear.
+- tapOn:
+    text: "Not Now"
+    optional: true
+
+# Wait for home screen
 - extendedWaitUntil:
     visible:
       id: "home-screen-v2"

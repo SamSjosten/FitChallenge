@@ -61,10 +61,17 @@ appId: com.sps.fitchallenge
     id: "password-input"
 - inputText: "E2eTestPassword123!"
 
-- hideKeyboard
+# Dismiss keyboard — tap non-interactive area (docs.maestro.dev workaround for iOS)
+- tapOn:
+    point: "50%, 10%"
 
 - tapOn:
     id: "signin-button"
+
+# Dismiss iOS "Save Password?" Keychain dialog if present
+- tapOn:
+    text: "Not Now"
+    optional: true
 
 - extendedWaitUntil:
     visible:

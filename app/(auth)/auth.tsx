@@ -341,6 +341,8 @@ export default function AuthScreenV2() {
                 onChangeText={form.setEmail}
                 error={form.errors.email}
                 keyboardType="email-address"
+                textContentType="emailAddress"
+                autoComplete="email"
               />
               <AuthFormField
                 testID={TestIDs.auth.passwordInput}
@@ -353,6 +355,8 @@ export default function AuthScreenV2() {
                 showPasswordToggle
                 passwordVisible={form.showPassword}
                 onTogglePassword={form.toggleShowPassword}
+                textContentType="password"
+                autoComplete="password"
               />
               {form.mode === "signin" && (
                 <View style={styles.rememberForgotRow}>
@@ -387,7 +391,9 @@ export default function AuthScreenV2() {
 
             {/* Submit Button */}
             <TouchableOpacity
-              testID={form.mode === "signup" ? TestIDs.auth.signUpButton : TestIDs.auth.signInButton}
+              testID={
+                form.mode === "signup" ? TestIDs.auth.signUpButton : TestIDs.auth.signInButton
+              }
               style={[styles.submitButton, form.isLoading && styles.submitButtonDisabled]}
               onPress={handleSubmit}
               disabled={form.isLoading}

@@ -101,7 +101,9 @@ appId: com.sps.fitchallenge
     id: "activity-value-input"
 - eraseText
 
-- hideKeyboard
+# Dismiss keyboard — tap non-interactive area (docs.maestro.dev workaround for iOS)
+- tapOn:
+    point: "50%, 10%"
 
 - tapOn:
     id: "submit-activity-button"
@@ -136,7 +138,9 @@ appId: com.sps.fitchallenge
 - eraseText
 - inputText: "0"
 
-- hideKeyboard
+# Dismiss keyboard — tap non-interactive area (docs.maestro.dev workaround for iOS)
+- tapOn:
+    point: "50%, 10%"
 
 - tapOn:
     id: "submit-activity-button"
