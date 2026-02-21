@@ -68,11 +68,6 @@ appId: com.sps.fitchallenge
 - tapOn:
     id: "signin-button"
 
-# Dismiss iOS "Save Password?" Keychain dialog if present
-- tapOn:
-    text: "Not Now"
-    optional: true
-
 - extendedWaitUntil:
     visible:
       id: "home-screen-v2"

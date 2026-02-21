@@ -355,8 +355,6 @@ export default function AuthScreenV2() {
                 showPasswordToggle
                 passwordVisible={form.showPassword}
                 onTogglePassword={form.toggleShowPassword}
-                textContentType="password"
-                autoComplete="password"
               />
               {form.mode === "signin" && (
                 <View style={styles.rememberForgotRow}>

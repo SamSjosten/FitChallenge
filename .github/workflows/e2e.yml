@@ -150,6 +150,10 @@ jobs:
           xcrun simctl boot "${{ matrix.device.simulator }}" || true
           xcrun simctl bootstatus "${{ matrix.device.simulator }}" -b
 
+      - name: Disable iOS password autofill
+        run: |
+          xcrun simctl spawn booted defaults write com.apple.Passwords AutoFillPasswords -bool NO
+
       - name: Install app on simulator
         run: |
           xcrun simctl install booted ios/build/Build/Products/Release-iphonesimulator/FitChallenge.app
@@ -283,6 +287,10 @@ jobs:
         run: |
           xcrun simctl boot "${{ steps.device.outputs.simulator }}" || true
           xcrun simctl bootstatus "${{ steps.device.outputs.simulator }}" -b
+
+      - name: Disable iOS password autofill
+        run: |
+          xcrun simctl spawn booted defaults write com.apple.Passwords AutoFillPasswords -bool NO
 
       - name: Install app on simulator
         run: |

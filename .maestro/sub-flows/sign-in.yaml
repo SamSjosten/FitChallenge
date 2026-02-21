@@ -47,12 +47,6 @@ appId: com.sps.fitchallenge
 - tapOn:
     id: "signin-button"
 
-# Dismiss iOS "Save Password?" Keychain dialog if present.
-# tapOn auto-waits for element visibility; optional continues if dialog doesn't appear.
-- tapOn:
-    text: "Not Now"
-    optional: true
-
 # Wait for home screen
 - extendedWaitUntil:
     visible:
