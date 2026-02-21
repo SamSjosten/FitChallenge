@@ -16,7 +16,14 @@ export default function AuthLayoutV2() {
       }}
     >
       <Stack.Screen name="welcome" />
-      <Stack.Screen name="auth" />
+      <Stack.Screen
+        name="auth"
+        options={{
+          animation: "fade_from_bottom",
+          // Emerald behind the transition so no white flash
+          contentStyle: { backgroundColor: "#065F46" },
+        }}
+      />
       <Stack.Screen name="onboarding" />
     </Stack>
   );

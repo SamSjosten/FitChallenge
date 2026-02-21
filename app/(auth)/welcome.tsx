@@ -301,9 +301,6 @@ export default function WelcomeScreen() {
   const subtitleOpacity = useRef(new Animated.Value(0)).current;
   const subtitleLetterSpacing = useRef(new Animated.Value(12)).current;
 
-  // Exit
-  const exitOpacity = useRef(new Animated.Value(1)).current;
-
   // Title vertical position
   const heroHeight = SCREEN_H * 0.55;
   const heroCenter = heroHeight / 2;
@@ -331,7 +328,6 @@ export default function WelcomeScreen() {
     diamondRotate.setValue(0);
     subtitleOpacity.setValue(0);
     subtitleLetterSpacing.setValue(12);
-    exitOpacity.setValue(1);
     setIsExiting(false);
 
     const easeOut = Easing.out(Easing.cubic);
@@ -478,32 +474,19 @@ export default function WelcomeScreen() {
   );
 
   const handleGetStarted = () => {
+    if (isExiting) return;
     setIsExiting(true);
-    Animated.timing(exitOpacity, {
-      toValue: 0,
-      duration: 400,
-      useNativeDriver: true,
-    }).start(() => {
-      router.push("/(auth)/auth?mode=signup");
-    });
+    router.push("/(auth)/auth?mode=signup");
   };
 
   const handleSignIn = () => {
+    if (isExiting) return;
     setIsExiting(true);
-    Animated.timing(exitOpacity, {
-      toValue: 0,
-      duration: 400,
-      useNativeDriver: true,
-    }).start(() => {
-      router.push("/(auth)/auth?mode=signin");
-    });
+    router.push("/(auth)/auth?mode=signin");
   };
 
   return (
-    <Animated.View
-      testID={TestIDs.screens.welcome}
-      style={[styles.container, { opacity: exitOpacity }]}
-    >
+    <Animated.View testID={TestIDs.screens.welcome} style={[styles.container]}>
       {/* Full-screen gradient — no color seams */}
       <LinearGradient
         colors={[...HERO_GRADIENT.fullScreen]}
@@ -555,17 +538,11 @@ export default function WelcomeScreen() {
           diamondScale={diamondScale}
           diamondRotate={diamondRotate}
         />
-        <Animated.Text
-          style={[
-            styles.subtitle,
-            {
-              opacity: subtitleOpacity,
-              letterSpacing: subtitleLetterSpacing,
-            },
-          ]}
-        >
-          NEVER SETTLE
-        </Animated.Text>
+        <Animated.View style={{ opacity: subtitleOpacity }}>
+          <Animated.Text style={[styles.subtitle, { letterSpacing: subtitleLetterSpacing }]}>
+            NEVER SETTLE
+          </Animated.Text>
+        </Animated.View>
       </View>
 
       {/* White bottom card — rises in sync with title slide */}
