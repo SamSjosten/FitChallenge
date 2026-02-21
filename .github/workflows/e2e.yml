@@ -136,7 +136,7 @@ jobs:
       # --- Install Maestro ---
       - name: Install Maestro CLI
         run: |
-          curl -fsSL "https://get.maestro.mobile.dev" | bash
+          curl -fsSL "https://get.maestro.mobile.dev" | bash -s -- --version 2.1.0
           echo "$HOME/.maestro/bin" >> $GITHUB_PATH
 
       - name: Verify Maestro installation
@@ -156,6 +156,8 @@ jobs:
 
       # --- Run Maestro Tests ---
       - name: Run E2E tests (iOS - ${{ matrix.device.name }})
+        env:
+          MAESTRO_DRIVER_STARTUP_TIMEOUT: 300000
         run: |
           export PATH="$HOME/.maestro/bin:$PATH"
           maestro test .maestro/ --format junit --output report.xml
@@ -268,7 +270,7 @@ jobs:
       # --- Install Maestro ---
       - name: Install Maestro CLI
         run: |
-          curl -fsSL "https://get.maestro.mobile.dev" | bash
+          curl -fsSL "https://get.maestro.mobile.dev" | bash -s -- --version 2.1.0
           echo "$HOME/.maestro/bin" >> $GITHUB_PATH
 
       - name: Verify Maestro installation
@@ -288,6 +290,8 @@ jobs:
 
       # --- Run Maestro Tests ---
       - name: Run E2E tests (iOS)
+        env:
+          MAESTRO_DRIVER_STARTUP_TIMEOUT: 300000
         run: |
           export PATH="$HOME/.maestro/bin:$PATH"
           TEST_SUITE="${{ github.event.inputs.test_suite || 'all' }}"
