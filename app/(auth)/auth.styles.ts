@@ -60,7 +60,7 @@ export const styles = StyleSheet.create({
     fontFamily: "PlusJakartaSans_800ExtraBold",
     color: "#FFFFFF",
     letterSpacing: -1.5,
-    marginBottom: 8,
+    marginBottom: 14,
   },
 
   // Diamond ornament

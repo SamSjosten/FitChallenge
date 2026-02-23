@@ -681,7 +681,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     alignItems: "center",
-    marginTop: 20,
+    marginTop: 32,
     zIndex: 5,
   },
   ornamentContainer: {

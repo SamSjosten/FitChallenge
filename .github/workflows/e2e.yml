@@ -136,13 +136,19 @@ jobs:
       # --- Install Maestro ---
       - name: Install Maestro CLI
         run: |
-          curl -fsSL "https://get.maestro.mobile.dev" | bash -s -- --version 2.1.0
+          export MAESTRO_VERSION=2.1.0
+          curl -fsSL "https://get.maestro.mobile.dev" | bash
           echo "$HOME/.maestro/bin" >> $GITHUB_PATH
 
       - name: Verify Maestro installation
         run: |
           export PATH="$HOME/.maestro/bin:$PATH"
-          maestro --version
+          INSTALLED=$(maestro --version)
+          echo "Installed: $INSTALLED"
+          if [ "$INSTALLED" != "2.1.0" ]; then
+            echo "::error::Expected Maestro 2.1.0 but got $INSTALLED"
+            exit 1
+          fi
 
       # --- Boot Simulator & Install App ---
       - name: Boot iOS Simulator
@@ -274,13 +280,19 @@ jobs:
       # --- Install Maestro ---
       - name: Install Maestro CLI
         run: |
-          curl -fsSL "https://get.maestro.mobile.dev" | bash -s -- --version 2.1.0
+          export MAESTRO_VERSION=2.1.0
+          curl -fsSL "https://get.maestro.mobile.dev" | bash
           echo "$HOME/.maestro/bin" >> $GITHUB_PATH
 
       - name: Verify Maestro installation
         run: |
           export PATH="$HOME/.maestro/bin:$PATH"
-          maestro --version
+          INSTALLED=$(maestro --version)
+          echo "Installed: $INSTALLED"
+          if [ "$INSTALLED" != "2.1.0" ]; then
+            echo "::error::Expected Maestro 2.1.0 but got $INSTALLED"
+            exit 1
+          fi
 
       # --- Boot Simulator & Install App ---
       - name: Boot iOS Simulator
