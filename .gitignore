@@ -12,6 +12,7 @@ web-build/
 .env.*.local
 .env.test
 .env.e2e
+.claude/settings.json
 
 # IDE
 .vscode/
@@ -40,3 +41,4 @@ expo-env.d.ts
 
 android/sentry.properties
 ios/sentry.properties
+
