@@ -70,6 +70,8 @@ export interface ProcessedActivity {
   recorded_at: string; // ISO timestamp
   /** Optional challenge to attribute to */
   challenge_id?: string;
+  /** Workout subtype key (e.g. "running", "yoga") — only set for workout activities */
+  workout_activity_key?: string;
 }
 
 /**
@@ -145,8 +147,8 @@ export interface ChallengeForSync {
   challenge_type: ChallengeType;
   start_date: string;
   end_date: string;
-  goal_value: number;
-  current_progress: number;
+  /** Workout types that count toward this challenge. NULL = all workouts. */
+  workout_activity_filter?: string[] | null;
 }
 
 // =============================================================================

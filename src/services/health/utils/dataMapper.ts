@@ -36,7 +36,7 @@ export const GOOGLEFIT_TYPE_MAP: Record<string, ChallengeType> = {
 export const DEFAULT_UNITS: Record<ChallengeType, string> = {
   steps: "steps",
   active_minutes: "minutes",
-  workouts: "workouts",
+  workouts: "min",
   distance: "meters",
   calories: "kcal",
   custom: "units",
@@ -62,6 +62,7 @@ export async function transformSample(
     source: provider,
     source_external_id: hash,
     recorded_at: sample.startDate.toISOString(),
+    workout_activity_key: sample.metadata?.workout_activity_key as string | undefined,
   };
 }
 
