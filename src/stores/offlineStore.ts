@@ -51,6 +51,8 @@ export interface QueuedItem {
   createdAt: number;
   retryCount: number;
   lastError?: string;
+  /** User ID captured at enqueue time. Used to prevent cross-account replay. */
+  queuedByUserId?: string;
 }
 
 interface OfflineStoreState {
@@ -60,7 +62,7 @@ interface OfflineStoreState {
 }
 
 interface OfflineStoreActions {
-  addToQueue: (action: QueuedAction) => string;
+  addToQueue: (action: QueuedAction, queuedByUserId?: string) => string;
   removeFromQueue: (id: string) => void;
   processQueue: () => Promise<ProcessQueueResult>;
   clearQueue: () => void;
@@ -80,6 +82,61 @@ export interface ProcessQueueResult {
 
 const MAX_RETRIES = 5;
 const STORE_KEY = "fitchallenge-offline-queue";
+
+// =============================================================================
+// AUTH ERROR DETECTION
+// =============================================================================
+
+/**
+ * Check if an error indicates an authentication or authorization failure.
+ *
+ * Auth/authz errors are non-retryable — the user's session is invalid or
+ * RLS denies access, and retrying will produce the same failure. Items
+ * hitting this path are removed immediately instead of burning through
+ * MAX_RETRIES.
+ *
+ * Intentionally covers both 401 (authentication) and 403 (authorization/RLS)
+ * since neither is recoverable by retrying. A 403 from RLS means the row-level
+ * policy rejected the operation — this won't change on retry.
+ *
+ * Patterns sourced from:
+ *   - src/lib/queryRetry.ts (NON_RETRYABLE_CODES, NON_RETRYABLE_PATTERNS)
+ *   - src/lib/sentry.ts (IGNORED_ERROR_PATTERNS)
+ */
+function isAuthError(error: unknown): boolean {
+  // Extract structured fields (Supabase/PostgREST errors)
+  const err = error as Record<string, unknown> | null;
+  const code = typeof err?.code === "string" ? err.code : "";
+  const status =
+    typeof err?.status === "number"
+      ? err.status
+      : typeof err?.statusCode === "number"
+        ? err.statusCode
+        : 0;
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof err?.message === "string"
+        ? err.message
+        : String(error);
+
+  // PostgREST JWT error codes
+  if (code === "PGRST301" || code === "PGRST302") return true;
+
+  // HTTP 401 Unauthorized / 403 Forbidden
+  if (status === 401 || status === 403) return true;
+
+  // Message patterns (case-insensitive)
+  if (/jwt expired/i.test(message)) return true;
+  if (/jwt invalid/i.test(message)) return true;
+  if (/authentication required/i.test(message)) return true;
+  if (/not authenticated/i.test(message)) return true;
+  if (/invalid.*token/i.test(message)) return true;
+  if (/permission denied/i.test(message)) return true;
+  if (/insufficient.privilege/i.test(message)) return true;
+
+  return false;
+}
 
 // =============================================================================
 // ACTION EXECUTOR
@@ -164,11 +221,20 @@ export const useOfflineStore = create<OfflineStoreState & OfflineStoreActions>()
       lastProcessedAt: null,
 
       // Actions
-      addToQueue: (action) => {
+      addToQueue: (action, queuedByUserId) => {
         const id = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
         set((state) => ({
-          queue: [...state.queue, { id, action, createdAt: Date.now(), retryCount: 0 }],
+          queue: [
+            ...state.queue,
+            {
+              id,
+              action,
+              createdAt: Date.now(),
+              retryCount: 0,
+              ...(queuedByUserId ? { queuedByUserId } : {}),
+            },
+          ],
         }));
 
         // GUARDRAIL 3: Telemetry for queue depth
@@ -206,59 +272,113 @@ export const useOfflineStore = create<OfflineStoreState & OfflineStoreActions>()
         const toRemove: string[] = [];
         const toUpdate: QueuedItem[] = [];
 
-        // Process in order (FIFO)
-        for (const item of [...queue]) {
+        try {
+          // C3: Resolve current user once for cross-account guard.
+          // If not authenticated, defer processing — items remain queued.
+          let currentUserId: string;
           try {
-            await executeAction(item.action);
-            toRemove.push(item.id);
-            succeeded++;
+            currentUserId = await requireUserId();
+          } catch {
+            console.warn(
+              "[OfflineQueue] Not authenticated — deferring queue processing",
+            );
+            return {
+              processed: 0,
+              succeeded: 0,
+              failed: 0,
+              remaining: queue.length,
+            };
+          }
 
-            // GUARDRAIL 3: Telemetry for success
-            console.log(`[OfflineQueue] Processed ${item.action.type} (${item.id})`);
-          } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
+          // Process in order (FIFO)
+          for (const item of [...queue]) {
+            try {
+              // C3: Cross-account guard — drop items queued by a different user.
+              // Items without queuedByUserId (legacy persisted) skip this check.
+              if (
+                item.queuedByUserId &&
+                item.queuedByUserId !== currentUserId
+              ) {
+                toRemove.push(item.id);
+                failed++;
 
-            // GUARDRAIL 3: Retry limits
-            if (item.retryCount + 1 >= MAX_RETRIES) {
+                // GUARDRAIL 6: Only log truncated user ID prefixes
+                console.error(
+                  `[OfflineQueue] User mismatch — dropping:`,
+                  item.action.type,
+                  item.id,
+                  `(queued by ${item.queuedByUserId.substring(0, 8)}, current ${currentUserId.substring(0, 8)})`,
+                );
+                continue;
+              }
+
+              await executeAction(item.action);
               toRemove.push(item.id);
-              failed++;
+              succeeded++;
 
-              // GUARDRAIL 3: Telemetry for failures
-              // GUARDRAIL 6: Don't log full error which might contain tokens
-              console.error(
-                `[OfflineQueue] Failed permanently after ${MAX_RETRIES} retries:`,
-                item.action.type,
-                item.id,
-                errorMessage.substring(0, 100),
+              // GUARDRAIL 3: Telemetry for success
+              console.log(
+                `[OfflineQueue] Processed ${item.action.type} (${item.id})`,
               );
-            } else {
-              toUpdate.push({
-                ...item,
-                retryCount: item.retryCount + 1,
-                lastError: errorMessage.substring(0, 200),
-              });
-              failed++;
+            } catch (error) {
+              const errorMessage =
+                error instanceof Error ? error.message : String(error);
 
-              console.warn(
-                `[OfflineQueue] Retry ${item.retryCount + 1}/${MAX_RETRIES}:`,
-                item.action.type,
-                item.id,
-              );
+              // C3: Auth/authz errors are non-retryable — drop immediately
+              // instead of burning through MAX_RETRIES with identical failures.
+              if (isAuthError(error)) {
+                toRemove.push(item.id);
+                failed++;
+
+                // GUARDRAIL 6: No tokens in logs
+                console.error(
+                  `[OfflineQueue] Auth error — dropping immediately:`,
+                  item.action.type,
+                  item.id,
+                  errorMessage.substring(0, 100),
+                );
+              } else if (item.retryCount + 1 >= MAX_RETRIES) {
+                // GUARDRAIL 3: Retry limits (transient errors only)
+                toRemove.push(item.id);
+                failed++;
+
+                // GUARDRAIL 6: Don't log full error which might contain tokens
+                console.error(
+                  `[OfflineQueue] Failed permanently after ${MAX_RETRIES} retries:`,
+                  item.action.type,
+                  item.id,
+                  errorMessage.substring(0, 100),
+                );
+              } else {
+                toUpdate.push({
+                  ...item,
+                  retryCount: item.retryCount + 1,
+                  lastError: errorMessage.substring(0, 200),
+                });
+                failed++;
+
+                console.warn(
+                  `[OfflineQueue] Retry ${item.retryCount + 1}/${MAX_RETRIES}:`,
+                  item.action.type,
+                  item.id,
+                );
+              }
             }
           }
+        } finally {
+          // HARDENING: Always apply collected changes and reset isProcessing,
+          // even if an unexpected error escapes the per-item catch.
+          set((state) => ({
+            queue: state.queue
+              .filter((item) => !toRemove.includes(item.id))
+              .map((item) => {
+                const updated = toUpdate.find((u) => u.id === item.id);
+                return updated ?? item;
+              }),
+            isProcessing: false,
+            lastProcessedAt: Date.now(),
+          }));
         }
-
-        // Atomic state update
-        set((state) => ({
-          queue: state.queue
-            .filter((item) => !toRemove.includes(item.id))
-            .map((item) => {
-              const updated = toUpdate.find((u) => u.id === item.id);
-              return updated ?? item;
-            }),
-          isProcessing: false,
-          lastProcessedAt: Date.now(),
-        }));
 
         const result: ProcessQueueResult = {
           processed: succeeded + failed,

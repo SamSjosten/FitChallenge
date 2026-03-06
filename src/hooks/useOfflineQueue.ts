@@ -6,6 +6,7 @@
 
 import { useCallback } from "react";
 import { useOfflineStore, QueuedAction } from "@/stores/offlineStore";
+import { useAuth } from "@/hooks/useAuth";
 import { checkNetworkStatus } from "./useNetworkStatus";
 
 interface UseOfflineQueueReturn {
@@ -25,6 +26,7 @@ interface UseOfflineQueueReturn {
  * GUARDRAIL 3: Attempts immediate execution if online, queues if offline
  */
 export function useOfflineQueue(): UseOfflineQueueReturn {
+  const { user } = useAuth();
   const queueLength = useOfflineStore((s) => s.queue.length);
   const isProcessing = useOfflineStore((s) => s.isProcessing);
   const addToQueue = useOfflineStore((s) => s.addToQueue);
@@ -32,7 +34,9 @@ export function useOfflineQueue(): UseOfflineQueueReturn {
 
   const enqueue = useCallback(
     async (action: QueuedAction): Promise<string> => {
-      const id = addToQueue(action);
+      // C3: Capture current user ID for cross-account replay prevention.
+      // Uses cached React context (no network call needed).
+      const id = addToQueue(action, user?.id);
 
       // Try immediate processing if online
       const isOnline = await checkNetworkStatus();
@@ -45,7 +49,7 @@ export function useOfflineQueue(): UseOfflineQueueReturn {
 
       return id;
     },
-    [addToQueue, processQueue],
+    [addToQueue, processQueue, user?.id],
   );
 
   const processNow = useCallback(async () => {

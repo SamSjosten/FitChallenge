@@ -38,6 +38,7 @@ import { Session, User, AuthError } from "@supabase/supabase-js";
 import { getSupabaseClient } from "@/lib/supabase";
 import { authService, configureGoogleSignIn } from "@/services/auth";
 import { pushTokenService } from "@/services/pushTokens";
+import { useSecurityStore } from "@/stores/securityStore";
 import { syncServerTime, RESYNC_INTERVAL_MS } from "@/lib/serverTime";
 import type { Profile } from "@/types/database";
 
@@ -501,6 +502,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       // Disable push token before signing out (needs auth context)
       await pushTokenService.disableCurrentToken();
+
+      // Reset security store before signing out.
+      // Clears persisted biometric preferences so the next account
+      // on this device starts with a clean security state.
+      useSecurityStore.getState().reset();
+
       await authService.signOut();
       console.log(`[AuthProvider] ✅ signOut() complete`);
       // Listener handles SIGNED_OUT → clears state

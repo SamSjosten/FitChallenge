@@ -355,4 +355,368 @@ describe("Offline Store", () => {
       expect(offlineStoreSelectors.isProcessing()).toBe(true);
     });
   });
+
+  // ===========================================================================
+  // C3: Auth error handling + cross-account guard
+  // ===========================================================================
+
+  describe("auth error handling (C3)", () => {
+    const LOG_ACTIVITY_ACTION = {
+      type: "LOG_ACTIVITY" as const,
+      payload: {
+        challenge_id: "c1",
+        activity_type: "steps",
+        value: 100,
+        client_event_id: "e1",
+      },
+    };
+
+    // Helper to get the mocked requireUserId
+    const getMockRequireUserId = () => {
+      const { requireUserId } = jest.requireMock("@/lib/supabase");
+      return requireUserId as jest.Mock;
+    };
+
+    describe("auth error classification (via processQueue behavior)", () => {
+      it("drops item immediately on 'Authentication required' from requireUserId", async () => {
+        getMockRequireUserId().mockRejectedValue(
+          new Error("Authentication required"),
+        );
+
+        useOfflineStore.setState({
+          queue: [
+            {
+              id: "auth-item",
+              action: LOG_ACTIVITY_ACTION,
+              createdAt: Date.now(),
+              retryCount: 0,
+              queuedByUserId: "test-user-123",
+            },
+          ],
+        });
+
+        // requireUserId fails in the pre-loop check → processing deferred
+        const result = await useOfflineStore.getState().processQueue();
+
+        expect(result.processed).toBe(0);
+        expect(result.remaining).toBe(1);
+        // Item stays in queue — not authenticated, defer entirely
+        expect(useOfflineStore.getState().queue).toHaveLength(1);
+      });
+
+      it("drops item immediately on JWT expired error from RPC", async () => {
+        getMockRequireUserId().mockResolvedValue("test-user-123");
+        mockRpc.mockRejectedValueOnce({
+          status: 401,
+          code: "PGRST301",
+          message: "JWT expired",
+        });
+
+        const { addToQueue, processQueue } = useOfflineStore.getState();
+        addToQueue(LOG_ACTIVITY_ACTION, "test-user-123");
+
+        const result = await processQueue();
+
+        expect(result.failed).toBe(1);
+        expect(result.remaining).toBe(0);
+        expect(useOfflineStore.getState().queue).toHaveLength(0);
+      });
+
+      it("drops item immediately on JWT invalid error (PGRST302)", async () => {
+        getMockRequireUserId().mockResolvedValue("test-user-123");
+        mockRpc.mockRejectedValueOnce({
+          code: "PGRST302",
+          message: "JWT invalid",
+        });
+
+        const { addToQueue, processQueue } = useOfflineStore.getState();
+        addToQueue(LOG_ACTIVITY_ACTION, "test-user-123");
+
+        const result = await processQueue();
+
+        expect(result.failed).toBe(1);
+        expect(result.remaining).toBe(0);
+      });
+
+      it("drops item immediately on HTTP 403 (permission denied)", async () => {
+        getMockRequireUserId().mockResolvedValue("test-user-123");
+        mockRpc.mockRejectedValueOnce({
+          status: 403,
+          message: "permission denied for table challenge_participants",
+        });
+
+        const { addToQueue, processQueue } = useOfflineStore.getState();
+        addToQueue(LOG_ACTIVITY_ACTION, "test-user-123");
+
+        const result = await processQueue();
+
+        expect(result.failed).toBe(1);
+        expect(result.remaining).toBe(0);
+      });
+
+      it("drops item on first auth failure regardless of retryCount", async () => {
+        getMockRequireUserId().mockResolvedValue("test-user-123");
+        mockRpc.mockRejectedValueOnce({
+          status: 401,
+          message: "JWT expired",
+        });
+
+        // Item already has 2 retries — should still be dropped immediately
+        useOfflineStore.setState({
+          queue: [
+            {
+              id: "retried-item",
+              action: LOG_ACTIVITY_ACTION,
+              createdAt: Date.now(),
+              retryCount: 2,
+              queuedByUserId: "test-user-123",
+            },
+          ],
+        });
+
+        const result = await useOfflineStore.getState().processQueue();
+
+        expect(result.failed).toBe(1);
+        expect(result.remaining).toBe(0);
+        // Confirm item was removed — not retried further
+        expect(useOfflineStore.getState().queue).toHaveLength(0);
+      });
+
+      it("retries network errors normally (not classified as auth)", async () => {
+        getMockRequireUserId().mockResolvedValue("test-user-123");
+        mockRpc.mockRejectedValueOnce(new Error("ETIMEDOUT"));
+
+        const { addToQueue, processQueue } = useOfflineStore.getState();
+        addToQueue(LOG_ACTIVITY_ACTION, "test-user-123");
+
+        await processQueue();
+
+        const { queue } = useOfflineStore.getState();
+        expect(queue).toHaveLength(1);
+        expect(queue[0].retryCount).toBe(1);
+      });
+
+      it("retries server 500 errors normally (not classified as auth)", async () => {
+        getMockRequireUserId().mockResolvedValue("test-user-123");
+        mockRpc.mockRejectedValueOnce({
+          status: 500,
+          message: "internal server error",
+        });
+
+        const { addToQueue, processQueue } = useOfflineStore.getState();
+        addToQueue(LOG_ACTIVITY_ACTION, "test-user-123");
+
+        await processQueue();
+
+        const { queue } = useOfflineStore.getState();
+        expect(queue).toHaveLength(1);
+        expect(queue[0].retryCount).toBe(1);
+      });
+    });
+
+    describe("cross-account guard", () => {
+      it("drops item queued by different user", async () => {
+        getMockRequireUserId().mockResolvedValue("user-B");
+
+        useOfflineStore.setState({
+          queue: [
+            {
+              id: "cross-account-item",
+              action: LOG_ACTIVITY_ACTION,
+              createdAt: Date.now(),
+              retryCount: 0,
+              queuedByUserId: "user-A",
+            },
+          ],
+        });
+
+        const result = await useOfflineStore.getState().processQueue();
+
+        expect(result.failed).toBe(1);
+        expect(result.remaining).toBe(0);
+        // Confirm no RPC call was made
+        expect(mockRpc).not.toHaveBeenCalled();
+      });
+
+      it("processes item queued by same user", async () => {
+        getMockRequireUserId().mockResolvedValue("test-user-123");
+
+        const { addToQueue, processQueue } = useOfflineStore.getState();
+        addToQueue(LOG_ACTIVITY_ACTION, "test-user-123");
+
+        const result = await processQueue();
+
+        expect(result.succeeded).toBe(1);
+        expect(result.remaining).toBe(0);
+        expect(mockRpc).toHaveBeenCalled();
+      });
+
+      it("skips cross-account check for legacy items (no queuedByUserId)", async () => {
+        getMockRequireUserId().mockResolvedValue("any-user");
+
+        useOfflineStore.setState({
+          queue: [
+            {
+              id: "legacy-item",
+              action: LOG_ACTIVITY_ACTION,
+              createdAt: Date.now(),
+              retryCount: 0,
+              // No queuedByUserId — legacy persisted item
+            },
+          ],
+        });
+
+        const result = await useOfflineStore.getState().processQueue();
+
+        expect(result.succeeded).toBe(1);
+        expect(result.remaining).toBe(0);
+        expect(mockRpc).toHaveBeenCalled();
+      });
+
+      it("stores queuedByUserId when provided to addToQueue", () => {
+        const { addToQueue } = useOfflineStore.getState();
+        addToQueue(LOG_ACTIVITY_ACTION, "user-abc-123");
+
+        const { queue } = useOfflineStore.getState();
+        expect(queue[0].queuedByUserId).toBe("user-abc-123");
+      });
+
+      it("omits queuedByUserId when not provided", () => {
+        const { addToQueue } = useOfflineStore.getState();
+        addToQueue(LOG_ACTIVITY_ACTION);
+
+        const { queue } = useOfflineStore.getState();
+        expect(queue[0].queuedByUserId).toBeUndefined();
+      });
+    });
+
+    describe("mixed queue with auth + network + mismatch errors", () => {
+      it("correctly accounts for mixed failure types in one run", async () => {
+        getMockRequireUserId().mockResolvedValue("current-user");
+
+        // Item 1: succeeds (same user, RPC works)
+        // Item 2: cross-account mismatch → dropped (no RPC call)
+        // Item 3: auth error from RPC → dropped
+        // Item 4: network error → retried
+        // All use LOG_ACTIVITY (rpc) so mockRpc ordering is predictable:
+        //   call 1 = item 1 (success), call 2 = item 3 (auth), call 3 = item 4 (network)
+        mockRpc
+          .mockResolvedValueOnce({ error: null }) // item 1 succeeds
+          .mockRejectedValueOnce({ status: 401, message: "JWT expired" }) // item 3 auth error
+          .mockRejectedValueOnce(new Error("Network error")); // item 4 network error
+
+        useOfflineStore.setState({
+          queue: [
+            {
+              id: "item-1",
+              action: LOG_ACTIVITY_ACTION,
+              createdAt: Date.now(),
+              retryCount: 0,
+              queuedByUserId: "current-user",
+            },
+            {
+              id: "item-2",
+              action: {
+                type: "LOG_ACTIVITY",
+                payload: {
+                  challenge_id: "c-mismatch",
+                  activity_type: "steps",
+                  value: 50,
+                  client_event_id: "e-mismatch",
+                },
+              },
+              createdAt: Date.now(),
+              retryCount: 0,
+              queuedByUserId: "other-user", // mismatch → skipped before rpc
+            },
+            {
+              id: "item-3",
+              action: LOG_ACTIVITY_ACTION,
+              createdAt: Date.now(),
+              retryCount: 0,
+              queuedByUserId: "current-user",
+            },
+            {
+              id: "item-4",
+              action: {
+                type: "LOG_ACTIVITY",
+                payload: {
+                  challenge_id: "c-network",
+                  activity_type: "steps",
+                  value: 75,
+                  client_event_id: "e-network",
+                },
+              },
+              createdAt: Date.now(),
+              retryCount: 0,
+              queuedByUserId: "current-user",
+            },
+          ],
+        });
+
+        const result = await useOfflineStore.getState().processQueue();
+
+        expect(result.succeeded).toBe(1); // item 1
+        expect(result.failed).toBe(3); // items 2 (mismatch) + 3 (auth) + 4 (network)
+        expect(result.processed).toBe(4);
+        expect(result.remaining).toBe(1); // only item 4 stays for retry
+
+        const { queue } = useOfflineStore.getState();
+        expect(queue).toHaveLength(1);
+        expect(queue[0].id).toBe("item-4");
+        expect(queue[0].retryCount).toBe(1);
+      });
+    });
+
+    describe("isProcessing hardening", () => {
+      it("resets isProcessing even if not authenticated (deferred processing)", async () => {
+        getMockRequireUserId().mockRejectedValue(
+          new Error("Authentication required"),
+        );
+
+        useOfflineStore.setState({
+          queue: [
+            {
+              id: "item-1",
+              action: LOG_ACTIVITY_ACTION,
+              createdAt: Date.now(),
+              retryCount: 0,
+              queuedByUserId: "test-user-123",
+            },
+          ],
+        });
+
+        await useOfflineStore.getState().processQueue();
+
+        // isProcessing must be false after processing completes
+        expect(useOfflineStore.getState().isProcessing).toBe(false);
+      });
+
+      it("resets isProcessing after normal processing", async () => {
+        getMockRequireUserId().mockResolvedValue("test-user-123");
+
+        const { addToQueue, processQueue } = useOfflineStore.getState();
+        addToQueue(LOG_ACTIVITY_ACTION, "test-user-123");
+
+        await processQueue();
+
+        expect(useOfflineStore.getState().isProcessing).toBe(false);
+      });
+
+      it("resets isProcessing after auth error drop", async () => {
+        getMockRequireUserId().mockResolvedValue("test-user-123");
+        mockRpc.mockRejectedValueOnce({
+          status: 401,
+          message: "Unauthorized",
+        });
+
+        const { addToQueue, processQueue } = useOfflineStore.getState();
+        addToQueue(LOG_ACTIVITY_ACTION, "test-user-123");
+
+        await processQueue();
+
+        expect(useOfflineStore.getState().isProcessing).toBe(false);
+      });
+    });
+  });
 });
