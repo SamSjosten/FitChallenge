@@ -247,6 +247,138 @@ describe("Push Token RLS Integration Tests", () => {
   });
 
   // =========================================================================
+  // UPDATE/DISABLE — Self-only (H4 fix validation)
+  // =========================================================================
+
+  describe("UPDATE/disable (self-only)", () => {
+    it("should allow user to disable their own token via user_id + token filter", async () => {
+      const token = testToken();
+
+      // Create token for user1
+      const { data: created } = await user1.client
+        .from("push_tokens")
+        .insert({ user_id: user1.id, token, platform: "ios" })
+        .select("id")
+        .single();
+
+      if (created?.id) createdTokenIds.push(created.id);
+
+      // Disable using the H4-fixed pattern: .eq("user_id", ...).eq("token", ...)
+      const now = new Date().toISOString();
+      const { error } = await user1.client
+        .from("push_tokens")
+        .update({ disabled_at: now })
+        .eq("user_id", user1.id)
+        .eq("token", token);
+
+      expect(error).toBeNull();
+
+      // Verify disabled_at is set
+      const { data: updated } = await user1.client
+        .from("push_tokens")
+        .select("disabled_at")
+        .eq("id", created!.id)
+        .single();
+
+      expect(updated?.disabled_at).not.toBeNull();
+    });
+
+    it("should NOT affect another user's token with the same token string", async () => {
+      const sharedToken = testToken();
+
+      // Both users register the same token string (allowed by schema)
+      const { data: t1 } = await user1.client
+        .from("push_tokens")
+        .insert({ user_id: user1.id, token: sharedToken, platform: "ios" })
+        .select("id")
+        .single();
+      if (t1?.id) createdTokenIds.push(t1.id);
+
+      const serviceClient = createServiceClient();
+      const { data: t2 } = await serviceClient
+        .from("push_tokens")
+        .insert({ user_id: user2.id, token: sharedToken, platform: "ios" })
+        .select("id")
+        .single();
+      if (t2?.id) createdTokenIds.push(t2.id);
+
+      // User1 disables with user_id + token filter
+      await user1.client
+        .from("push_tokens")
+        .update({ disabled_at: new Date().toISOString() })
+        .eq("user_id", user1.id)
+        .eq("token", sharedToken);
+
+      // User2's token should be untouched (disabled_at still null)
+      const { data: user2Token } = await serviceClient
+        .from("push_tokens")
+        .select("disabled_at")
+        .eq("id", t2!.id)
+        .single();
+
+      expect(user2Token?.disabled_at).toBeNull();
+    });
+
+    it("should scope update to self even without user_id filter (RLS safety net)", async () => {
+      const sharedToken = testToken();
+
+      // Both users register the same token string
+      const { data: t1 } = await user1.client
+        .from("push_tokens")
+        .insert({ user_id: user1.id, token: sharedToken, platform: "ios" })
+        .select("id")
+        .single();
+      if (t1?.id) createdTokenIds.push(t1.id);
+
+      const serviceClient = createServiceClient();
+      const { data: t2 } = await serviceClient
+        .from("push_tokens")
+        .insert({ user_id: user2.id, token: sharedToken, platform: "ios" })
+        .select("id")
+        .single();
+      if (t2?.id) createdTokenIds.push(t2.id);
+
+      // User1 disables WITHOUT user_id filter — only .eq("token", ...)
+      // RLS should still scope to user1's row only
+      await user1.client
+        .from("push_tokens")
+        .update({ disabled_at: new Date().toISOString() })
+        .eq("token", sharedToken);
+
+      // User2's token should be untouched
+      const { data: user2Token } = await serviceClient
+        .from("push_tokens")
+        .select("disabled_at")
+        .eq("id", t2!.id)
+        .single();
+
+      expect(user2Token?.disabled_at).toBeNull();
+
+      // User1's token should be disabled
+      const { data: user1Token } = await user1.client
+        .from("push_tokens")
+        .select("disabled_at")
+        .eq("id", t1!.id)
+        .single();
+
+      expect(user1Token?.disabled_at).not.toBeNull();
+    });
+
+    it("should be a no-op when token does not exist", async () => {
+      const nonExistentToken = testToken();
+
+      const { error } = await user1.client
+        .from("push_tokens")
+        .update({ disabled_at: new Date().toISOString() })
+        .eq("user_id", user1.id)
+        .eq("token", nonExistentToken);
+
+      // Should not error — just matches zero rows
+      expect(error).toBeNull();
+    });
+  });
+
+  // =========================================================================
   // UNIQUE CONSTRAINT
   // =========================================================================
 

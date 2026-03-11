@@ -73,6 +73,28 @@ No new findings. H2 was a structural refactor — split `isNavigationLocked()` i
 - `useProtectedRoute.ts` calls `clearStaleLock()` in useEffect before checking lock
 - AppState listener calls `clearStaleLock()` instead of `isNavigationLocked()`
 - `_layout.tsx` render call unchanged — now inherently safe
+- 15 unit tests added in `src/stores/__tests__/navigationStore.test.ts`:
+  - setAuthHandlingNavigation lifecycle (5 tests)
+  - isNavigationLocked purity — pure read, no side effects (5 tests)
+  - clearStaleLock mutation action (4 tests)
+  - CQS contract regression test — proves the original bug is fixed (1 test)
+- Unit tests justified: navigation store is a pure client-side Zustand state machine with zero Supabase/network interaction
+- Only mocks: `react-native` AppState (platform module) and `Date.now()` (deterministic timing)
+
+---
+
+## Discovered During H4 Implementation
+
+No new findings. H4 was a targeted fix — wrapping `disableCurrentToken()` in `withAuth()` and adding `.eq("user_id", userId)`.
+
+**H4 implementation notes:**
+- `disableCurrentToken()` now uses `withAuth()` for explicit auth check + userId injection
+- Query scoped by `(user_id, token)` — defense-in-depth alongside RLS
+- JSDoc documents best-effort sign-out race semantics
+- Two-tier test coverage:
+  - 4 integration tests (live Supabase): self-disable, cross-user isolation with shared token, RLS safety net proof, non-existent token no-op
+  - 6 unit tests (service orchestration): happy path, userId passthrough, early exits (non-device, no token), DB error warning, auth error graceful catch
+- All 13 push token integration tests pass (9 existing + 4 new)
 
 ---
 

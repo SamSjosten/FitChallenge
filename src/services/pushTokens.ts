@@ -165,6 +165,14 @@ export const pushTokenService = {
    * Called on sign-out to prevent pushes to signed-out devices
    *
    * CONTRACT: Sets disabled_at rather than deleting (audit trail)
+   * CONTRACT: Filters by (user_id, token) — defense-in-depth alongside RLS
+   *
+   * SIGN-OUT RACE SEMANTICS (best-effort):
+   * This is called BEFORE authService.signOut() to maximize session validity.
+   * If the session is already cleared (race condition), withAuth() throws and
+   * the outer catch logs/continues. The token remains enabled — this is
+   * acceptable because sign-out must not fail due to push token cleanup.
+   * Stale tokens are eventually cleaned up server-side.
    */
   async disableCurrentToken(): Promise<void> {
     if (!isNotificationSupported()) {
@@ -182,17 +190,21 @@ export const pushTokenService = {
         return;
       }
 
-      // Disable token in database (RLS ensures user can only update their own)
-      const { error } = await getSupabaseClient()
-        .from("push_tokens")
-        .update({ disabled_at: new Date().toISOString() })
-        .eq("token", token);
+      // Disable token scoped to current user — defense-in-depth alongside RLS
+      await withAuth(async (userId) => {
+        const { error } = await getSupabaseClient()
+          .from("push_tokens")
+          .update({ disabled_at: new Date().toISOString() })
+          .eq("user_id", userId)
+          .eq("token", token);
 
-      if (error) {
-        console.warn("Failed to disable push token:", error);
-      }
+        if (error) {
+          console.warn("Failed to disable push token:", error);
+        }
+      });
     } catch (err) {
       // Non-critical - log and continue with sign-out
+      // This catch also handles withAuth() throwing when session is expired
       console.warn("Error disabling push token:", err);
     }
   },

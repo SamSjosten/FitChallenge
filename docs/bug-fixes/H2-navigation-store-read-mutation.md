@@ -2,7 +2,7 @@
 
 **Severity:** HIGH
 **File:** `src/stores/navigationStore.ts` lines 61-78
-**Status:** CODE FIX APPLIED — TESTS PENDING
+**Status:** IMPLEMENTED (code + 15 unit tests)
 **Date:** 2026-03-06 (fix), 2026-03-10 (test plan)
 **Cross-ref:** Plan item H2, `eager-puzzling-frog.md`
 
