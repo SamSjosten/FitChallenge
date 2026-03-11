@@ -8,18 +8,10 @@ import { useAuth } from "@/providers/AuthProvider";
 import type { ActivityLog } from "@/types/database";
 
 // =============================================================================
-// QUERY KEYS
+// QUERY KEYS — re-exported from @/lib/queryKeys for backward compatibility
 // =============================================================================
 
-export const activityKeys = {
-  all: ["activities"] as const,
-  recent: (userId: string, limit?: number) =>
-    [...activityKeys.all, "recent", userId, limit] as const,
-  forChallenge: (userId: string, challengeId: string) =>
-    [...activityKeys.all, "challenge", userId, challengeId] as const,
-  summary: (userId: string, challengeId: string) =>
-    [...activityKeys.all, "summary", userId, challengeId] as const,
-};
+export { activityKeys } from "@/lib/queryKeys";
 
 // =============================================================================
 // HOOKS

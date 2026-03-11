@@ -6,9 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { RealtimeChannel } from "@supabase/supabase-js";
 import { getSupabaseClient } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
-import { notificationsKeys } from "@/hooks/useNotifications";
-import { friendsKeys } from "@/hooks/useFriends";
-import { challengeKeys } from "@/hooks/useChallenges";
+import { notificationsKeys, friendsKeys, challengeKeys } from "@/lib/queryKeys";
 import { Config } from "@/constants/config";
 import {
   createThrottledInvalidator,

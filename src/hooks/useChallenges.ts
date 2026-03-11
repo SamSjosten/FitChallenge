@@ -12,22 +12,14 @@ import {
   LogWorkoutResult,
 } from "@/services/activities";
 import { useAuth } from "@/hooks/useAuth";
-import { notificationsKeys } from "@/hooks/useNotifications";
-import { activityKeys } from "@/hooks/useActivities";
+import { activityKeys, notificationsKeys } from "@/lib/queryKeys";
 import type { Challenge, ChallengeType } from "@/types/database";
 
 // =============================================================================
-// QUERY KEYS
+// QUERY KEYS — re-exported from @/lib/queryKeys for backward compatibility
 // =============================================================================
 
-export const challengeKeys = {
-  all: ["challenges"] as const,
-  active: () => [...challengeKeys.all, "active"] as const,
-  pending: () => [...challengeKeys.all, "pending"] as const,
-  startingSoon: () => [...challengeKeys.all, "startingSoon"] as const,
-  detail: (id: string) => [...challengeKeys.all, "detail", id] as const,
-  leaderboard: (id: string) => [...challengeKeys.all, "leaderboard", id] as const,
-};
+export { challengeKeys } from "@/lib/queryKeys";
 
 // =============================================================================
 // OPTIMISTIC UPDATE HELPERS
@@ -309,7 +301,8 @@ export function useLogActivity() {
 
     // Always refetch after mutation settles (success or error)
     onSettled: (data, error, variables) => {
-      // If queued, don't invalidate yet - will happen on sync
+      // If queued, skip — invalidation happens in useNetworkStatus/useOfflineQueue/
+      // _layout after processQueue() succeeds (M1: invalidateAfterSync)
       if (data?.queued) {
         console.log("[useLogActivity] Activity queued for offline sync");
         return;
@@ -386,6 +379,8 @@ export function useLogWorkout() {
     },
 
     onSettled: (data, error, variables) => {
+      // If queued, skip — invalidation happens in useNetworkStatus/useOfflineQueue/
+      // _layout after processQueue() succeeds (M1: invalidateAfterSync)
       if (data?.queued) {
         console.log("[useLogWorkout] Workout queued for offline sync");
         return;

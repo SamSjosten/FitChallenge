@@ -6,7 +6,9 @@
 
 import { useEffect, useState, useRef } from "react";
 import NetInfo, { NetInfoState } from "@react-native-community/netinfo";
+import { useQueryClient } from "@tanstack/react-query";
 import { useOfflineStore } from "@/stores/offlineStore";
+import { invalidateAfterSync } from "@/lib/invalidateAfterSync";
 
 export interface NetworkStatus {
   isConnected: boolean;
@@ -28,6 +30,7 @@ export function useNetworkStatus(): NetworkStatus {
   });
 
   const processQueue = useOfflineStore((s) => s.processQueue);
+  const queryClient = useQueryClient();
   const wasDisconnected = useRef(false);
 
   useEffect(() => {
@@ -52,9 +55,14 @@ export function useNetworkStatus(): NetworkStatus {
         wasDisconnected.current = false;
 
         // GUARDRAIL 5: Non-blocking - don't await
-        processQueue().catch((error) => {
-          console.error("[NetworkStatus] Queue processing failed:", error);
-        });
+        // M1: Invalidate caches after successful sync so UI reflects server state
+        processQueue()
+          .then((result) => {
+            invalidateAfterSync(result, queryClient);
+          })
+          .catch((error) => {
+            console.error("[NetworkStatus] Queue processing failed:", error);
+          });
       }
     };
 
@@ -64,7 +72,7 @@ export function useNetworkStatus(): NetworkStatus {
     NetInfo.fetch().then(handleNetworkChange);
 
     return () => unsubscribe();
-  }, [processQueue]);
+  }, [processQueue, queryClient]);
 
   return status;
 }

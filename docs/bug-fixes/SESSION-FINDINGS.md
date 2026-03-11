@@ -98,6 +98,41 @@ No new findings. H4 was a targeted fix — wrapping `disableCurrentToken()` in `
 
 ---
 
+## Discovered During H5 Implementation
+
+No new findings. H5 was a mechanical 3-site change — replacing constant retry delay with exponential backoff.
+
+**H5 implementation notes:**
+- `RETRY_DELAY_MS = 1000` → `RETRY_BASE_MS = 500` with `RETRY_BASE_MS * Math.pow(2, attempt - 1)`
+- All 3 retry sites updated identically (not-found at line 223, null-data at line 242, timeout at line 263)
+- Log messages now show computed delay instead of constant
+- JSDoc updated: "with a delay" → "with exponential backoff (500ms, 1s)"
+- Delay schedule: attempt 1→2 = 500ms, attempt 2→3 = 1000ms (was 1000ms, 1000ms)
+- No new tests — mechanical formula swap, correctness self-evident from code
+- All 71 store unit tests + 6 pushTokens service tests pass (regression check)
+
+---
+
+## Discovered During M1 Implementation
+
+**M1: Queued activity skips cache invalidation permanently**
+
+Found a **4th caller** of `processQueue()` that was missed in initial investigation: `app/_layout.tsx` line 151 (startup with pending items). This path was fire-and-forget with no invalidation, same as the other 3.
+
+**Key architectural decision:** moved all query key factories (`challengeKeys`, `activityKeys`, `notificationsKeys`, `friendsKeys`) from individual hook files to `src/lib/queryKeys.ts` to prevent hook-to-hook import coupling. Hooks re-export for backward compatibility.
+
+**M1 implementation notes:**
+- Created `src/lib/queryKeys.ts` — centralized query key factories (pure data, no React deps)
+- Created `src/lib/invalidateAfterSync.ts` — shared helper with `succeeded > 0` guard
+- Wired invalidation at all 4 `processQueue()` callsites: `useNetworkStatus`, `useOfflineQueue` (2 paths), `_layout.tsx`
+- Switched `OfflineIndicator.tsx` from direct store `processQueue()` to `useOfflineQueue` hook's `processNow` (correctness path, not optional)
+- Updated stale `onSettled` comments in `useChallenges.ts` (both `useLogActivity` and `useLogWorkout`)
+- 5 hook files updated for query key re-exports (useChallenges, useActivities, useNotifications, useFriends, useRealtimeSubscription)
+- 6 behavioral + 5 structural regression unit tests
+- Concurrency is safe: store's `isProcessing` guard returns `succeeded: 0` for second caller
+
+---
+
 ## Template for New Findings
 
 ### FX. [Title]

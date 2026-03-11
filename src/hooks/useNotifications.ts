@@ -10,14 +10,10 @@ import { notificationsService, Notification } from "@/services/notifications";
 import { Config } from "@/constants/config";
 
 // =============================================================================
-// QUERY KEYS
+// QUERY KEYS — re-exported from @/lib/queryKeys for backward compatibility
 // =============================================================================
 
-export const notificationsKeys = {
-  all: ["notifications"] as const,
-  list: () => [...notificationsKeys.all, "list"] as const,
-  unreadCount: () => [...notificationsKeys.all, "unreadCount"] as const,
-};
+export { notificationsKeys } from "@/lib/queryKeys";
 
 // =============================================================================
 // QUERY HOOKS

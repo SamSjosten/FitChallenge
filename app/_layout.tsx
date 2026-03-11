@@ -12,7 +12,7 @@ import "react-native-get-random-values";
 
 import React, { useEffect } from "react";
 import { Stack } from "expo-router";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { StatusBar } from "expo-status-bar";
 import { View, ActivityIndicator, StyleSheet } from "react-native";
@@ -36,6 +36,7 @@ import { persistOptions } from "@/lib/queryPersister";
 import { queryRetryFn, mutationRetryFn } from "@/lib/queryRetry";
 import { initSentry, setUserContext } from "@/lib/sentry";
 import { useOfflineStore } from "@/stores/offlineStore";
+import { invalidateAfterSync } from "@/lib/invalidateAfterSync";
 import { useNavigationStore, initNavigationStoreRecovery } from "@/stores/navigationStore";
 import { Config } from "@/constants/config";
 
@@ -107,6 +108,7 @@ function QueryProvider({ children }: { children: React.ReactNode }) {
 function RootLayoutNav() {
   const { colors, isDark } = useAppTheme();
   const { showToast } = useToast();
+  const queryClient = useQueryClient();
   // Use centralized auth state - NO MORE DUPLICATE SUBSCRIPTION
   const {
     session,
@@ -148,11 +150,16 @@ function RootLayoutNav() {
   // GUARDRAIL 3: Process offline queue when authenticated and online
   useEffect(() => {
     if (session?.user?.id && isConnected && queueLength > 0) {
-      processQueue().catch((error) => {
-        console.error("[RootLayout] Queue processing failed:", error);
-      });
+      // M1: Invalidate caches after startup sync so UI reflects server state
+      processQueue()
+        .then((result) => {
+          invalidateAfterSync(result, queryClient);
+        })
+        .catch((error) => {
+          console.error("[RootLayout] Queue processing failed:", error);
+        });
     }
-  }, [session?.user?.id, isConnected, queueLength, processQueue]);
+  }, [session?.user?.id, isConnected, queueLength, processQueue, queryClient]);
 
   // GUARDRAIL 4: Enable realtime updates when logged in
   useRealtimeSubscription();

@@ -178,7 +178,7 @@ export const authService = {
    *
    * RETRY: For new social-auth users, the profile may not exist yet because
    * the handle_new_user trigger hasn't completed. We retry up to MAX_RETRIES
-   * times with a delay between attempts.
+   * times with exponential backoff (500ms, 1s) between attempts.
    *
    * TIMEOUT: 5 seconds per attempt. A primary key lookup should complete in <1s.
    * If all retries fail, something is wrong (network, Supabase, or auth context).
@@ -186,7 +186,8 @@ export const authService = {
   async getMyProfileWithUserId(userId: string): Promise<Profile> {
     const TIMEOUT_MS = 5000;
     const MAX_RETRIES = 3;
-    const RETRY_DELAY_MS = 1000;
+    const RETRY_BASE_MS = 500;
+    const getRetryDelayMs = (attempt: number) => RETRY_BASE_MS * Math.pow(2, attempt - 1);
     const shortId = userId.substring(0, 8);
 
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
@@ -220,11 +221,12 @@ export const authService = {
             error.message?.includes("no rows");
 
           if (isNotFound && attempt < MAX_RETRIES) {
+            const delay = getRetryDelayMs(attempt);
             console.log(
               `[AuthService] ⏳ Profile not found for ${shortId} (${elapsed}ms), ` +
-                `retrying in ${RETRY_DELAY_MS}ms (trigger may still be running)...`,
+                `retrying in ${delay}ms (trigger may still be running)...`,
             );
-            await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
+            await new Promise((r) => setTimeout(r, delay));
             continue;
           }
 
@@ -238,11 +240,12 @@ export const authService = {
 
         if (!data) {
           if (attempt < MAX_RETRIES) {
+            const delay = getRetryDelayMs(attempt);
             console.log(
               `[AuthService] ⏳ Profile null for ${shortId} (${elapsed}ms), ` +
-                `retrying in ${RETRY_DELAY_MS}ms...`,
+                `retrying in ${delay}ms...`,
             );
-            await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
+            await new Promise((r) => setTimeout(r, delay));
             continue;
           }
           throw new Error("Profile not found after all retries");
@@ -258,11 +261,12 @@ export const authService = {
         const isTimeout = err?.message?.includes("timed out");
 
         if (isTimeout && attempt < MAX_RETRIES) {
+          const delay = getRetryDelayMs(attempt);
           console.warn(
             `[AuthService] ⏱️ Profile query timed out for ${shortId} (${elapsed}ms), ` +
-              `retrying in ${RETRY_DELAY_MS}ms...`,
+              `retrying in ${delay}ms...`,
           );
-          await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
+          await new Promise((r) => setTimeout(r, delay));
           continue;
         }
 

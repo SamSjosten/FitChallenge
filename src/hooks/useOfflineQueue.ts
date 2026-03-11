@@ -5,9 +5,11 @@
 // GUARDRAIL 5: UI feedback
 
 import { useCallback } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useOfflineStore, QueuedAction } from "@/stores/offlineStore";
 import { useAuth } from "@/hooks/useAuth";
 import { checkNetworkStatus } from "./useNetworkStatus";
+import { invalidateAfterSync } from "@/lib/invalidateAfterSync";
 
 interface UseOfflineQueueReturn {
   /** Number of items waiting in the queue */
@@ -27,6 +29,7 @@ interface UseOfflineQueueReturn {
  */
 export function useOfflineQueue(): UseOfflineQueueReturn {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const queueLength = useOfflineStore((s) => s.queue.length);
   const isProcessing = useOfflineStore((s) => s.isProcessing);
   const addToQueue = useOfflineStore((s) => s.addToQueue);
@@ -42,19 +45,26 @@ export function useOfflineQueue(): UseOfflineQueueReturn {
       const isOnline = await checkNetworkStatus();
       if (isOnline) {
         // Non-blocking process attempt
-        processQueue().catch(() => {
-          // Errors are logged in processQueue, item stays in queue for retry
-        });
+        // M1: Invalidate caches after successful immediate sync
+        processQueue()
+          .then((result) => {
+            invalidateAfterSync(result, queryClient);
+          })
+          .catch(() => {
+            // Errors are logged in processQueue, item stays in queue for retry
+          });
       }
 
       return id;
     },
-    [addToQueue, processQueue, user?.id],
+    [addToQueue, processQueue, user?.id, queryClient],
   );
 
   const processNow = useCallback(async () => {
-    await processQueue();
-  }, [processQueue]);
+    const result = await processQueue();
+    // M1: Invalidate caches after manual sync trigger
+    invalidateAfterSync(result, queryClient);
+  }, [processQueue, queryClient]);
 
   return {
     queueLength,

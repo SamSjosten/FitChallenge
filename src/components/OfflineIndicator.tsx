@@ -7,7 +7,7 @@ import React from "react";
 import { View, Text, StyleSheet, Pressable, Animated } from "react-native";
 import { CloudIcon } from "react-native-heroicons/outline";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
-import { useOfflineStore } from "@/stores/offlineStore";
+import { useOfflineQueue } from "@/hooks/useOfflineQueue";
 import { useAppTheme } from "@/providers/ThemeProvider";
 
 interface OfflineIndicatorProps {
@@ -25,9 +25,9 @@ interface OfflineIndicatorProps {
 export function OfflineIndicator({ compact = false }: OfflineIndicatorProps) {
   const { colors } = useAppTheme();
   const { isConnected } = useNetworkStatus();
-  const queueLength = useOfflineStore((s) => s.queue.length);
-  const isProcessing = useOfflineStore((s) => s.isProcessing);
-  const processQueue = useOfflineStore((s) => s.processQueue);
+  // M1: Use hook instead of direct store access so manual sync triggers
+  // cache invalidation via invalidateAfterSync
+  const { queueLength, isProcessing, processNow } = useOfflineQueue();
 
   // Animated rotation for processing indicator
   const spinAnim = React.useRef(new Animated.Value(0)).current;
@@ -81,7 +81,7 @@ export function OfflineIndicator({ compact = false }: OfflineIndicatorProps) {
   if (queueLength > 0) {
     return (
       <Pressable
-        onPress={() => processQueue()}
+        onPress={() => processNow()}
         disabled={isProcessing}
         style={[
           styles.container,
