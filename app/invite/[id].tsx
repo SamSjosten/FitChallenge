@@ -29,6 +29,7 @@ import {
   FireIcon,
 } from "react-native-heroicons/outline";
 import { pushTokenService } from "@/services/pushTokens";
+import { formatStartsIn } from "@/lib/serverTime";
 
 // Activity type colors for the hero gradient
 const challengeTypeColors: Record<string, { primary: string; secondary: string }> = {
@@ -118,15 +119,6 @@ export default function InviteDetailScreen() {
       month: "short",
       day: "numeric",
     });
-  };
-
-  const getDaysUntilStart = (startDate: string) => {
-    const start = new Date(startDate);
-    const now = new Date();
-    const diff = Math.ceil((start.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-    if (diff <= 0) return "Starting soon";
-    if (diff === 1) return "Starts tomorrow";
-    return `Starts in ${diff} days`;
   };
 
   const getDuration = (startDate: string, endDate: string) => {
@@ -228,7 +220,7 @@ export default function InviteDetailScreen() {
 
           {/* Start info */}
           <View style={styles.heroStartBadge}>
-            <Text style={styles.heroStartText}>{getDaysUntilStart(challenge.start_date)}</Text>
+            <Text style={styles.heroStartText}>{formatStartsIn(challenge.start_date)}</Text>
           </View>
         </LinearGradient>
 

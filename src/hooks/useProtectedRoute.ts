@@ -21,8 +21,8 @@ export function useProtectedRoute(session: Session | null, isLoading: boolean) {
   const navigationState = useRootNavigationState();
 
   // Check if auth screen is handling navigation (sign-in flow)
-  // Uses isNavigationLocked() to auto-clear stale locks
   const isNavigationLocked = useNavigationStore((state) => state.isNavigationLocked);
+  const clearStaleLock = useNavigationStore((state) => state.clearStaleLock);
 
   // Track navigation attempts to prevent duplicates
   const lastNavigationTarget = useRef<string | null>(null);
@@ -45,7 +45,8 @@ export function useProtectedRoute(session: Session | null, isLoading: boolean) {
     }
 
     // If auth screen is handling sign-in flow, don't interfere
-    // isNavigationLocked() will auto-clear stale locks (>30s)
+    // Clear stale locks first (safe in useEffect), then check
+    clearStaleLock();
     const locked = isNavigationLocked();
     console.log(`${LOG} Check: session=${!!session}, locked=${locked}, path=${currentPath}`);
     if (locked) {
@@ -167,5 +168,5 @@ export function useProtectedRoute(session: Session | null, isLoading: boolean) {
         navigateTo(targetTabs);
       }
     }
-  }, [session, segments, isLoading, router, navigationState?.key, isNavigationLocked]);
+  }, [session, segments, isLoading, router, navigationState?.key, isNavigationLocked, clearStaleLock]);
 }

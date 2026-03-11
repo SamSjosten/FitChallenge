@@ -11,7 +11,10 @@
 1. **Cross-account replay prevention** — `queuedByUserId` captured at enqueue time, verified at process time. Mismatched items dropped before `executeAction` runs.
 2. **403 classification documented** — `isAuthError()` intentionally covers both 401 (authentication) and 403 (authorization/RLS). Both are non-retryable in queue context.
 3. **`isProcessing` try/finally hardening** — Processing body wrapped so `isProcessing` always resets, even on unexpected errors.
-4. **Tests:** 30 total (14 existing + 16 new C3 tests). All passing.
+4. **Tests:**
+   - **Unit tests:** 30 total (14 existing + 16 new C3 tests) in `offlineStore.test.ts`
+   - **Integration tests:** 15 tests in `offline-queue.integration.test.ts` — all hitting real Supabase test DB
+   - All passing.
 
 ---
 

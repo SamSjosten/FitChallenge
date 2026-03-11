@@ -41,7 +41,38 @@ No new findings. C3 implementation was clean — all changes aligned with existi
 - `useOfflineQueue` hook now imports `useAuth` to capture userId at enqueue time
 - `isAuthError()` classifier added to `offlineStore.ts` (private, not exported)
 - `processQueue()` wrapped in try/finally for `isProcessing` resilience
-- 16 new tests added (30 total in offlineStore.test.ts)
+- 16 new unit tests added (30 total in offlineStore.test.ts)
+- 15 integration tests added in `offline-queue.integration.test.ts` — all against real Supabase test DB:
+  - Happy path: LOG_ACTIVITY, ACCEPT_INVITE, SEND_FRIEND_REQUEST, idempotency (4 tests)
+  - Cross-account guard: mismatch drop, same-user process, legacy items (3 tests)
+  - Auth error handling: pre-loop deferral, real PostgREST error shape, invalid JWT drop, business error retry (4 tests)
+  - Mixed queue accounting (1 test)
+  - isProcessing resilience (3 tests)
+
+---
+
+## Discovered During H1 Implementation
+
+No new findings. H1 was a one-file, three-line change — import `formatStartsIn`, delete `getDaysUntilStart`, swap call site.
+
+**H1 implementation notes:**
+- Removed `getDaysUntilStart()` local helper (lines 123-130) which used `new Date()` (device clock)
+- Replaced with `formatStartsIn()` from `@/lib/serverTime` which uses `getServerNow()` (server-adjusted clock)
+- Copy changes are intentional: finer granularity (hours/minutes), "Starting soon" → "Starts now"
+- No new tests needed — `formatStartsIn` already covered by 52 tests in `serverTime.test.ts`
+
+---
+
+## Discovered During H2 Implementation
+
+No new findings. H2 was a structural refactor — split `isNavigationLocked()` into pure read + `clearStaleLock()` mutation.
+
+**H2 implementation notes:**
+- `isNavigationLocked()` no longer calls `set()` — safe to call during React render
+- New `clearStaleLock()` action performs the stale-lock mutation
+- `useProtectedRoute.ts` calls `clearStaleLock()` in useEffect before checking lock
+- AppState listener calls `clearStaleLock()` instead of `isNavigationLocked()`
+- `_layout.tsx` render call unchanged — now inherently safe
 
 ---
 

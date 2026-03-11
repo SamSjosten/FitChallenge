@@ -27,8 +27,10 @@ interface NavigationState {
   lockSetAt: number | null;
   // Set the navigation lock
   setAuthHandlingNavigation: (value: boolean) => void;
-  // Check if lock is currently valid (set and not stale)
+  // Check if lock is currently valid (set and not stale) — pure read, no side effects
   isNavigationLocked: () => boolean;
+  // Clear stale locks (call from effects/callbacks, never during render)
+  clearStaleLock: () => boolean;
 }
 
 export const useNavigationStore = create<NavigationState>((set, get) => ({
@@ -64,17 +66,29 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
       return false;
     }
 
-    // Check if lock is stale
+    // Check if lock is stale — return false but do NOT mutate (safe for render)
     if (lockSetAt) {
       const lockAge = Date.now() - lockSetAt;
       if (lockAge > MAX_LOCK_DURATION_MS) {
-        console.warn(`${LOG} ⚠️ STALE LOCK (age: ${lockAge}ms), auto-clearing`);
-        set({ authHandlingNavigation: false, lockSetAt: null });
+        console.warn(`${LOG} ⚠️ STALE LOCK detected (age: ${lockAge}ms)`);
         return false;
       }
     }
 
     return true;
+  },
+
+  clearStaleLock: () => {
+    const { authHandlingNavigation, lockSetAt } = get();
+    if (!authHandlingNavigation || !lockSetAt) return false;
+
+    const lockAge = Date.now() - lockSetAt;
+    if (lockAge > MAX_LOCK_DURATION_MS) {
+      console.warn(`${LOG} ⚠️ STALE LOCK auto-cleared (age: ${lockAge}ms)`);
+      set({ authHandlingNavigation: false, lockSetAt: null });
+      return true;
+    }
+    return false;
   },
 }));
 
@@ -97,8 +111,8 @@ export function initNavigationStoreRecovery() {
       const store = useNavigationStore.getState();
       if (store.authHandlingNavigation) {
         console.log(`${LOG} Foregrounded with lock held, validating...`);
-        const isValid = store.isNavigationLocked();
-        console.log(`${LOG} Lock still valid: ${isValid}`);
+        const wasCleared = store.clearStaleLock();
+        console.log(`${LOG} Lock still valid: ${!wasCleared}`);
       }
     }
   });
