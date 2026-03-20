@@ -35,6 +35,20 @@ export const healthSyncLogSchema = z.object({
 });
 
 /**
+ * Schema for validating SyncOptions at the service boundary.
+ * Prevents invalid syncType, extreme lookbackDays, or malformed activityTypes
+ * from reaching provider/RPC code.
+ */
+export const syncOptionsSchema = z.object({
+  syncType: z.enum(["background", "manual", "initial"]).optional(),
+  lookbackDays: z.number().int().min(1).max(90).optional(),
+  activityTypes: z.array(
+    z.enum(["steps", "active_minutes", "workouts", "distance", "custom", "calories"]),
+  ).optional(),
+  force: z.boolean().optional(),
+}).optional();
+
+/**
  * Schema for get_challenges_for_health_sync RPC response rows.
  */
 export const challengeForSyncSchema = z.object({

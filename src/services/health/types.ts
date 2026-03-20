@@ -257,6 +257,7 @@ export interface IHealthService {
     status: ConnectionStatus;
     connection: HealthConnection | null;
     lastSync: Date | null;
+    isProviderAvailable: boolean;
   }>;
 
   /** Connect to health provider */

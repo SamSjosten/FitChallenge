@@ -34,9 +34,6 @@ export function useHealthConnection(): UseHealthConnectionResult {
   const queryClient = useQueryClient();
   const healthService = getHealthService();
 
-  // Platform availability — iOS always available, others depend on query success
-  const platformAvailable = Platform.OS === "ios";
-
   const {
     data: connectionData,
     isLoading,
@@ -48,11 +45,12 @@ export function useHealthConnection(): UseHealthConnectionResult {
       return healthService.getConnectionStatus();
     },
     staleTime: 30_000,
-    enabled: platformAvailable,
+    enabled: Platform.OS === "ios",
   });
 
-  // Derive availability from query result: available if query succeeded or platform is iOS
-  const isAvailable = platformAvailable && (!queryError || !!connectionData);
+  // Derive availability from authoritative provider check returned by getConnectionStatus().
+  // Falls back to platform check while query is still loading (preserves iOS-first UX).
+  const isAvailable = connectionData?.isProviderAvailable ?? (Platform.OS === "ios");
 
   const connectMutation = useMutation({
     mutationFn: async (permissions?: HealthPermission[]) => {

@@ -29,6 +29,7 @@ import {
   challengeForSyncSchema,
   logHealthActivityResultSchema,
   recentHealthActivitySchema,
+  syncOptionsSchema,
 } from "./schemas";
 
 const DEFAULT_SYNC_OPTIONS: Required<SyncOptions> = {
@@ -63,15 +64,16 @@ export class HealthService implements IHealthService {
     status: ConnectionStatus;
     connection: HealthConnection | null;
     lastSync: Date | null;
+    isProviderAvailable: boolean;
   }> {
     const userId = await getUserId();
     if (!userId) {
-      return { status: "disconnected", connection: null, lastSync: null };
+      return { status: "disconnected", connection: null, lastSync: null, isProviderAvailable: false };
     }
 
     const isAvailable = await this.provider.isAvailable();
     if (!isAvailable) {
-      return { status: "disconnected", connection: null, lastSync: null };
+      return { status: "disconnected", connection: null, lastSync: null, isProviderAvailable: false };
     }
 
     // maybeSingle(): returns null data (not an error) when no connection exists
@@ -80,7 +82,7 @@ export class HealthService implements IHealthService {
       .maybeSingle();
 
     if (error || !connection) {
-      return { status: "disconnected", connection: null, lastSync: null };
+      return { status: "disconnected", connection: null, lastSync: null, isProviderAvailable: true };
     }
 
     const parsed = healthConnectionSchema.parse(connection);
@@ -98,6 +100,7 @@ export class HealthService implements IHealthService {
         status: "syncing",
         connection: parsed,
         lastSync: parsed.last_sync_at ? new Date(parsed.last_sync_at) : null,
+        isProviderAvailable: true,
       };
     }
 
@@ -105,6 +108,7 @@ export class HealthService implements IHealthService {
       status: parsed.is_active ? "connected" : "disconnected",
       connection: parsed,
       lastSync: parsed.last_sync_at ? new Date(parsed.last_sync_at) : null,
+      isProviderAvailable: true,
     };
   }
 
@@ -178,9 +182,10 @@ export class HealthService implements IHealthService {
     await requireUserId(); // Fail fast if session expired
 
     const startTime = Date.now();
-    const opts = { ...DEFAULT_SYNC_OPTIONS, ...options };
+    const validated = syncOptionsSchema.parse(options);
+    const opts = { ...DEFAULT_SYNC_OPTIONS, ...validated };
 
-    if (!options?.lookbackDays) {
+    if (!validated?.lookbackDays) {
       switch (opts.syncType) {
         case "background":
           opts.lookbackDays = BACKGROUND_LOOKBACK_DAYS;
