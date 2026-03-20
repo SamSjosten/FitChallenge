@@ -60,8 +60,16 @@ function toNumber(value: unknown, fallback = 0): number {
  * Check if an error is a network-related error worth queuing for retry.
  */
 function isNetworkError(error: unknown): boolean {
-  if (!(error instanceof Error)) return false;
-  const message = error.message.toLowerCase();
+  let raw = "";
+  if (error instanceof Error) {
+    raw = error.message;
+  } else if (typeof error === "string") {
+    raw = error;
+  } else if (error && typeof error === "object" && "message" in error) {
+    raw = String((error as { message: unknown }).message);
+  }
+  if (!raw) return false;
+  const message = raw.toLowerCase();
   return (
     message.includes("network") ||
     message.includes("fetch") ||

@@ -113,6 +113,8 @@ export function ExpandableChallengeCard({
         style={[styles.header, { padding: spacing.md }]}
         onPress={onToggleExpand}
         activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel={`${isExpanded ? "Collapse" : "Expand"} ${challenge.title} details`}
       >
         <View style={styles.headerRow}>
           {/* Icon + Title + Meta */}

@@ -22,8 +22,10 @@ export function useNotificationHandler() {
   const responseListener = useRef<Notifications.Subscription | null>(null);
 
   useEffect(() => {
-    // Handle notification taps (foreground + background)
-    responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
+    let cancelled = false;
+
+    function handleResponse(response: Notifications.NotificationResponse) {
+      if (cancelled) return;
       const data = response.notification.request.content.data;
 
       if (data?.challenge_id) {
@@ -34,24 +36,19 @@ export function useNotificationHandler() {
       } else if (data?.notification_type === "friend_request_received") {
         router.push("/(tabs)/friends");
       }
-    });
+    }
+
+    // Handle notification taps (foreground + background)
+    responseListener.current =
+      Notifications.addNotificationResponseReceivedListener(handleResponse);
 
     // Handle tap from killed state (queued notification response)
     Notifications.getLastNotificationResponseAsync().then((response) => {
-      if (response) {
-        const data = response.notification.request.content.data;
-        if (data?.challenge_id) {
-          router.push({
-            pathname: "/challenge/[id]",
-            params: { id: data.challenge_id as string },
-          });
-        } else if (data?.notification_type === "friend_request_received") {
-          router.push("/(tabs)/friends");
-        }
-      }
+      if (response) handleResponse(response);
     });
 
     return () => {
+      cancelled = true;
       if (responseListener.current) {
         responseListener.current.remove();
       }

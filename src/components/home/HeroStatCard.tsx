@@ -306,6 +306,8 @@ export function HeroStatCard({ challenge }: HeroStatCardProps) {
     <TouchableOpacity
       activeOpacity={0.85}
       onPress={handlePress}
+      accessibilityRole="button"
+      accessibilityLabel={`View ${challenge.title} details`}
       style={[
         styles.container,
         {
@@ -429,7 +431,7 @@ export function HeroStatCard({ challenge }: HeroStatCardProps) {
                 Leaderboard
               </Text>
             </View>
-            <TouchableOpacity onPress={handleViewAll} activeOpacity={0.7}>
+            <TouchableOpacity onPress={handleViewAll} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="View full leaderboard">
               <Text style={[styles.viewAllText, { color: colors.primary.main }]}>View All →</Text>
             </TouchableOpacity>
           </View>

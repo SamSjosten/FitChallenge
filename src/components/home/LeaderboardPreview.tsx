@@ -188,6 +188,8 @@ export function LeaderboardPreview({
           style={[styles.viewAllButton, { marginTop: spacing.sm }]}
           onPress={onViewAll}
           activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="View full leaderboard"
         >
           <Text style={[styles.viewAllText, { color: colors.primary.main }]}>
             {hasMore ? `View all ${totalParticipants} participants →` : "View full leaderboard →"}

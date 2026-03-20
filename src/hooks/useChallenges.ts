@@ -159,8 +159,9 @@ export function useCreateChallenge() {
       allowed_workout_types?: string[];
     }) => challengeService.create(input),
     onSuccess: () => {
-      // Invalidate and refetch active challenges
+      // Invalidate and refetch active + starting soon challenges
       queryClient.invalidateQueries({ queryKey: challengeKeys.active() });
+      queryClient.invalidateQueries({ queryKey: challengeKeys.startingSoon() });
     },
   });
 }

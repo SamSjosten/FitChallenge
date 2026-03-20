@@ -68,6 +68,13 @@ export function LeaderboardSection({
 }: LeaderboardSectionProps) {
   const { colors, spacing, typography } = useAppTheme();
 
+  // Hooks must be called unconditionally (before any early return)
+  const displayList = useMemo(
+    () => showAll ? (leaderboard ?? []) : (leaderboard ?? []).slice(0, LEADERBOARD_DISPLAY_LIMIT),
+    [showAll, leaderboard],
+  );
+  const remaining = (leaderboard?.length ?? 0) - LEADERBOARD_DISPLAY_LIMIT;
+
   // Pending invitees see lock message — gated by contract, not by parent
   if (viewerRole === "pending") {
     return (
@@ -95,12 +102,6 @@ export function LeaderboardSection({
       </View>
     );
   }
-
-  const displayList = useMemo(
-    () => (showAll ? leaderboard : leaderboard.slice(0, LEADERBOARD_DISPLAY_LIMIT)),
-    [showAll, leaderboard],
-  );
-  const remaining = leaderboard.length - LEADERBOARD_DISPLAY_LIMIT;
 
   return (
     <View

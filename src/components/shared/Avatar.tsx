@@ -34,7 +34,6 @@ function AvatarInner({ uri, name, size = "md", style }: AvatarProps) {
         flex: 1,
         justifyContent: "center",
         alignItems: "center",
-        backgroundColor: colors.primary.subtle,
       }}
     >
       <Text

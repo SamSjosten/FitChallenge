@@ -438,6 +438,37 @@ export const useOfflineStore = create<OfflineStoreState & OfflineStoreActions>()
     {
       name: STORE_KEY,
       storage: createJSONStorage(() => AsyncStorage),
+      version: 1,
+      migrate: (persisted: unknown, version: number) => {
+        const state = persisted as OfflineStoreState;
+        if (version === 0) {
+          // v0 → v1: Rewrite legacy workout-shaped LOG_ACTIVITY items to LOG_WORKOUT.
+          // Legacy items had {type: "LOG_ACTIVITY", payload: {workout_type, duration_minutes, ...}}
+          state.queue = (state.queue ?? []).map((item) => {
+            if (
+              item.action.type === "LOG_ACTIVITY" &&
+              "workout_type" in item.action.payload &&
+              "duration_minutes" in item.action.payload
+            ) {
+              const legacy = item.action.payload as Record<string, unknown>;
+              return {
+                ...item,
+                action: {
+                  type: "LOG_WORKOUT" as const,
+                  payload: {
+                    challenge_id: item.action.payload.challenge_id,
+                    workout_type: String(legacy.workout_type),
+                    duration_minutes: Number(legacy.duration_minutes),
+                    client_event_id: item.action.payload.client_event_id,
+                  },
+                },
+              };
+            }
+            return item;
+          });
+        }
+        return state;
+      },
       // Only persist queue and lastProcessedAt, not isProcessing
       partialize: (state) => ({
         queue: state.queue,
