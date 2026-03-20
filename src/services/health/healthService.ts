@@ -26,6 +26,7 @@ import { transformSamples, assignChallengesToActivities, calculateSyncDateRange 
 import {
   healthConnectionSchema,
   healthSyncLogSchema,
+  challengeForSyncSchema,
   logHealthActivityResultSchema,
   recentHealthActivitySchema,
 } from "./schemas";
@@ -226,9 +227,11 @@ export class HealthService implements IHealthService {
 
       const { data: challenges } = await getSupabaseClient().rpc("get_challenges_for_health_sync");
 
+      const parsedChallenges = z.array(challengeForSyncSchema).parse(challenges ?? []);
+
       const assignedActivities = assignChallengesToActivities(
         activities,
-        (challenges as ChallengeForSync[]) || [],
+        parsedChallenges,
       );
 
       const result = await this.batchInsertActivities(assignedActivities);

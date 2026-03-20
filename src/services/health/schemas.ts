@@ -31,7 +31,18 @@ export const healthSyncLogSchema = z.object({
   records_inserted: z.number(),
   records_deduplicated: z.number(),
   error_message: z.string().nullable(),
-  metadata: z.record(z.unknown()),
+  metadata: z.record(z.unknown()).nullable().transform((v) => v ?? {}),
+});
+
+/**
+ * Schema for get_challenges_for_health_sync RPC response rows.
+ */
+export const challengeForSyncSchema = z.object({
+  challenge_id: z.string().uuid(),
+  challenge_type: z.enum(["steps", "active_minutes", "workouts", "distance", "custom", "calories"]),
+  start_date: z.string(),
+  end_date: z.string(),
+  workout_activity_filter: z.array(z.string()).nullable().optional(),
 });
 
 /**
