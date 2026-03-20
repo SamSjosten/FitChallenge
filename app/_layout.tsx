@@ -12,7 +12,7 @@ import "react-native-get-random-values";
 
 import React, { useEffect } from "react";
 import { Stack } from "expo-router";
-import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, useQueryClient, QueryCache, MutationCache } from "@tanstack/react-query";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { StatusBar } from "expo-status-bar";
 import { View, ActivityIndicator, StyleSheet } from "react-native";
@@ -34,6 +34,7 @@ import { supabaseConfigError } from "@/lib/supabase";
 import { configureForegroundHandler, setupNotificationChannel } from "@/lib/notifications";
 import { persistOptions } from "@/lib/queryPersister";
 import { queryRetryFn, mutationRetryFn } from "@/lib/queryRetry";
+import { isExpiredSessionError, handleExpiredSession } from "@/lib/authRecovery";
 import { initSentry, setUserContext } from "@/lib/sentry";
 import { useOfflineStore } from "@/stores/offlineStore";
 import { invalidateAfterSync } from "@/lib/invalidateAfterSync";
@@ -63,6 +64,20 @@ configureForegroundHandler();
 // GUARDRAIL 2: Maintain current retry policies
 // gcTime must be >= maxAge for persistence to work properly
 const queryClient = new QueryClient({
+  queryCache: new QueryCache({
+    onError: (error) => {
+      if (isExpiredSessionError(error)) {
+        handleExpiredSession(queryClient);
+      }
+    },
+  }),
+  mutationCache: new MutationCache({
+    onError: (error) => {
+      if (isExpiredSessionError(error)) {
+        handleExpiredSession(queryClient);
+      }
+    },
+  }),
   defaultOptions: {
     queries: {
       staleTime: 1000 * 60 * 5, // 5 minutes

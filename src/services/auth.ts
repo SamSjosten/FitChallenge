@@ -15,6 +15,7 @@ import {
   SignUpInput,
   SignInInput,
   UpdateProfileInput,
+  userSearchSchema,
 } from "@/lib/validation";
 import { normalizeUsername } from "@/lib/username";
 import { clearPersistedQueryCache } from "@/lib/queryPersister";
@@ -347,12 +348,12 @@ export const authService = {
    * CONTRACT: Uses profiles_public for safe search
    */
   async searchUsers(query: string): Promise<ProfilePublic[]> {
-    if (query.length < 2) return [];
+    const validatedQuery = userSearchSchema.parse(query);
 
     const { data, error } = await getSupabaseClient()
       .from("profiles_public")
       .select("*")
-      .ilike("username", `%${query}%`)
+      .ilike("username", `%${validatedQuery}%`)
       .limit(20);
 
     if (error) throw error;
@@ -480,6 +481,54 @@ export const authService = {
         data: { onboarding_completed: true },
       });
       if (error) throw error;
+    });
+  },
+
+  /**
+   * Get debug info for developer screen.
+   * Returns current streak and user ID from profile.
+   */
+  async getDebugInfo(): Promise<{ currentStreak: number | null; userId: string }> {
+    return withAuth(async (userId) => {
+      const { data: profile } = await getSupabaseClient()
+        .from("profiles")
+        .select("current_streak")
+        .eq("id", userId)
+        .single();
+
+      return {
+        currentStreak: profile?.current_streak ?? null,
+        userId,
+      };
+    });
+  },
+
+  /**
+   * Reset onboarding for the current user.
+   * Clears health_setup_completed_at and sets onboarding_completed to false.
+   * Used by developer screen to re-test onboarding flow.
+   */
+  async resetOnboardingForCurrentUser(): Promise<void> {
+    return withAuth(async (userId) => {
+      // 1. Clear health setup tracking
+      const { error: profileError } = await getSupabaseClient()
+        .from("profiles")
+        .update({ health_setup_completed_at: null })
+        .eq("id", userId);
+
+      if (profileError) {
+        console.warn("Failed to clear health_setup_completed_at:", profileError.message);
+        // Non-fatal — onboarding redirect still works
+      }
+
+      // 2. Reset onboarding flag in user_metadata
+      const { error: metadataError } = await getSupabaseClient().auth.updateUser({
+        data: { onboarding_completed: false },
+      });
+
+      if (metadataError) {
+        throw new Error(`Metadata update failed: ${metadataError.message}`);
+      }
     });
   },
 };

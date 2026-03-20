@@ -25,6 +25,23 @@ export const passwordSchema = z
 
 export const uuidSchema = z.string().uuid("Invalid ID format");
 
+// Semantic aliases for UUID-based IDs — same validation, clearer intent at call sites
+export const challengeIdSchema = uuidSchema;
+export const notificationIdSchema = uuidSchema;
+
+export const userSearchSchema = z
+  .string()
+  .min(2, "Search query must be at least 2 characters")
+  .max(100, "Search query too long")
+  .trim();
+
+export const logWorkoutSchema = z.object({
+  challenge_id: uuidSchema,
+  workout_type: z.string().min(1, "Workout type is required"),
+  duration_minutes: z.number().int().min(1).max(1440),
+  client_event_id: uuidSchema,
+});
+
 // =============================================================================
 // AUTH SCHEMAS
 // =============================================================================

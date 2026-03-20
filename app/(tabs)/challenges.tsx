@@ -40,12 +40,14 @@ export default function ChallengesScreenV2() {
   const {
     data: activeChallenges,
     isLoading: loadingActive,
+    isError: activeError,
     refetch: refetchActive,
   } = useActiveChallenges();
 
   const {
     data: completedChallenges,
     isLoading: loadingCompleted,
+    isError: completedError,
     refetch: refetchCompleted,
   } = useCompletedChallenges();
 
@@ -92,6 +94,29 @@ export default function ChallengesScreenV2() {
           <Text style={[styles.title, { color: colors.textPrimary }]}>Challenges</Text>
         </View>
         <LoadingState variant="content" message="Loading challenges..." />
+      </SafeAreaView>
+    );
+  }
+
+  // Error state
+  if (activeError || completedError) {
+    return (
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: colors.background }]}
+        edges={["top"]}
+      >
+        <View style={[styles.headerContainer, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.title, { color: colors.textPrimary }]}>Challenges</Text>
+        </View>
+        <EmptyState
+          variant="generic"
+          message="Failed to load challenges"
+          actionLabel="Retry"
+          onAction={() => {
+            refetchActive();
+            refetchCompleted();
+          }}
+        />
       </SafeAreaView>
     );
   }

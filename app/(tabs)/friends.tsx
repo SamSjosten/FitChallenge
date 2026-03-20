@@ -54,11 +54,17 @@ export default function FriendsScreenV2() {
   const [searching, setSearching] = useState(false);
   const [sentRequests, setSentRequests] = useState<Set<string>>(new Set());
 
-  const { data: friends, isLoading: loadingFriends, refetch: refetchFriends } = useFriends();
+  const {
+    data: friends,
+    isLoading: loadingFriends,
+    isError: friendsError,
+    refetch: refetchFriends,
+  } = useFriends();
 
   const {
     data: pendingRequests,
     isLoading: loadingRequests,
+    isError: requestsError,
     refetch: refetchRequests,
   } = usePendingFriendRequests();
 
@@ -141,6 +147,29 @@ export default function FriendsScreenV2() {
           <Text style={[styles.title, { color: colors.textPrimary }]}>Friends</Text>
         </View>
         <LoadingState variant="content" message="Loading friends..." />
+      </SafeAreaView>
+    );
+  }
+
+  // Error state
+  if (friendsError || requestsError) {
+    return (
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: colors.background }]}
+        edges={["top"]}
+      >
+        <View style={[styles.headerContainer, { backgroundColor: colors.surface }]}>
+          <Text style={[styles.title, { color: colors.textPrimary }]}>Friends</Text>
+        </View>
+        <EmptyState
+          variant="generic"
+          message="Failed to load friends"
+          actionLabel="Retry"
+          onAction={() => {
+            refetchFriends();
+            refetchRequests();
+          }}
+        />
       </SafeAreaView>
     );
   }

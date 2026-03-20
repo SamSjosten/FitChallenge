@@ -14,8 +14,8 @@
 export const challengeKeys = {
   all: ["challenges"] as const,
   active: () => [...challengeKeys.all, "active"] as const,
+  completed: () => [...challengeKeys.all, "completed"] as const,
   pending: () => [...challengeKeys.all, "pending"] as const,
-  startingSoon: () => [...challengeKeys.all, "startingSoon"] as const,
   detail: (id: string) => [...challengeKeys.all, "detail", id] as const,
   leaderboard: (id: string, limit?: number) =>
     [...challengeKeys.all, "leaderboard", id, limit] as const,
@@ -27,6 +27,7 @@ export const challengeKeys = {
 
 export const activityKeys = {
   all: ["activities"] as const,
+  detail: (id: string) => [...activityKeys.all, "detail", id] as const,
   recent: (userId: string, limit?: number) =>
     [...activityKeys.all, "recent", userId, limit] as const,
   forChallenge: (userId: string, challengeId: string, limit?: number) =>

@@ -18,6 +18,7 @@ import {
   MapPinIcon,
 } from "react-native-heroicons/outline";
 import { activityService } from "@/services/activities";
+import { activityKeys } from "@/lib/queryKeys";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/providers/AuthProvider";
 
@@ -45,8 +46,8 @@ export default function ActivityDetailScreen() {
 
   // Fetch activity by loading recent activities and finding the one we need
   // In a real app, you'd have a dedicated getActivityById endpoint
-  const { data: activities, isLoading } = useQuery({
-    queryKey: ["activities", "detail", id],
+  const { data: activities, isLoading, isError, refetch } = useQuery({
+    queryKey: activityKeys.detail(id as string),
     queryFn: () => activityService.getRecentActivities({ limit: 100 }),
     enabled: !!session?.user?.id && !!id,
   });
@@ -116,6 +117,36 @@ export default function ActivityDetailScreen() {
     };
     return Math.round(value * (multiplier[type] || 1));
   };
+
+  // Error state
+  if (isError) {
+    return (
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: colors.background }]}
+        edges={["top"]}
+      >
+        <Stack.Screen options={{ headerShown: false }} />
+        <View style={[styles.notFound, { padding: spacing.xl }]}>
+          <Text style={[styles.notFoundText, { color: colors.error }]}>
+            Failed to load activity
+          </Text>
+          <TouchableOpacity
+            onPress={() => refetch()}
+            style={[
+              styles.backButton,
+              {
+                backgroundColor: colors.primary.main,
+                borderRadius: radius.lg,
+                marginTop: spacing.lg,
+              },
+            ]}
+          >
+            <Text style={[styles.backButtonText, { color: "#FFFFFF" }]}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   // Loading state
   if (isLoading || !activity) {

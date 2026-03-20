@@ -5,7 +5,7 @@
 
 import { SupabaseClient } from "@supabase/supabase-js";
 import { getSupabaseClient, withAuth } from "@/lib/supabase";
-import { validate, logActivitySchema } from "@/lib/validation";
+import { validate, logActivitySchema, logWorkoutSchema } from "@/lib/validation";
 import { checkNetworkStatus } from "@/hooks/useNetworkStatus";
 import { useOfflineStore } from "@/stores/offlineStore";
 import { getServerNow } from "@/lib/serverTime";
@@ -80,6 +80,81 @@ function isNetworkError(error: unknown): boolean {
 }
 
 // =============================================================================
+// INTERNAL EXECUTION HELPERS
+// =============================================================================
+// These execute the raw RPC call without network/offline checks.
+// Used by both the public service methods (live path) and the offline replay
+// path in offlineStore.ts. This avoids recursive re-queueing during replay.
+
+/**
+ * Execute a log_activity RPC call directly.
+ * Does NOT check network status or enqueue on failure.
+ * Caller must ensure authentication (withAuth or requireUserId).
+ */
+export async function executeLogActivity(payload: {
+  challenge_id: string;
+  activity_type: string;
+  value: number;
+  client_event_id: string;
+}): Promise<void> {
+  const args: LogActivityArgs = {
+    p_challenge_id: payload.challenge_id,
+    p_activity_type: payload.activity_type,
+    p_value: payload.value,
+    p_source: "manual",
+    p_client_event_id: payload.client_event_id,
+    // p_recorded_at intentionally omitted — server stays authoritative for manual logs
+  };
+
+  const { error } = await getSupabaseClient().rpc("log_activity", args);
+
+  if (error) {
+    // Idempotency: duplicate key errors are safe to ignore
+    if (error.message?.includes("duplicate") || error.code === "23505") {
+      console.log("Activity already logged (idempotent)");
+      return;
+    }
+    throw error;
+  }
+}
+
+/**
+ * Execute a log_workout RPC call directly.
+ * Does NOT check network status or enqueue on failure.
+ * Caller must ensure authentication (withAuth or requireUserId).
+ *
+ * @param payload.recorded_at - ISO timestamp for when the workout occurred.
+ *   For live calls, use getServerNow(). For replay, use the value captured at enqueue time.
+ */
+export async function executeLogWorkout(payload: {
+  challenge_id: string;
+  workout_type: string;
+  duration_minutes: number;
+  client_event_id: string;
+  recorded_at: string;
+}): Promise<number> {
+  const { data, error } = await (getSupabaseClient().rpc as Function)("log_workout", {
+    p_challenge_id: payload.challenge_id,
+    p_workout_type: payload.workout_type,
+    p_duration_minutes: payload.duration_minutes,
+    p_recorded_at: payload.recorded_at,
+    p_source: "manual",
+    p_client_event_id: payload.client_event_id,
+  });
+
+  if (error) {
+    // Idempotency: duplicate key errors are safe to ignore
+    if (error.message?.includes("duplicate") || error.code === "23505") {
+      console.log("Workout already logged (idempotent)");
+      return 0;
+    }
+    throw error;
+  }
+
+  return typeof data === "number" ? data : 0;
+}
+
+// =============================================================================
 // SERVICE
 // =============================================================================
 
@@ -115,32 +190,15 @@ export const activityService = {
       return { queued: true };
     }
 
-    // Online: attempt direct execution
+    // Online: attempt direct execution via internal helper
     return withAuth(async () => {
-      // Patch 2: Enforce server time for manual activity logs.
-      // - Ignore any client-provided recorded_at unless explicitly trusted (manual is NOT trusted).
-      // - The database function uses server time (now()) for manual logs.
-      // - We intentionally do NOT send p_recorded_at for manual logs.
-      const args: LogActivityArgs = {
-        p_challenge_id: validated.challenge_id,
-        p_activity_type: validated.activity_type,
-        p_value: validated.value,
-        p_source: "manual",
-        p_client_event_id: validated.client_event_id,
-        // p_recorded_at intentionally omitted
-      };
-
       try {
-        const { error } = await getSupabaseClient().rpc("log_activity", args);
-
-        if (error) {
-          // Idempotency: duplicate key errors are safe to ignore
-          if (error.message?.includes("duplicate") || error.code === "23505") {
-            console.log("Activity already logged (idempotent)");
-            return { queued: false };
-          }
-          throw error;
-        }
+        await executeLogActivity({
+          challenge_id: validated.challenge_id,
+          activity_type: validated.activity_type,
+          value: validated.value,
+          client_event_id: validated.client_event_id,
+        });
 
         return { queued: false };
       } catch (error) {
@@ -170,66 +228,56 @@ export const activityService = {
    * CONTRACT: Server calculates points (duration × multiplier)
    * CONTRACT: Returns calculated points on success
    */
-  async logWorkout(input: {
-    challenge_id: string;
-    workout_type: string;
-    duration_minutes: number;
-    client_event_id: string;
-  }): Promise<LogWorkoutResult> {
+  async logWorkout(input: unknown): Promise<LogWorkoutResult> {
+    const validated = validate(logWorkoutSchema, input);
+
+    // Capture recorded_at once, before any network/offline decision.
+    // This timestamp is used for both live execution and offline replay.
+    const recordedAt = getServerNow().toISOString();
+
     // Check network before attempting
     const isOnline = await checkNetworkStatus();
 
     if (!isOnline) {
-      // Queue for later — store full workout params so replay uses log_workout RPC
-      // with proper multiplier scoring, workout_type validation, and metadata.
+      // Queue for later — store full workout params + recorded_at so replay
+      // preserves the original event time, not replay time.
       useOfflineStore.getState().addToQueue({
         type: "LOG_WORKOUT",
         payload: {
-          challenge_id: input.challenge_id,
-          workout_type: input.workout_type,
-          duration_minutes: input.duration_minutes,
-          client_event_id: input.client_event_id,
+          challenge_id: validated.challenge_id,
+          workout_type: validated.workout_type,
+          duration_minutes: validated.duration_minutes,
+          client_event_id: validated.client_event_id,
+          recorded_at: recordedAt,
         },
       });
 
       return { queued: true };
     }
 
-    // Online: call atomic RPC
+    // Online: call atomic RPC via internal helper
     return withAuth(async () => {
       try {
-        const { data, error } = await (getSupabaseClient().rpc as Function)("log_workout", {
-          p_challenge_id: input.challenge_id,
-          p_workout_type: input.workout_type,
-          p_duration_minutes: input.duration_minutes,
-          // Use server-synced time when available to mitigate client clock skew.
-          // Long-term ideal: enforce server time inside log_workout itself.
-          p_recorded_at: getServerNow().toISOString(),
-          p_source: "manual",
-          p_client_event_id: input.client_event_id,
+        const points = await executeLogWorkout({
+          challenge_id: validated.challenge_id,
+          workout_type: validated.workout_type,
+          duration_minutes: validated.duration_minutes,
+          client_event_id: validated.client_event_id,
+          recorded_at: recordedAt,
         });
 
-        if (error) {
-          // Idempotency: duplicate key errors are safe to ignore
-          if (error.message?.includes("duplicate") || error.code === "23505") {
-            console.log("Workout already logged (idempotent)");
-            return { queued: false, points: 0 };
-          }
-          throw error;
-        }
-
-        // log_workout returns integer (calculated points)
-        return { queued: false, points: typeof data === "number" ? data : 0 };
+        return { queued: false, points };
       } catch (error) {
-        // Network error during request - queue it with full workout params
+        // Network error during request - queue it with full workout params + recorded_at
         if (isNetworkError(error)) {
           useOfflineStore.getState().addToQueue({
             type: "LOG_WORKOUT",
             payload: {
-              challenge_id: input.challenge_id,
-              workout_type: input.workout_type,
-              duration_minutes: input.duration_minutes,
-              client_event_id: input.client_event_id,
+              challenge_id: validated.challenge_id,
+              workout_type: validated.workout_type,
+              duration_minutes: validated.duration_minutes,
+              client_event_id: validated.client_event_id,
+              recorded_at: recordedAt,
             },
           });
 

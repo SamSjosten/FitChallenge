@@ -35,6 +35,7 @@ import React, {
   useRef,
 } from "react";
 import { Session, User, AuthError } from "@supabase/supabase-js";
+import { useQueryClient } from "@tanstack/react-query";
 import { getSupabaseClient } from "@/lib/supabase";
 import { authService, configureGoogleSignIn } from "@/services/auth";
 import { pushTokenService } from "@/services/pushTokens";
@@ -110,6 +111,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     error: null,
     pendingEmailConfirmation: false,
   });
+
+  const queryClient = useQueryClient();
 
   // Track mounted state for async operations
   const mountedRef = useRef(true);
@@ -236,6 +239,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
         console.log(`[AuthProvider] 🚪 Signed out (event=${event})`);
         bootstrapComplete = true;
         resetHealthService();
+        // Clear in-memory query cache on sign-out to prevent stale data
+        queryClient.clear();
         setState({
           session: null,
           user: null,

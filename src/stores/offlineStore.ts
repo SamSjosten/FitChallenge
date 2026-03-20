@@ -9,7 +9,8 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { getSupabaseClient, requireUserId } from "@/lib/supabase";
+import { requireUserId } from "@/lib/supabase";
+import { executeLogActivity, executeLogWorkout } from "@/services/activities";
 import { challengeService } from "@/services/challenges";
 import { friendsService } from "@/services/friends";
 
@@ -40,6 +41,7 @@ export interface LogWorkoutPayload {
   workout_type: string;
   duration_minutes: number;
   client_event_id: string; // Required for idempotency
+  recorded_at: string; // ISO timestamp captured at enqueue time
 }
 
 export interface AcceptInvitePayload {
@@ -161,52 +163,24 @@ function isAuthError(error: unknown): boolean {
  * GUARDRAIL 6: No tokens logged, only action types and IDs
  */
 async function executeAction(action: QueuedAction): Promise<void> {
-  const supabase = getSupabaseClient();
-
   switch (action.type) {
     case "LOG_ACTIVITY": {
-      const { challenge_id, activity_type, value, client_event_id } = action.payload;
-
       // GUARDRAIL 3: Auth check at execution time
       await requireUserId();
 
-      const { error } = await supabase.rpc("log_activity", {
-        p_challenge_id: challenge_id,
-        p_activity_type: activity_type,
-        p_value: value,
-        p_source: "manual",
-        p_client_event_id: client_event_id,
-      });
-
-      // Idempotency: duplicate key is success
-      if (error && !error.message?.includes("duplicate") && error.code !== "23505") {
-        throw error;
-      }
+      // Delegate to service-level internal helper (no network/offline check)
+      // recorded_at is intentionally NOT sent — server stays authoritative for manual logs
+      await executeLogActivity(action.payload);
       break;
     }
 
     case "LOG_WORKOUT": {
-      const { challenge_id, workout_type, duration_minutes, client_event_id } = action.payload;
-
       // GUARDRAIL 3: Auth check at execution time
       await requireUserId();
 
-      const { error } = await (supabase.rpc as Function)("log_workout", {
-        p_challenge_id: challenge_id,
-        p_workout_type: workout_type,
-        p_duration_minutes: duration_minutes,
-        // Server-synced time would be ideal here, but offlineStore intentionally
-        // avoids importing from serverTime to keep dependencies minimal.
-        // The long-term fix is enforcing server time inside log_workout itself.
-        p_recorded_at: new Date().toISOString(),
-        p_source: "manual",
-        p_client_event_id: client_event_id,
-      });
-
-      // Idempotency: duplicate key is success
-      if (error && !error.message?.includes("duplicate") && error.code !== "23505") {
-        throw error;
-      }
+      // Delegate to service-level internal helper (no network/offline check)
+      // Uses recorded_at captured at enqueue time, not replay time
+      await executeLogWorkout(action.payload);
       break;
     }
 
@@ -446,7 +420,7 @@ export const useOfflineStore = create<OfflineStoreState & OfflineStoreActions>()
     {
       name: STORE_KEY,
       storage: createJSONStorage(() => AsyncStorage),
-      version: 1,
+      version: 2,
       migrate: (persisted: unknown, version: number) => {
         const state = persisted as OfflineStoreState;
         if (version === 0) {
@@ -468,6 +442,30 @@ export const useOfflineStore = create<OfflineStoreState & OfflineStoreActions>()
                     workout_type: String(legacy.workout_type),
                     duration_minutes: Number(legacy.duration_minutes),
                     client_event_id: item.action.payload.client_event_id,
+                    recorded_at: new Date().toISOString(), // Best-effort for legacy items
+                  },
+                },
+              };
+            }
+            return item;
+          });
+        }
+        if (version <= 1) {
+          // v1 → v2: Add recorded_at to LOG_WORKOUT payloads that don't have it.
+          // Legacy v1 items were queued without recorded_at; use createdAt as best-effort.
+          state.queue = (state.queue ?? []).map((item) => {
+            if (
+              item.action.type === "LOG_WORKOUT" &&
+              !("recorded_at" in item.action.payload)
+            ) {
+              const workoutPayload = item.action.payload as LogWorkoutPayload;
+              return {
+                ...item,
+                action: {
+                  type: "LOG_WORKOUT" as const,
+                  payload: {
+                    ...workoutPayload,
+                    recorded_at: new Date(item.createdAt).toISOString(),
                   },
                 },
               };

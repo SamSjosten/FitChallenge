@@ -5,6 +5,7 @@
 
 import { useCallback } from "react";
 import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
+import { useAuth } from "@/providers/AuthProvider";
 import { getHealthService } from "../healthService";
 import { healthQueryKeys } from "./useHealthConnection";
 import type { RecentHealthActivity, ChallengeType } from "../types";
@@ -27,6 +28,7 @@ export interface UseHealthDataResult {
 
 export function useHealthData(options: UseHealthDataOptions = {}): UseHealthDataResult {
   const { pageSize = 50, activityType, enabled = true } = options;
+  const { user } = useAuth();
   const healthService = getHealthService();
 
   const {
@@ -55,7 +57,7 @@ export function useHealthData(options: UseHealthDataOptions = {}): UseHealthData
       }
       return allPages.flat().length;
     },
-    enabled,
+    enabled: !!user?.id && enabled,
     staleTime: 60_000,
   });
 
@@ -82,27 +84,16 @@ export function useHealthData(options: UseHealthDataOptions = {}): UseHealthData
   };
 }
 
-export interface HealthSummary {
-  today: {
-    steps: number;
-    activeMinutes: number;
-    calories: number;
-    distance: number;
-  };
-  thisWeek: {
-    steps: number;
-    activeMinutes: number;
-    calories: number;
-    distance: number;
-  };
-}
+// Re-export HealthSummaryData as HealthSummary for backward compatibility
+export type { HealthSummaryData as HealthSummary } from "../healthService";
 
 export function useHealthSummary(): {
-  summary: HealthSummary | null;
+  summary: import("../healthService").HealthSummaryData | null;
   isLoading: boolean;
   error: string | null;
   refresh: () => void;
 } {
+  const { user } = useAuth();
   const healthService = getHealthService();
 
   const {
@@ -112,40 +103,8 @@ export function useHealthSummary(): {
     refetch,
   } = useQuery({
     queryKey: ["health", "summary"],
-    queryFn: async () => {
-      const activities = await healthService.getRecentActivities(500, 0);
-
-      const now = new Date();
-      const startOfToday = new Date(now);
-      startOfToday.setHours(0, 0, 0, 0);
-
-      const startOfWeek = new Date(now);
-      startOfWeek.setDate(now.getDate() - now.getDay());
-      startOfWeek.setHours(0, 0, 0, 0);
-
-      const summary: HealthSummary = {
-        today: { steps: 0, activeMinutes: 0, calories: 0, distance: 0 },
-        thisWeek: { steps: 0, activeMinutes: 0, calories: 0, distance: 0 },
-      };
-
-      for (const activity of activities) {
-        const activityDate = new Date(activity.recorded_at);
-        const value = activity.value;
-
-        const field = mapTypeToField(activity.activity_type);
-        if (!field) continue;
-
-        if (activityDate >= startOfWeek) {
-          summary.thisWeek[field] += value;
-        }
-
-        if (activityDate >= startOfToday) {
-          summary.today[field] += value;
-        }
-      }
-
-      return summary;
-    },
+    queryFn: () => healthService.getSummary(),
+    enabled: !!user?.id,
     staleTime: 60_000,
   });
 
@@ -161,19 +120,4 @@ export function useHealthSummary(): {
     error,
     refresh,
   };
-}
-
-function mapTypeToField(type: ChallengeType): keyof HealthSummary["today"] | null {
-  switch (type) {
-    case "steps":
-      return "steps";
-    case "active_minutes":
-      return "activeMinutes";
-    case "calories":
-      return "calories";
-    case "distance":
-      return "distance";
-    default:
-      return null;
-  }
 }

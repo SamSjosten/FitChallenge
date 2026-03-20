@@ -1,4 +1,5 @@
 import { getSupabaseClient, withAuth } from "@/lib/supabase";
+import { notificationIdSchema } from "@/lib/validation";
 import type { Notification as DbNotification } from "@/types/database-helpers";
 
 // Service-level Notification type with guaranteed non-null fields.
@@ -58,6 +59,7 @@ export const notificationsService = {
   },
 
   async markAsRead(notificationId: string): Promise<void> {
+    notificationIdSchema.parse(notificationId);
     return withAuth(async () => {
       const { error } = await getSupabaseClient().rpc("mark_notification_read", {
         p_notification_id: notificationId,
@@ -80,6 +82,7 @@ export const notificationsService = {
    * Used for swipe-to-archive in Unread/All tabs
    */
   async archiveNotification(notificationId: string): Promise<void> {
+    notificationIdSchema.parse(notificationId);
     return withAuth(async () => {
       const { error } = await getSupabaseClient().rpc("archive_notification", {
         p_notification_id: notificationId,
@@ -94,6 +97,7 @@ export const notificationsService = {
    * Used for swipe-to-restore in Archived tab
    */
   async restoreNotification(notificationId: string): Promise<void> {
+    notificationIdSchema.parse(notificationId);
     return withAuth(async () => {
       const { error } = await getSupabaseClient().rpc("restore_notification", {
         p_notification_id: notificationId,

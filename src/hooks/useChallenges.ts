@@ -62,22 +62,8 @@ export function useActiveChallenges() {
  */
 export function useCompletedChallenges() {
   return useQuery({
-    queryKey: [...challengeKeys.all, "completed"] as const,
+    queryKey: challengeKeys.completed(),
     queryFn: () => challengeService.getCompletedChallenges(),
-  });
-}
-
-/**
- * @deprecated Use useActiveChallenges() and filter client-side by start_date.
- * The get_my_challenges RPC already returns both "starting soon" and "in progress"
- * challenges. This separate query is redundant.
- *
- * See useHomeScreenData for the correct pattern.
- */
-export function useStartingSoonChallenges() {
-  return useQuery({
-    queryKey: challengeKeys.startingSoon(),
-    queryFn: () => challengeService.getStartingSoonChallenges(),
   });
 }
 
@@ -159,9 +145,8 @@ export function useCreateChallenge() {
       allowed_workout_types?: string[];
     }) => challengeService.create(input),
     onSuccess: () => {
-      // Invalidate and refetch active + starting soon challenges
+      // Invalidate and refetch active challenges
       queryClient.invalidateQueries({ queryKey: challengeKeys.active() });
-      queryClient.invalidateQueries({ queryKey: challengeKeys.startingSoon() });
     },
   });
 }
@@ -316,6 +301,10 @@ export function useLogActivity() {
       queryClient.invalidateQueries({
         queryKey: challengeKeys.detail(variables.challenge_id),
       });
+      // Invalidate active challenges list (progress may have changed)
+      queryClient.invalidateQueries({
+        queryKey: challengeKeys.active(),
+      });
       // Invalidate activity queries so recent activities section updates
       queryClient.invalidateQueries({
         queryKey: activityKeys.all,
@@ -393,6 +382,10 @@ export function useLogWorkout() {
       queryClient.invalidateQueries({
         queryKey: challengeKeys.detail(variables.challenge_id),
       });
+      // Invalidate active challenges list (progress may have changed)
+      queryClient.invalidateQueries({
+        queryKey: challengeKeys.active(),
+      });
       queryClient.invalidateQueries({
         queryKey: activityKeys.all,
       });
@@ -446,9 +439,6 @@ export function useRematchChallenge() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: challengeKeys.active() });
       queryClient.invalidateQueries({ queryKey: challengeKeys.pending() });
-      queryClient.invalidateQueries({
-        queryKey: challengeKeys.startingSoon(),
-      });
     },
   });
 }

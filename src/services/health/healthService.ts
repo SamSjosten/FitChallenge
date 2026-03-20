@@ -4,7 +4,7 @@
 // =============================================================================
 
 import { Platform } from "react-native";
-import { getSupabaseClient, getUserId } from "@/lib/supabase";
+import { getSupabaseClient, getUserId, requireUserId } from "@/lib/supabase";
 import type {
   IHealthService,
   IHealthProvider,
@@ -107,6 +107,8 @@ export class HealthService implements IHealthService {
       "workouts",
     ],
   ): Promise<HealthConnection> {
+    await requireUserId(); // Fail fast if session expired
+
     const isAvailable = await this.provider.isAvailable();
     if (!isAvailable) {
       throw new Error(`${this.providerType} is not available on this device`);
@@ -149,6 +151,8 @@ export class HealthService implements IHealthService {
   }
 
   async disconnect(): Promise<void> {
+    await requireUserId(); // Fail fast if session expired
+
     const { error } = await getSupabaseClient().rpc("disconnect_health_provider", {
       p_provider: this.providerType,
     });
@@ -159,6 +163,8 @@ export class HealthService implements IHealthService {
   }
 
   async sync(options?: SyncOptions): Promise<SyncResult> {
+    await requireUserId(); // Fail fast if session expired
+
     const startTime = Date.now();
     const opts = { ...DEFAULT_SYNC_OPTIONS, ...options };
 
@@ -324,6 +330,8 @@ export class HealthService implements IHealthService {
   }
 
   async getRecentActivities(limit = 50, offset = 0): Promise<RecentHealthActivity[]> {
+    await requireUserId(); // Fail fast if session expired
+
     const { data, error } = await getSupabaseClient().rpc("get_recent_health_activities", {
       p_limit: limit,
       p_offset: offset,
@@ -335,6 +343,76 @@ export class HealthService implements IHealthService {
     }
 
     return data as RecentHealthActivity[];
+  }
+
+  /**
+   * Get aggregated health summary for today and this week.
+   * Fetches recent activities and aggregates by date window.
+   */
+  async getSummary(): Promise<HealthSummaryData> {
+    const activities = await this.getRecentActivities(500, 0);
+
+    const now = new Date();
+    const startOfToday = new Date(now);
+    startOfToday.setHours(0, 0, 0, 0);
+
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - now.getDay());
+    startOfWeek.setHours(0, 0, 0, 0);
+
+    const summary: HealthSummaryData = {
+      today: { steps: 0, activeMinutes: 0, calories: 0, distance: 0 },
+      thisWeek: { steps: 0, activeMinutes: 0, calories: 0, distance: 0 },
+    };
+
+    for (const activity of activities) {
+      const activityDate = new Date(activity.recorded_at);
+      const value = activity.value;
+
+      const field = mapChallengeTypeToSummaryField(activity.activity_type);
+      if (!field) continue;
+
+      if (activityDate >= startOfWeek) {
+        summary.thisWeek[field] += value;
+      }
+      if (activityDate >= startOfToday) {
+        summary.today[field] += value;
+      }
+    }
+
+    return summary;
+  }
+}
+
+export interface HealthSummaryData {
+  today: {
+    steps: number;
+    activeMinutes: number;
+    calories: number;
+    distance: number;
+  };
+  thisWeek: {
+    steps: number;
+    activeMinutes: number;
+    calories: number;
+    distance: number;
+  };
+}
+
+function mapChallengeTypeToSummaryField(
+  type: string,
+): keyof HealthSummaryData["today"] | null {
+  switch (type) {
+    case "steps":
+      return "steps";
+    case "active_minutes":
+      return "activeMinutes";
+    case "calories":
+      return "calories";
+    case "distance":
+      return "distance";
+    default:
+      return null;
   }
 }
 

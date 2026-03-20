@@ -17,7 +17,7 @@ import { useRouter } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAppTheme } from "@/providers/ThemeProvider";
-import { getSupabaseClient, getUserId } from "@/lib/supabase";
+import { authService } from "@/services/auth";
 import { useHealthConnection, useHealthSync } from "@/services/health";
 import type { SyncStatus, HealthSyncLog } from "@/services/health";
 import { formatTimeAgo } from "@/lib/serverTime";
@@ -75,27 +75,13 @@ export default function DeveloperSettingsScreen() {
   const fetchDebugInfo = async () => {
     setLoadingDebug(true);
     try {
-      const supabase = getSupabaseClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      let currentStreak = null;
-      if (user) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("current_streak")
-          .eq("id", user.id)
-          .single();
-        currentStreak = profile?.current_streak ?? null;
-      }
-
+      const { currentStreak, userId } = await authService.getDebugInfo();
       const bannerDismissedDate = await AsyncStorage.getItem(STREAK_BANNER_STORAGE_KEY);
 
       setDebugInfo({
         currentStreak,
         bannerDismissedDate,
-        userId: user?.id ?? null,
+        userId,
       });
     } catch (error) {
       console.error("Failed to fetch debug info:", error);
@@ -189,36 +175,12 @@ export default function DeveloperSettingsScreen() {
           onPress: async () => {
             setResettingOnboarding(true);
             try {
-              const userId = await getUserId();
-              const supabase = getSupabaseClient();
+              await authService.resetOnboardingForCurrentUser();
 
-              // 1. Clear health setup tracking FIRST (no navigation side effects)
-              if (userId) {
-                const { error: profileError } = await supabase
-                  .from("profiles")
-                  .update({ health_setup_completed_at: null })
-                  .eq("id", userId);
-
-                if (profileError) {
-                  console.warn("Failed to clear health_setup_completed_at:", profileError.message);
-                  // Non-fatal — onboarding redirect still works
-                }
-              }
-
-              // 2. Reset onboarding flag in user_metadata
-              const { error: metadataError } = await supabase.auth.updateUser({
-                data: { onboarding_completed: false },
-              });
-
-              if (metadataError) {
-                throw new Error(`Metadata update failed: ${metadataError.message}`);
-              }
-
-              // 3. updateUser() emits USER_UPDATED, which AuthProvider handles
-              //    by updating React state with the new session metadata.
-
-              // 4. Navigate — ProtectedRoute now sees onboarding_completed=false
-              //    and won't fight the redirect
+              // updateUser() emits USER_UPDATED, which AuthProvider handles
+              // by updating React state with the new session metadata.
+              // Navigate — ProtectedRoute now sees onboarding_completed=false
+              // and won't fight the redirect
               router.replace("/(auth)/onboarding");
             } catch (error) {
               Alert.alert(

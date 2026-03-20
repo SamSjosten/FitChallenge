@@ -98,7 +98,27 @@ export function findMatchingChallenge(
     const startDate = new Date(challenge.start_date);
     const endDate = new Date(challenge.end_date);
 
-    return activityDate >= startDate && activityDate <= endDate;
+    if (activityDate < startDate || activityDate > endDate) {
+      return false;
+    }
+
+    // For workout challenges with a workout_activity_filter, the activity's
+    // workout_activity_key must match one of the allowed types.
+    // NULL/empty filter = all workout types count (catch-all).
+    if (
+      challenge.challenge_type === "workouts" &&
+      challenge.workout_activity_filter &&
+      challenge.workout_activity_filter.length > 0
+    ) {
+      if (
+        !activity.workout_activity_key ||
+        !challenge.workout_activity_filter.includes(activity.workout_activity_key)
+      ) {
+        return false;
+      }
+    }
+
+    return true;
   });
 
   if (matches.length === 0) {
