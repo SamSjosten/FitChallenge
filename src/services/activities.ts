@@ -6,7 +6,7 @@
 import { SupabaseClient } from "@supabase/supabase-js";
 import { getSupabaseClient, withAuth, requireUserId } from "@/lib/supabase";
 import { validate, logActivitySchema, logWorkoutSchema, uuidSchema, challengeIdSchema } from "@/lib/validation";
-import { checkNetworkStatus } from "@/hooks/useNetworkStatus";
+import { checkNetworkStatus } from "@/lib/network";
 import { useOfflineStore } from "@/stores/offlineStore";
 import { getServerNow } from "@/lib/serverTime";
 import type { ActivityLog } from "@/types/database-helpers";

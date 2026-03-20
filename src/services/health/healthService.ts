@@ -5,7 +5,7 @@
 
 import { z } from "zod";
 import { Platform } from "react-native";
-import { getSupabaseClient, getUserId, requireUserId } from "@/lib/supabase";
+import { getSupabaseClient, requireUserId } from "@/lib/supabase";
 import type {
   IHealthService,
   IHealthProvider,
@@ -66,10 +66,7 @@ export class HealthService implements IHealthService {
     lastSync: Date | null;
     isProviderAvailable: boolean;
   }> {
-    const userId = await getUserId();
-    if (!userId) {
-      return { status: "disconnected", connection: null, lastSync: null, isProviderAvailable: false };
-    }
+    const userId = await requireUserId();
 
     const isAvailable = await this.provider.isAvailable();
     if (!isAvailable) {
@@ -81,7 +78,11 @@ export class HealthService implements IHealthService {
       .rpc("get_health_connection", { p_provider: this.providerType })
       .maybeSingle();
 
-    if (error || !connection) {
+    if (error) {
+      throw error;
+    }
+
+    if (!connection) {
       return { status: "disconnected", connection: null, lastSync: null, isProviderAvailable: true };
     }
 
@@ -341,10 +342,7 @@ export class HealthService implements IHealthService {
   }
 
   async getSyncHistory(limit = 10): Promise<HealthSyncLog[]> {
-    const userId = await getUserId();
-    if (!userId) {
-      return [];
-    }
+    const userId = await requireUserId();
 
     const { data, error } = await getSupabaseClient()
       .from("health_sync_logs")
@@ -354,10 +352,7 @@ export class HealthService implements IHealthService {
       .order("started_at", { ascending: false })
       .limit(limit);
 
-    if (error) {
-      console.error("Failed to fetch sync history:", error);
-      return [];
-    }
+    if (error) throw error;
 
     return z.array(healthSyncLogSchema).parse(data);
   }

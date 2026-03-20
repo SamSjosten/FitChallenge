@@ -7,6 +7,7 @@
 import { useEffect, useState, useRef } from "react";
 import NetInfo, { NetInfoState } from "@react-native-community/netinfo";
 import { useQueryClient } from "@tanstack/react-query";
+import { checkNetworkStatus } from "@/lib/network";
 import { useOfflineStore } from "@/stores/offlineStore";
 import { invalidateAfterSync } from "@/lib/invalidateAfterSync";
 
@@ -77,11 +78,4 @@ export function useNetworkStatus(): NetworkStatus {
   return status;
 }
 
-/**
- * Non-hook utility to check network status.
- * Use this in service layer where hooks aren't available.
- */
-export async function checkNetworkStatus(): Promise<boolean> {
-  const state = await NetInfo.fetch();
-  return state.isConnected ?? false;
-}
+export { checkNetworkStatus };

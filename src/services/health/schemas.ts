@@ -85,6 +85,6 @@ export const recentHealthActivitySchema = z.object({
   unit: z.string(),
   source: z.string(),
   recorded_at: z.string(),
-  challenge_id: z.string(),
-  challenge_title: z.string(),
+  challenge_id: z.string().uuid().nullable(),
+  challenge_title: z.string().nullable(),
 });

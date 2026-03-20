@@ -6,6 +6,7 @@
 // - Components handle user feedback (toast, loading states)
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/useAuth";
 import { notificationsService, Notification } from "@/services/notifications";
 import { Config } from "@/constants/config";
 import { notificationsKeys } from "@/lib/queryKeys";
@@ -24,9 +25,13 @@ export { notificationsKeys };
  * Get all notifications
  */
 export function useNotifications() {
+  const { session } = useAuth();
+
   return useQuery({
     queryKey: notificationsKeys.list(),
     queryFn: () => notificationsService.getNotifications(),
+    enabled: !!session?.user,
+    staleTime: 30_000,
   });
 }
 
@@ -38,9 +43,13 @@ export function useNotifications() {
  * detecting app idle state.
  */
 export function useUnreadNotificationCount() {
+  const { session } = useAuth();
+
   return useQuery({
     queryKey: notificationsKeys.unreadCount(),
     queryFn: () => notificationsService.getUnreadCount(),
+    enabled: !!session?.user,
+    staleTime: 30_000,
     refetchInterval: Config.isE2E ? false : 30000,
   });
 }

@@ -5,6 +5,7 @@
 
 import { useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/providers/AuthProvider";
 import { getHealthService } from "../healthService";
 import { healthQueryKeys } from "./useHealthConnection";
 import { activityKeys } from "@/lib/queryKeys";
@@ -23,6 +24,7 @@ export interface UseHealthSyncResult {
 export function useHealthSync(): UseHealthSyncResult {
   const queryClient = useQueryClient();
   const healthService = getHealthService();
+  const { user } = useAuth();
 
   const syncMutation = useMutation({
     mutationFn: async (options?: SyncOptions) => {
@@ -30,6 +32,7 @@ export function useHealthSync(): UseHealthSyncResult {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: healthQueryKeys.connection });
+      queryClient.invalidateQueries({ queryKey: healthQueryKeys.summary });
       // Use prefix keys for invalidation so all parameterized variants are matched
       queryClient.invalidateQueries({
         queryKey: ["health", "syncHistory"],
@@ -52,6 +55,7 @@ export function useHealthSync(): UseHealthSyncResult {
     queryFn: async () => {
       return healthService.getSyncHistory(10);
     },
+    enabled: !!user?.id,
     staleTime: 60_000,
   });
 

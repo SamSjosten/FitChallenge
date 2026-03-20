@@ -43,7 +43,7 @@ jest.mock("react-native", () => ({
 }));
 
 // Mock user ID for auth
-const mockUserId = "test-user-health-123";
+const mockUserId = "11111111-1111-4111-8111-111111111111";
 
 // Track Supabase RPC calls
 const mockRpcCalls: { fn: string; args: Record<string, unknown> }[] = [];
@@ -58,6 +58,7 @@ let mockRpc: jest.Mock;
 let mockFrom: jest.Mock;
 let mockGetUser: jest.Mock;
 let mockGetUserId: jest.Mock;
+let mockRequireUserId: jest.Mock;
 
 function createChainMock(tableName: string) {
   const chain: Record<string, jest.Mock> = {
@@ -90,6 +91,7 @@ mockGetUser = jest.fn(() =>
   Promise.resolve({ data: { user: { id: mockUserId } }, error: null }),
 );
 mockGetUserId = jest.fn(() => Promise.resolve(mockUserId));
+mockRequireUserId = jest.fn(() => Promise.resolve(mockUserId));
 
 mockRpc = jest.fn((fnName: string, args: Record<string, unknown>) => {
   mockRpcCalls.push({ fn: fnName, args });
@@ -113,7 +115,7 @@ jest.mock("@/lib/supabase", () => ({
     from: (...args: unknown[]) => mockFrom(...(args as [string])),
   }),
   getUserId: (...args: unknown[]) => mockGetUserId(...args),
-  requireUserId: () => Promise.resolve(mockUserId),
+  requireUserId: (...args: unknown[]) => mockRequireUserId(...args),
 }));
 
 // Mock health utils
@@ -153,6 +155,7 @@ function resetMocks() {
     Promise.resolve({ data: { user: { id: mockUserId } }, error: null }),
   );
   mockGetUserId.mockImplementation(() => Promise.resolve(mockUserId));
+  mockRequireUserId.mockImplementation(() => Promise.resolve(mockUserId));
 
   mockRpc.mockImplementation((fnName: string, args: Record<string, unknown>) => {
     mockRpcCalls.push({ fn: fnName, args });
@@ -193,6 +196,50 @@ function createMockSamples(count: number, type = "steps"): HealthSample[] {
     sourceName: "TestSource",
     sourceId: "com.test.source",
   }));
+}
+
+function createMockConnection(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "22222222-2222-4222-8222-222222222222",
+    provider: "healthkit",
+    connected_at: "2024-01-10T08:00:00Z",
+    last_sync_at: "2024-01-15T10:00:00Z",
+    permissions_granted: ["steps", "calories"],
+    is_active: true,
+    ...overrides,
+  };
+}
+
+function createMockSyncLog(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "33333333-3333-4333-8333-333333333333",
+    user_id: mockUserId,
+    provider: "healthkit",
+    sync_type: "manual",
+    started_at: "2024-01-15T12:00:00Z",
+    completed_at: "2024-01-15T12:05:00Z",
+    status: "completed",
+    records_processed: 10,
+    records_inserted: 10,
+    records_deduplicated: 0,
+    error_message: null,
+    metadata: {},
+    ...overrides,
+  };
+}
+
+function createMockRecentActivity(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "44444444-4444-4444-8444-444444444444",
+    activity_type: "steps",
+    value: 5000,
+    unit: "steps",
+    source: "healthkit",
+    recorded_at: "2024-01-15T09:00:00Z",
+    challenge_id: null,
+    challenge_title: null,
+    ...overrides,
+  };
 }
 
 // =============================================================================
@@ -246,18 +293,13 @@ describe("HealthService", () => {
   // ===========================================================================
 
   describe("getConnectionStatus", () => {
-    it("should return disconnected when user is not authenticated", async () => {
+    it("should throw when user is not authenticated", async () => {
       const mockProvider = new MockHealthProvider({ isAvailable: true });
       const service = createMockHealthService(mockProvider);
 
-      // getConnectionStatus calls getUserId()
-      mockGetUserId.mockResolvedValueOnce(null);
+      mockRequireUserId.mockRejectedValueOnce(new Error("AuthSessionMissingError"));
 
-      const result = await service.getConnectionStatus();
-
-      expect(result.status).toBe("disconnected");
-      expect(result.connection).toBeNull();
-      expect(result.lastSync).toBeNull();
+      await expect(service.getConnectionStatus()).rejects.toThrow("AuthSessionMissingError");
     });
 
     it("should return disconnected when provider is not available", async () => {
@@ -274,9 +316,7 @@ describe("HealthService", () => {
       const service = createMockHealthService(mockProvider);
 
       // Mock RPC returns no connection
-      setRpcResponse("get_health_connection", null, {
-        message: "No connection found",
-      });
+      setRpcResponse("get_health_connection", null);
 
       const result = await service.getConnectionStatus();
 
@@ -287,14 +327,7 @@ describe("HealthService", () => {
       const mockProvider = createFullyGrantedMockProvider();
       const service = createMockHealthService(mockProvider);
 
-      const mockConnection = {
-        id: "conn-1",
-        user_id: mockUserId,
-        provider: "healthkit",
-        is_active: true,
-        last_sync_at: "2024-01-15T10:00:00Z",
-        permissions_granted: ["steps", "calories"],
-      };
+      const mockConnection = createMockConnection();
 
       setRpcResponse("get_health_connection", mockConnection);
       setFromResponse("health_sync_logs", []);
@@ -310,16 +343,10 @@ describe("HealthService", () => {
       const mockProvider = createFullyGrantedMockProvider();
       const service = createMockHealthService(mockProvider);
 
-      const mockConnection = {
-        id: "conn-1",
-        user_id: mockUserId,
-        provider: "healthkit",
-        is_active: true,
-        last_sync_at: "2024-01-15T10:00:00Z",
-      };
+      const mockConnection = createMockConnection();
 
       setRpcResponse("get_health_connection", mockConnection);
-      setFromResponse("health_sync_logs", [{ id: "sync-in-progress" }]);
+      setFromResponse("health_sync_logs", [{ id: "55555555-5555-4555-8555-555555555555" }]);
 
       const result = await service.getConnectionStatus();
 
@@ -354,13 +381,10 @@ describe("HealthService", () => {
       mockProvider.setConfig({ delay: 0 }); // Speed up test
       const service = createMockHealthService(mockProvider);
 
-      const mockConnection = {
-        id: "new-conn",
-        user_id: mockUserId,
-        provider: "healthkit",
-        is_active: true,
+      const mockConnection = createMockConnection({
+        id: "66666666-6666-4666-8666-666666666666",
         permissions_granted: ["steps", "activeMinutes", "calories"],
-      };
+      });
 
       setRpcResponse("connect_health_provider", "new-conn");
       setRpcResponse("get_health_connection", mockConnection);
@@ -394,12 +418,9 @@ describe("HealthService", () => {
       mockProvider.setConfig({ delay: 0 });
       const service = createMockHealthService(mockProvider);
 
-      const mockConnection = {
-        id: "new-conn",
-        user_id: mockUserId,
-        provider: "healthkit",
-        is_active: true,
-      };
+      const mockConnection = createMockConnection({
+        id: "77777777-7777-4777-8777-777777777777",
+      });
 
       setRpcResponse("connect_health_provider", "new-conn");
       setRpcResponse("get_health_connection", mockConnection);
@@ -590,16 +611,13 @@ describe("HealthService", () => {
   // ===========================================================================
 
   describe("getSyncHistory", () => {
-    it("should return empty array when user is not authenticated", async () => {
+    it("should throw when user is not authenticated", async () => {
       const mockProvider = createFullyGrantedMockProvider();
       const service = createMockHealthService(mockProvider);
 
-      // getSyncHistory calls getUserId(), not auth.getUser()
-      mockGetUserId.mockResolvedValueOnce(null);
+      mockRequireUserId.mockRejectedValueOnce(new Error("AuthSessionMissingError"));
 
-      const result = await service.getSyncHistory();
-
-      expect(result).toEqual([]);
+      await expect(service.getSyncHistory()).rejects.toThrow("AuthSessionMissingError");
     });
 
     it("should return sync logs ordered by started_at desc", async () => {
@@ -607,16 +625,11 @@ describe("HealthService", () => {
       const service = createMockHealthService(mockProvider);
 
       const mockLogs = [
-        {
-          id: "log-1",
-          started_at: "2024-01-15T12:00:00Z",
-          status: "completed",
-        },
-        {
-          id: "log-2",
+        createMockSyncLog(),
+        createMockSyncLog({
+          id: "88888888-8888-4888-8888-888888888888",
           started_at: "2024-01-14T12:00:00Z",
-          status: "completed",
-        },
+        }),
       ];
 
       setFromResponse("health_sync_logs", mockLogs);
@@ -626,15 +639,13 @@ describe("HealthService", () => {
       expect(result).toEqual(mockLogs);
     });
 
-    it("should return empty array on query error", async () => {
+    it("should throw on query error", async () => {
       const mockProvider = createFullyGrantedMockProvider();
       const service = createMockHealthService(mockProvider);
 
       setFromResponse("health_sync_logs", null, { message: "Query failed" });
 
-      const result = await service.getSyncHistory();
-
-      expect(result).toEqual([]);
+      await expect(service.getSyncHistory()).rejects.toEqual({ message: "Query failed" });
     });
   });
 
@@ -647,7 +658,7 @@ describe("HealthService", () => {
       const mockProvider = createFullyGrantedMockProvider();
       const service = createMockHealthService(mockProvider);
 
-      const mockActivities = [{ activity_type: "steps", value: 5000, recorded_at: "2024-01-15" }];
+      const mockActivities = [createMockRecentActivity()];
 
       setRpcResponse("get_recent_health_activities", mockActivities);
 

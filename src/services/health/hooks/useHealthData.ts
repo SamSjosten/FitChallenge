@@ -10,6 +10,11 @@ import { getHealthService } from "../healthService";
 import { healthQueryKeys } from "./useHealthConnection";
 import type { RecentHealthActivity, ChallengeType } from "../types";
 
+interface HealthActivityPage {
+  items: RecentHealthActivity[];
+  serverCount: number;
+}
+
 export interface UseHealthDataOptions {
   pageSize?: number;
   activityType?: ChallengeType;
@@ -39,29 +44,30 @@ export function useHealthData(options: UseHealthDataOptions = {}): UseHealthData
     fetchNextPage: fetchNext,
     refetch,
     error: queryError,
-  } = useInfiniteQuery({
+  } = useInfiniteQuery<HealthActivityPage>({
     queryKey: [...healthQueryKeys.recentActivities(pageSize), activityType],
-    queryFn: async ({ pageParam = 0 }) => {
-      const activities = await healthService.getRecentActivities(pageSize, pageParam);
-
-      if (activityType) {
-        return activities.filter((a) => a.activity_type === activityType);
-      }
-
-      return activities;
+    queryFn: async ({ pageParam }) => {
+      const offset = typeof pageParam === "number" ? pageParam : 0;
+      const rawActivities = await healthService.getRecentActivities(pageSize, offset);
+      return {
+        items: activityType
+          ? rawActivities.filter((activity) => activity.activity_type === activityType)
+          : rawActivities,
+        serverCount: rawActivities.length,
+      };
     },
     initialPageParam: 0,
     getNextPageParam: (lastPage, allPages) => {
-      if (lastPage.length < pageSize) {
+      if (lastPage.serverCount < pageSize) {
         return undefined;
       }
-      return allPages.flat().length;
+      return allPages.length * pageSize;
     },
     enabled: !!user?.id && enabled,
     staleTime: 60_000,
   });
 
-  const activities = data?.pages.flat() ?? [];
+  const activities = data?.pages.flatMap((page) => page.items) ?? [];
 
   const fetchNextPage = useCallback(() => {
     fetchNext();
@@ -102,7 +108,7 @@ export function useHealthSummary(): {
     error: queryError,
     refetch,
   } = useQuery({
-    queryKey: ["health", "summary"],
+    queryKey: healthQueryKeys.summary,
     queryFn: () => healthService.getSummary(),
     enabled: !!user?.id,
     staleTime: 60_000,

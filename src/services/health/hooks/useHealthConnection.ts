@@ -11,6 +11,7 @@ import type { ConnectionStatus, HealthConnection, HealthPermission } from "../ty
 
 export const healthQueryKeys = {
   connection: ["health", "connection"] as const,
+  summary: ["health", "summary"] as const,
   syncHistory: (limit?: number) => ["health", "syncHistory", limit] as const,
   recentActivities: (limit?: number, offset?: number) =>
     ["health", "activities", limit, offset] as const,

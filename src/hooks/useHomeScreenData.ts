@@ -179,7 +179,6 @@ export function useHomeScreenData(): HomeScreenData {
           .catch((err) => console.warn("Push notification setup failed:", err));
       } catch (err) {
         console.error("Failed to accept invite:", err);
-        throw err;
       }
     },
     [respondToInvite],
@@ -194,7 +193,6 @@ export function useHomeScreenData(): HomeScreenData {
         });
       } catch (err) {
         console.error("Failed to decline invite:", err);
-        throw err;
       }
     },
     [respondToInvite],

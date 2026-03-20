@@ -92,11 +92,13 @@ export default function ActivityDetailScreen() {
 
   // Calculate points (simplified)
   const calculatePoints = (value: number, type: string) => {
+    if (type === "workout_points" || type === "workouts") {
+      return value;
+    }
+
     const multiplier: Record<string, number> = {
       steps: 0.01,
       active_minutes: 1,
-      workouts: 10,
-      workout_points: 1,
       distance: 5,
     };
     return Math.round(value * (multiplier[type] || 1));

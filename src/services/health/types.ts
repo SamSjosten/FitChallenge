@@ -86,8 +86,8 @@ export interface RecentHealthActivity {
   unit: string;
   source: string;
   recorded_at: string;
-  challenge_id: string;
-  challenge_title: string;
+  challenge_id: string | null;
+  challenge_title: string | null;
 }
 
 /**

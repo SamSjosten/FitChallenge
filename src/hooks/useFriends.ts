@@ -2,6 +2,7 @@
 // Friends data hooks with React Query
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/useAuth";
 import { friendsService } from "@/services/friends";
 import { friendsKeys, notificationsKeys } from "@/lib/queryKeys";
 
@@ -19,9 +20,13 @@ export { friendsKeys };
  * Get current user's friends
  */
 export function useFriends() {
+  const { session } = useAuth();
+
   return useQuery({
     queryKey: friendsKeys.list(),
     queryFn: () => friendsService.getFriends(),
+    enabled: !!session?.user,
+    staleTime: 120_000,
   });
 }
 
@@ -29,9 +34,13 @@ export function useFriends() {
  * Get pending friend requests (received)
  */
 export function usePendingFriendRequests() {
+  const { session } = useAuth();
+
   return useQuery({
     queryKey: friendsKeys.pending(),
     queryFn: () => friendsService.getPendingRequests(),
+    enabled: !!session?.user,
+    staleTime: 120_000,
   });
 }
 

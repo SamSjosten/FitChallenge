@@ -692,6 +692,10 @@ export type Database = {
         Args: { p_notification_id: string }
         Returns: undefined
       }
+      cancel_challenge: {
+        Args: { p_challenge_id: string }
+        Returns: undefined
+      }
       challenge_effective_status: {
         Args: { p_challenge_id: string }
         Returns: string
@@ -858,8 +862,8 @@ export type Database = {
         Args: { p_limit?: number; p_offset?: number }
         Returns: {
           activity_type: Database["public"]["Enums"]["challenge_type"]
-          challenge_id: string
-          challenge_title: string
+          challenge_id: string | null
+          challenge_title: string | null
           id: string
           recorded_at: string
           source: string

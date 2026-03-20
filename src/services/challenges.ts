@@ -498,8 +498,7 @@ export const challengeService = {
   async cancelChallenge(challengeId: string): Promise<void> {
     challengeIdSchema.parse(challengeId);
     return withAuth(async () => {
-      // cancel_challenge RPC added in migration 040 — cast until types are regenerated
-      const { error } = await (getSupabaseClient().rpc as Function)("cancel_challenge", {
+      const { error } = await getSupabaseClient().rpc("cancel_challenge", {
         p_challenge_id: challengeId,
       });
 

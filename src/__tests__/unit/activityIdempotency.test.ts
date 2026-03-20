@@ -27,14 +27,9 @@ jest.mock("expo-crypto", () => ({
   randomUUID: () => require("crypto").randomUUID(),
 }));
 
-// Mock network status hook - always return online for unit tests
-jest.mock("@/hooks/useNetworkStatus", () => ({
+// Mock network utility - always return online for unit tests
+jest.mock("@/lib/network", () => ({
   checkNetworkStatus: jest.fn().mockResolvedValue(true),
-  useNetworkStatus: jest.fn(() => ({
-    isConnected: true,
-    isInternetReachable: true,
-    type: "wifi",
-  })),
 }));
 
 // Mock offline store - no-op for unit tests
@@ -73,6 +68,7 @@ jest.mock("@/lib/supabase", () => ({
     },
   })),
   withAuth: jest.fn((operation) => operation("test-user-123")),
+  requireUserId: jest.fn(() => Promise.resolve("test-user-123")),
 }));
 
 // Mock validation to pass through

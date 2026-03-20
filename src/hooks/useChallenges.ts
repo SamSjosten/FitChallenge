@@ -51,9 +51,13 @@ function optimisticallyUpdateChallengeDetail(
  * Get current user's active challenges
  */
 export function useActiveChallenges() {
+  const { session } = useAuth();
+
   return useQuery({
     queryKey: challengeKeys.active(),
     queryFn: () => challengeService.getMyActiveChallenges(),
+    enabled: !!session?.user,
+    staleTime: 60_000,
   });
 }
 
@@ -61,9 +65,13 @@ export function useActiveChallenges() {
  * Get current user's completed challenges
  */
 export function useCompletedChallenges() {
+  const { session } = useAuth();
+
   return useQuery({
     queryKey: challengeKeys.completed(),
     queryFn: () => challengeService.getCompletedChallenges(),
+    enabled: !!session?.user,
+    staleTime: 60_000,
   });
 }
 
@@ -71,9 +79,13 @@ export function useCompletedChallenges() {
  * Get pending invites
  */
 export function usePendingInvites() {
+  const { session } = useAuth();
+
   return useQuery({
     queryKey: challengeKeys.pending(),
     queryFn: () => challengeService.getPendingInvites(),
+    enabled: !!session?.user,
+    staleTime: 60_000,
   });
 }
 
