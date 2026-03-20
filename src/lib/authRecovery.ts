@@ -14,6 +14,7 @@
 
 import type { QueryClient } from "@tanstack/react-query";
 import { authService } from "@/services/auth";
+import { useSecurityStore } from "@/stores/securityStore";
 
 // =============================================================================
 // SESSION-MISSING DETECTION
@@ -72,7 +73,10 @@ export async function handleExpiredSession(queryClient: QueryClient): Promise<vo
     // 1. Clear in-memory React Query cache
     queryClient.clear();
 
-    // 2. Delegate to authService.signOut() which also clears persisted cache
+    // 2. Reset security store (biometric preferences) — matches manual sign-out path
+    useSecurityStore.getState().reset();
+
+    // 3. Delegate to authService.signOut() which also clears persisted cache
     //    via clearPersistedQueryCache() in queryPersister.ts
     try {
       await authService.signOut();

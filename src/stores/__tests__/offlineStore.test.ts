@@ -2,14 +2,8 @@
 // Unit tests for offline write queue
 
 // =============================================================================
-// MOCKS (must be before imports)
+// MOCKS (must be before imports — jest.mock calls are hoisted)
 // =============================================================================
-
-// =============================================================================
-// IMPORTS (after mocks)
-// =============================================================================
-
-import { useOfflineStore, offlineStoreSelectors } from "../offlineStore";
 
 jest.mock("react-native-url-polyfill/auto", () => {});
 
@@ -28,23 +22,48 @@ jest.mock("@react-native-async-storage/async-storage", () => ({
 }));
 
 // Mock supabase
-const mockRpc = jest.fn().mockResolvedValue({ error: null });
-const mockFrom = jest.fn(() => ({
-  update: jest.fn(() => ({
-    eq: jest.fn(() => ({
-      eq: jest.fn().mockResolvedValue({ error: null }),
-    })),
-  })),
-  insert: jest.fn().mockResolvedValue({ error: null }),
-}));
-
 jest.mock("@/lib/supabase", () => ({
   getSupabaseClient: jest.fn(() => ({
-    rpc: mockRpc,
-    from: mockFrom,
+    rpc: jest.fn().mockResolvedValue({ error: null }),
+    from: jest.fn(() => ({
+      update: jest.fn(() => ({
+        eq: jest.fn(() => ({
+          eq: jest.fn().mockResolvedValue({ error: null }),
+        })),
+      })),
+      insert: jest.fn().mockResolvedValue({ error: null }),
+    })),
   })),
   requireUserId: jest.fn().mockResolvedValue("test-user-123"),
 }));
+
+// Mock activity execution helpers (imported by offlineStore)
+// These pull in useNetworkStatus → NetInfo which isn't available in Jest
+const mockExecuteLogActivity = jest.fn().mockResolvedValue(undefined);
+const mockExecuteLogWorkout = jest.fn().mockResolvedValue(0);
+jest.mock("@/services/activities", () => ({
+  executeLogActivity: mockExecuteLogActivity,
+  executeLogWorkout: mockExecuteLogWorkout,
+}));
+
+// Mock challenge and friends services (imported by offlineStore)
+jest.mock("@/services/challenges", () => ({
+  challengeService: {
+    respondToInvite: jest.fn().mockResolvedValue(undefined),
+  },
+}));
+
+jest.mock("@/services/friends", () => ({
+  friendsService: {
+    sendFriendRequest: jest.fn().mockResolvedValue(undefined),
+  },
+}));
+
+// =============================================================================
+// IMPORTS (after mocks)
+// =============================================================================
+
+import { useOfflineStore, offlineStoreSelectors } from "../offlineStore";
 
 describe("Offline Store", () => {
   beforeEach(() => {
@@ -55,6 +74,9 @@ describe("Offline Store", () => {
       lastProcessedAt: null,
     });
     jest.clearAllMocks();
+    // Reset default mock behavior
+    mockExecuteLogActivity.mockResolvedValue(undefined);
+    mockExecuteLogWorkout.mockResolvedValue(0);
     // Clear mock storage
     for (const key of Object.keys(mockStorage)) {
       delete mockStorage[key];
@@ -177,20 +199,18 @@ describe("Offline Store", () => {
       expect(result.succeeded).toBe(1);
       expect(result.failed).toBe(0);
       expect(result.remaining).toBe(0);
-      expect(mockRpc).toHaveBeenCalledWith(
-        "log_activity",
+      expect(mockExecuteLogActivity).toHaveBeenCalledWith(
         expect.objectContaining({
-          p_challenge_id: "c1",
-          p_value: 100,
-          p_client_event_id: "e1",
+          challenge_id: "c1",
+          value: 100,
+          client_event_id: "e1",
         }),
       );
     });
 
     it("handles duplicate key errors as success (idempotent)", async () => {
-      mockRpc.mockResolvedValueOnce({
-        error: { message: "duplicate key", code: "23505" },
-      });
+      // executeLogActivity handles duplicates internally and resolves normally
+      mockExecuteLogActivity.mockResolvedValueOnce(undefined);
 
       const { addToQueue, processQueue } = useOfflineStore.getState();
 
@@ -206,13 +226,13 @@ describe("Offline Store", () => {
 
       const result = await processQueue();
 
-      // Duplicate is treated as success
+      // Duplicate is treated as success (handled inside executeLogActivity)
       expect(result.succeeded).toBe(1);
       expect(result.remaining).toBe(0);
     });
 
     it("increments retry count on failure", async () => {
-      mockRpc.mockRejectedValueOnce(new Error("Network error"));
+      mockExecuteLogActivity.mockRejectedValueOnce(new Error("Network error"));
 
       const { addToQueue, processQueue } = useOfflineStore.getState();
 
@@ -254,7 +274,7 @@ describe("Offline Store", () => {
         ],
       });
 
-      mockRpc.mockRejectedValueOnce(new Error("Network error"));
+      mockExecuteLogActivity.mockRejectedValueOnce(new Error("Network error"));
 
       const { processQueue } = useOfflineStore.getState();
       const result = await processQueue();
@@ -281,7 +301,7 @@ describe("Offline Store", () => {
       const result = await processQueue();
 
       expect(result.processed).toBe(0);
-      expect(mockRpc).not.toHaveBeenCalled();
+      expect(mockExecuteLogActivity).not.toHaveBeenCalled();
     });
 
     it("returns empty result for empty queue", async () => {
@@ -404,9 +424,9 @@ describe("Offline Store", () => {
         expect(useOfflineStore.getState().queue).toHaveLength(1);
       });
 
-      it("drops item immediately on JWT expired error from RPC", async () => {
+      it("drops item immediately on JWT expired error from executor", async () => {
         getMockRequireUserId().mockResolvedValue("test-user-123");
-        mockRpc.mockRejectedValueOnce({
+        mockExecuteLogActivity.mockRejectedValueOnce({
           status: 401,
           code: "PGRST301",
           message: "JWT expired",
@@ -424,7 +444,7 @@ describe("Offline Store", () => {
 
       it("drops item immediately on JWT invalid error (PGRST302)", async () => {
         getMockRequireUserId().mockResolvedValue("test-user-123");
-        mockRpc.mockRejectedValueOnce({
+        mockExecuteLogActivity.mockRejectedValueOnce({
           code: "PGRST302",
           message: "JWT invalid",
         });
@@ -440,7 +460,7 @@ describe("Offline Store", () => {
 
       it("drops item immediately on HTTP 403 (permission denied)", async () => {
         getMockRequireUserId().mockResolvedValue("test-user-123");
-        mockRpc.mockRejectedValueOnce({
+        mockExecuteLogActivity.mockRejectedValueOnce({
           status: 403,
           message: "permission denied for table challenge_participants",
         });
@@ -456,7 +476,7 @@ describe("Offline Store", () => {
 
       it("drops item on first auth failure regardless of retryCount", async () => {
         getMockRequireUserId().mockResolvedValue("test-user-123");
-        mockRpc.mockRejectedValueOnce({
+        mockExecuteLogActivity.mockRejectedValueOnce({
           status: 401,
           message: "JWT expired",
         });
@@ -484,7 +504,7 @@ describe("Offline Store", () => {
 
       it("retries network errors normally (not classified as auth)", async () => {
         getMockRequireUserId().mockResolvedValue("test-user-123");
-        mockRpc.mockRejectedValueOnce(new Error("ETIMEDOUT"));
+        mockExecuteLogActivity.mockRejectedValueOnce(new Error("ETIMEDOUT"));
 
         const { addToQueue, processQueue } = useOfflineStore.getState();
         addToQueue(LOG_ACTIVITY_ACTION, "test-user-123");
@@ -498,7 +518,7 @@ describe("Offline Store", () => {
 
       it("retries server 500 errors normally (not classified as auth)", async () => {
         getMockRequireUserId().mockResolvedValue("test-user-123");
-        mockRpc.mockRejectedValueOnce({
+        mockExecuteLogActivity.mockRejectedValueOnce({
           status: 500,
           message: "internal server error",
         });
@@ -534,8 +554,8 @@ describe("Offline Store", () => {
 
         expect(result.failed).toBe(1);
         expect(result.remaining).toBe(0);
-        // Confirm no RPC call was made
-        expect(mockRpc).not.toHaveBeenCalled();
+        // Confirm no executor was called
+        expect(mockExecuteLogActivity).not.toHaveBeenCalled();
       });
 
       it("processes item queued by same user", async () => {
@@ -548,7 +568,7 @@ describe("Offline Store", () => {
 
         expect(result.succeeded).toBe(1);
         expect(result.remaining).toBe(0);
-        expect(mockRpc).toHaveBeenCalled();
+        expect(mockExecuteLogActivity).toHaveBeenCalled();
       });
 
       it("skips cross-account check for legacy items (no queuedByUserId)", async () => {
@@ -570,7 +590,7 @@ describe("Offline Store", () => {
 
         expect(result.succeeded).toBe(1);
         expect(result.remaining).toBe(0);
-        expect(mockRpc).toHaveBeenCalled();
+        expect(mockExecuteLogActivity).toHaveBeenCalled();
       });
 
       it("stores queuedByUserId when provided to addToQueue", () => {
@@ -594,14 +614,13 @@ describe("Offline Store", () => {
       it("correctly accounts for mixed failure types in one run", async () => {
         getMockRequireUserId().mockResolvedValue("current-user");
 
-        // Item 1: succeeds (same user, RPC works)
-        // Item 2: cross-account mismatch → dropped (no RPC call)
-        // Item 3: auth error from RPC → dropped
+        // Item 1: succeeds (same user, executor works)
+        // Item 2: cross-account mismatch → dropped (no executor call)
+        // Item 3: auth error from executor → dropped
         // Item 4: network error → retried
-        // All use LOG_ACTIVITY (rpc) so mockRpc ordering is predictable:
-        //   call 1 = item 1 (success), call 2 = item 3 (auth), call 3 = item 4 (network)
-        mockRpc
-          .mockResolvedValueOnce({ error: null }) // item 1 succeeds
+        // Executor call order: item 1 (success), item 3 (auth), item 4 (network)
+        mockExecuteLogActivity
+          .mockResolvedValueOnce(undefined) // item 1 succeeds
           .mockRejectedValueOnce({ status: 401, message: "JWT expired" }) // item 3 auth error
           .mockRejectedValueOnce(new Error("Network error")); // item 4 network error
 
@@ -627,7 +646,7 @@ describe("Offline Store", () => {
               },
               createdAt: Date.now(),
               retryCount: 0,
-              queuedByUserId: "other-user", // mismatch → skipped before rpc
+              queuedByUserId: "other-user", // mismatch → skipped before executor
             },
             {
               id: "item-3",
@@ -705,7 +724,7 @@ describe("Offline Store", () => {
 
       it("resets isProcessing after auth error drop", async () => {
         getMockRequireUserId().mockResolvedValue("test-user-123");
-        mockRpc.mockRejectedValueOnce({
+        mockExecuteLogActivity.mockRejectedValueOnce({
           status: 401,
           message: "Unauthorized",
         });

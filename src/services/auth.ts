@@ -12,6 +12,7 @@ import {
   signUpSchema,
   signInSchema,
   updateProfileSchema,
+  uuidSchema,
   SignUpInput,
   SignInInput,
   UpdateProfileInput,
@@ -333,6 +334,7 @@ export const authService = {
    * CONTRACT: Uses profiles_public, not profiles
    */
   async getPublicProfile(userId: string): Promise<ProfilePublic | null> {
+    uuidSchema.parse(userId);
     const { data, error } = await getSupabaseClient()
       .from("profiles_public")
       .select("*")
