@@ -1,3 +1,4 @@
+/* global afterEach, jest */
 // jest.setup.js — Global test setup for unit tests
 // Loaded via setupFilesAfterEnv in jest.config.js (unit project only)
 

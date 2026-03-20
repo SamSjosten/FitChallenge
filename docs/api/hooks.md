@@ -10,7 +10,7 @@ Hooks are organized by domain:
 
 - **Auth** — Authentication and user session
 - **Data** — React Query hooks for server state
-- **Health** — HealthKit/Google Fit integration
+- **Health** — HealthKit integration (iOS; Android planned)
 - **UI** — Feature flags and UI state
 
 ---
@@ -208,7 +208,7 @@ const {
 
 ## Query Keys
 
-All React Query hooks use consistent query keys defined in `src/lib/queryClient.ts`:
+All React Query hooks use consistent query keys defined in `src/lib/queryKeys.ts`:
 
 ```typescript
 export const queryKeys = {

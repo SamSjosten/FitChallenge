@@ -52,7 +52,7 @@ They define the core FitChallenge loop.
 
 ### Health Data Integration (Phase 1 Complete)
 
-- Connect Apple Health (iOS) or Google Fit (Android)
+- Connect Apple Health (iOS). Google Fit (Android) planned but not yet implemented.
 - Health settings screen at `/settings/health`
 - Manual sync with deduplication
 - Batch activity import with challenge attribution

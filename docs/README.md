@@ -21,7 +21,7 @@ Welcome to the FitChallenge developer documentation.
 | [Database Schema](./architecture/database-schema.md)       | Table definitions            |
 | [RLS Policies](./architecture/rls-policies.md)             | Row Level Security rules     |
 | [Feature Flags](./architecture/feature-flags.md)           | UI version switching         |
-| [Health Integration](./architecture/health-integration.md) | HealthKit/Google Fit sync    |
+| [Health Integration](./architecture/health-integration.md) | HealthKit sync (iOS; Android planned) |
 
 ### API Reference
 

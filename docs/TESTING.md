@@ -87,10 +87,7 @@ npm run test:integration
 
 **Setup required:**
 
-```bash
-cp .env.test.example .env.test
-# Edit .env.test with Supabase credentials
-```
+Create a `.env.test` file with your Supabase credentials:
 
 Required environment variables:
 | Variable | Source |

@@ -59,36 +59,21 @@ const leaderboard = await challengeService.getLeaderboard("uuid-here");
 // Returns: Array<{ user_id, current_progress, profiles_public }>
 ```
 
-### inviteUser(challengeId, targetUserId)
+### inviteUser(input)
 
 Invite a user to a challenge. Only the creator can invite.
 
 ```typescript
-await challengeService.inviteUser("challenge-uuid", "user-uuid");
+await challengeService.inviteUser({ challenge_id: "challenge-uuid", user_id: "user-uuid" });
 ```
 
-### respondToInvite(challengeId, response)
+### respondToInvite(input)
 
 Accept or decline a challenge invitation.
 
 ```typescript
-await challengeService.respondToInvite("challenge-uuid", "accepted");
-await challengeService.respondToInvite("challenge-uuid", "declined");
-```
-
-### logActivity(input)
-
-Log activity for a challenge. Uses atomic database function for idempotency.
-
-```typescript
-import { randomUUID } from "expo-crypto";
-
-await challengeService.logActivity({
-  challenge_id: "challenge-uuid",
-  activity_type: "steps",
-  value: 5000,
-  client_event_id: randomUUID(), // Required for idempotency
-});
+await challengeService.respondToInvite({ challenge_id: "challenge-uuid", response: "accepted" });
+await challengeService.respondToInvite({ challenge_id: "challenge-uuid", response: "declined" });
 ```
 
 ## Activity Service
@@ -150,52 +135,44 @@ const friends = await friendsService.getFriends();
 // Returns friendship with requester and recipient profile data
 ```
 
-### getPendingReceived()
+### getPendingRequests()
 
 Get pending friend requests received by the current user.
 
 ```typescript
-const requests = await friendsService.getPendingReceived();
+const requests = await friendsService.getPendingRequests();
 ```
 
-### getPendingSent()
-
-Get pending friend requests sent by the current user.
-
-```typescript
-const requests = await friendsService.getPendingSent();
-```
-
-### sendRequest(targetUserId)
+### sendRequest(input)
 
 Send a friend request. Checks for existing relationships.
 
 ```typescript
-await friendsService.sendRequest("target-user-uuid");
+await friendsService.sendRequest({ target_user_id: "user-uuid" });
 ```
 
-### acceptRequest(friendshipId)
+### acceptRequest(input)
 
 Accept a friend request. Only the recipient can accept.
 
 ```typescript
-await friendsService.acceptRequest("friendship-uuid");
+await friendsService.acceptRequest({ friendship_id: "friendship-uuid" });
 ```
 
-### declineRequest(friendshipId)
+### declineRequest(input)
 
 Decline a friend request. Only the recipient can decline.
 
 ```typescript
-await friendsService.declineRequest("friendship-uuid");
+await friendsService.declineRequest({ friendship_id: "friendship-uuid" });
 ```
 
-### removeFriend(friendshipId)
+### removeFriend(input)
 
 Remove a friendship. Either party can remove.
 
 ```typescript
-await friendsService.removeFriend("friendship-uuid");
+await friendsService.removeFriend({ friendship_id: "friendship-uuid" });
 ```
 
 ## Health Service

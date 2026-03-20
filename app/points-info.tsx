@@ -273,12 +273,12 @@ export default function PointsExplainerScreen() {
 
         <FAQItem
           question="Can I earn points from multiple devices?"
-          answer="Yes! FitChallenge syncs with Apple Health and Google Fit, so your activities are automatically tracked regardless of which device you use. We use smart deduplication to ensure you don't get double points."
+          answer="Yes! FitChallenge syncs with Apple Health (Google Fit support coming soon), so your activities are automatically tracked. We use smart deduplication to ensure you don't get double points."
         />
 
         <FAQItem
           question="What happens if I forget to log an activity?"
-          answer="If you're connected to Apple Health or Google Fit, your activities are automatically synced. For manual logging, you can add activities after the fact, but they'll only count toward challenges that were active at that time."
+          answer="If you're connected to Apple Health (Google Fit coming soon), your activities are automatically synced. For manual logging, you can add activities after the fact, but they'll only count toward challenges that were active at that time."
         />
 
         <FAQItem

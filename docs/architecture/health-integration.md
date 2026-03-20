@@ -10,12 +10,12 @@ FitChallenge integrates with HealthKit (iOS) to automatically sync fitness data.
 │                                                                 │
 │  ┌─────────────────┐      ┌─────────────────┐                   │
 │  │  HealthKit      │      │  Google Fit     │                   │
-│  │  Provider       │      │  Provider       │                   │
-│  │  (iOS)          │      │  (Android)      │                   │
-│  └────────┬────────┘      └────────┬────────┘                   │
-│           │                        │                            │
-│           └──────────┬─────────────┘                            │
-│                      │                                          │
+│  │  Provider       │      │  (Android)      │                   │
+│  │  (iOS) ✅       │      │  — planned —    │                   │
+│  └────────┬────────┘      └─────────────────┘                   │
+│           │                                                     │
+│           │                                                     │
+│           │                                                     │
 │              ┌───────▼───────┐                                  │
 │              │  Data Mapper  │                                  │
 │              │  + Hash Gen   │                                  │
@@ -144,7 +144,9 @@ interface IHealthProvider {
 | HKQuantityTypeIdentifierDistanceWalkingRunning | distance       |
 | HKQuantityTypeIdentifierDistanceCycling        | distance       |
 
-### Google Fit → ChallengeType
+### Google Fit → ChallengeType (Planned — not yet implemented)
+
+Mapping reserved for future Android support.
 
 | Google Fit Type              | Challenge Type |
 | ---------------------------- | -------------- |
