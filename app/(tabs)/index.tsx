@@ -47,6 +47,7 @@ import {
   HeroStatCard,
 } from "@/components/home";
 import { useToast } from "@/providers/ToastProvider";
+import { extractErrorMessage } from "@/lib/extractErrorMessage";
 import { BiometricSetupModal } from "@/components/BiometricSetupModal";
 import { TestIDs } from "@/constants/testIDs";
 import { ChevronDownIcon, ChevronUpIcon, BellIcon } from "react-native-heroicons/outline";
@@ -333,8 +334,20 @@ export default function HomeScreenV2() {
                 <InviteCard
                   key={invite.challenge.id}
                   invite={invite}
-                  onAccept={() => handleAcceptInvite(invite.challenge.id)}
-                  onDecline={() => handleDeclineInvite(invite.challenge.id)}
+                  onAccept={async () => {
+                    try {
+                      await handleAcceptInvite(invite.challenge.id);
+                    } catch (err) {
+                      showToast(extractErrorMessage(err), { variant: "error" });
+                    }
+                  }}
+                  onDecline={async () => {
+                    try {
+                      await handleDeclineInvite(invite.challenge.id);
+                    } catch (err) {
+                      showToast(extractErrorMessage(err), { variant: "error" });
+                    }
+                  }}
                   loading={isRespondingToInvite}
                 />
               ))}

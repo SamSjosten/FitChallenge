@@ -267,7 +267,7 @@ export function NotificationRow({
             activeOpacity={0.7}
             accessibilityRole="button"
             accessibilityLabel={`${notification.title}: ${notification.body}`}
-            accessibilityHint="Swipe left to archive"
+            accessibilityHint={isArchived ? "Swipe left to restore" : "Swipe left to archive"}
             style={[
               styles.content,
               showBorder && {

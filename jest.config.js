@@ -33,8 +33,7 @@ module.exports = {
       },
       // Only match integration tests
       testMatch: ["<rootDir>/src/**/__tests__/**/*.integration.test.ts"],
-      // Longer timeout for network calls
-      testTimeout: 30000,
+      setupFilesAfterEnv: ["./jest.integration.setup.js"],
     },
   ],
 

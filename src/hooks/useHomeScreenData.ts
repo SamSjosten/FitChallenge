@@ -176,32 +176,23 @@ export function useHomeScreenData(): HomeScreenData {
   // Invite handlers
   const handleAcceptInvite = useCallback(
     async (challengeId: string) => {
-      try {
-        await respondToInvite.mutateAsync({
-          challenge_id: challengeId,
-          response: "accepted",
-        });
-        // Request push notifications after accepting first invite
-        pushTokenService
-          .requestAndRegister()
-          .catch((err) => console.warn("Push notification setup failed:", err));
-      } catch (err) {
-        console.error("Failed to accept invite:", err);
-      }
+      await respondToInvite.mutateAsync({
+        challenge_id: challengeId,
+        response: "accepted",
+      });
+      pushTokenService
+        .requestAndRegister()
+        .catch((err) => console.warn("Push notification setup failed:", err));
     },
     [respondToInvite],
   );
 
   const handleDeclineInvite = useCallback(
     async (challengeId: string) => {
-      try {
-        await respondToInvite.mutateAsync({
-          challenge_id: challengeId,
-          response: "declined",
-        });
-      } catch (err) {
-        console.error("Failed to decline invite:", err);
-      }
+      await respondToInvite.mutateAsync({
+        challenge_id: challengeId,
+        response: "declined",
+      });
     },
     [respondToInvite],
   );

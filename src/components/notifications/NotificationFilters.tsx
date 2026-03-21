@@ -13,6 +13,9 @@ import {
   TrophyIcon,
 } from "react-native-heroicons/outline";
 
+// Re-export groupNotificationsByTime from extracted module for backward compatibility
+export { groupNotificationsByTime } from "@/lib/notificationGrouping";
+
 export type NotificationFilterType = "unread" | "all" | "social" | "challenges" | "archived";
 
 export interface FilterOption {
@@ -72,6 +75,9 @@ export function NotificationFilters({
                 },
               ]}
               activeOpacity={0.7}
+              accessibilityRole="tab"
+              accessibilityLabel={`${filter.label} filter${count !== undefined && count > 0 ? `, ${count} items` : ""}`}
+              accessibilityState={{ selected: isActive }}
             >
               <Icon size={14} color={isActive ? "#FFFFFF" : colors.textSecondary} />
               <Text
@@ -142,6 +148,9 @@ export function NotificationHeader({
           onPress={onMarkAllRead}
           disabled={isMarkingAll}
           style={{ opacity: isMarkingAll ? 0.5 : 1 }}
+          accessibilityRole="button"
+          accessibilityLabel="Mark all notifications as read"
+          accessibilityState={{ disabled: isMarkingAll, busy: isMarkingAll }}
         >
           <Text style={[styles.markAllRead, { color: colors.primary.main }]}>
             {isMarkingAll ? "Marking..." : "Mark all read"}
@@ -192,39 +201,6 @@ export function NotificationGroupHeader({ title }: NotificationGroupHeaderProps)
       {title.toUpperCase()}
     </Text>
   );
-}
-
-// Utility function to group notifications by time
-export function groupNotificationsByTime<T extends { created_at: string }>(
-  notifications: T[],
-): Record<string, T[]> {
-  const groups: Record<string, T[]> = {};
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const yesterday = new Date(today.getTime() - 86400000);
-  const weekAgo = new Date(today.getTime() - 7 * 86400000);
-
-  for (const notification of notifications) {
-    const date = new Date(notification.created_at);
-    let group: string;
-
-    if (date >= today) {
-      group = "Today";
-    } else if (date >= yesterday) {
-      group = "Yesterday";
-    } else if (date >= weekAgo) {
-      group = "This Week";
-    } else {
-      group = "Earlier";
-    }
-
-    if (!groups[group]) {
-      groups[group] = [];
-    }
-    groups[group].push(notification);
-  }
-
-  return groups;
 }
 
 const styles = StyleSheet.create({
