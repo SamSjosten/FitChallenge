@@ -9,6 +9,8 @@ import {
   inviteToChallenge,
   acceptChallengeInvite,
   cleanupChallenge,
+  createEphemeralUser,
+  deleteEphemeralUser,
   type TestUser,
 } from "./setup";
 
@@ -55,7 +57,7 @@ describe("Challenge Visibility Integration Tests", () => {
     it("should atomically create creator as participant via RPC", async () => {
       // Use the create_challenge_with_participant RPC directly
       const now = new Date();
-      const startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000); // Yesterday
+      const startDate = new Date(now.getTime() + 60 * 1000); // +1 min buffer (avoids clock skew with DB)
       const endDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // +7 days
 
       const { data: challenge, error } = await user1.client.rpc(
@@ -691,15 +693,13 @@ describe("Challenge creation rate limit", () => {
       p_end_date: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString(),
     });
 
-    // If migration 044 is not yet deployed, the RPC will succeed (no rate limit).
-    // Clean up the accidental challenge and skip.
+    // If the RPC succeeds, migration 044 is not deployed — fail loudly.
     if (!error && data) {
       const createdId = (data as { id?: string }).id;
       if (createdId) await cleanupChallenge(createdId);
-      console.warn(
-        "Rate limit test skipped: migration 044 not deployed (create_challenge_with_participant lacks rate limit guard)",
+      throw new Error(
+        "Expected challenge_limit_reached but RPC succeeded — migration 044 is not deployed",
       );
-      return;
     }
 
     expect(error).not.toBeNull();
@@ -771,33 +771,41 @@ describe("Atomic invite RPC", () => {
     });
 
     it("should reject over-capacity invite with challenge_full", async () => {
-      // Create challenge with max_participants = 2 (creator counts as 1)
+      // Create challenge with max_participants = 2
       const challenge = await createTestChallenge(user1.client, {
         max_participants: 2,
       });
       challengeId = requireId(challenge.id);
 
-      // Invite user2 (fills to 2)
+      // Add creator as accepted participant (createTestChallenge does direct insert,
+      // so creator is NOT auto-added as participant like the RPC would do)
+      await user1.client.from("challenge_participants").insert({
+        challenge_id: challengeId,
+        user_id: user1.id,
+        invite_status: "accepted",
+      });
+
+      // Invite user2 (fills to 2: creator + user2)
       const { error: firstError } = await user1.client.rpc("invite_to_challenge", {
         p_challenge_id: challengeId,
         p_user_id: user2.id,
       });
       expect(firstError).toBeNull();
 
-      // Accept invite so both slots are used
-      await acceptChallengeInvite(user2.client, challengeId);
+      // Create a real third user for the capacity test
+      const user3 = await createEphemeralUser("capacity");
+      try {
+        // Try to invite a third user — should fail with challenge_full
+        const { error } = await user1.client.rpc("invite_to_challenge", {
+          p_challenge_id: challengeId,
+          p_user_id: user3.id,
+        });
 
-      // Create a third user ID (non-existent but valid UUID for the test)
-      const fakeUserId = "00000000-0000-0000-0000-000000000099";
-
-      // Try to invite a third user — should fail
-      const { error } = await user1.client.rpc("invite_to_challenge", {
-        p_challenge_id: challengeId,
-        p_user_id: fakeUserId,
-      });
-
-      expect(error).not.toBeNull();
-      expect(error?.message).toContain("challenge_full");
+        expect(error).not.toBeNull();
+        expect(error?.message).toContain("challenge_full");
+      } finally {
+        await deleteEphemeralUser(user3.id);
+      }
     });
 
     it("should reject duplicate invite with duplicate_invite", async () => {
