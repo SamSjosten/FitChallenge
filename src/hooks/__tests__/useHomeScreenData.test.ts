@@ -86,14 +86,14 @@ describe("splitChallengesByStatus", () => {
 
   describe("edge cases", () => {
     test("returns undefined for both when challenges is undefined", () => {
-      const result = splitChallengesByStatus(undefined, USER_ID);
+      const result = splitChallengesByStatus(undefined, USER_ID, FIXED_NOW);
 
       expect(result.inProgress).toBeUndefined();
       expect(result.startingSoon).toBeUndefined();
     });
 
     test("returns empty arrays when challenges is empty", () => {
-      const result = splitChallengesByStatus([], USER_ID);
+      const result = splitChallengesByStatus([], USER_ID, FIXED_NOW);
 
       expect(result.inProgress).toEqual([]);
       expect(result.startingSoon).toEqual([]);
@@ -101,7 +101,7 @@ describe("splitChallengesByStatus", () => {
 
     test("handles undefined userId gracefully", () => {
       const challenge = makeChallenge({ creator_id: USER_ID });
-      const result = splitChallengesByStatus([challenge], undefined);
+      const result = splitChallengesByStatus([challenge], undefined, FIXED_NOW);
 
       // is_creator should be false when userId is undefined
       expect(result.inProgress?.[0]?.is_creator).toBe(false);
@@ -119,7 +119,7 @@ describe("splitChallengesByStatus", () => {
         end_date: "2025-02-28T23:59:59Z",
       });
 
-      const result = splitChallengesByStatus([upcomingChallenge], USER_ID);
+      const result = splitChallengesByStatus([upcomingChallenge], USER_ID, FIXED_NOW);
 
       expect(result.startingSoon).toHaveLength(1);
       expect(result.inProgress).toHaveLength(0);
@@ -131,7 +131,7 @@ describe("splitChallengesByStatus", () => {
         end_date: "2025-02-28T23:59:59Z", // Ends in future
       });
 
-      const result = splitChallengesByStatus([activeChallenge], USER_ID);
+      const result = splitChallengesByStatus([activeChallenge], USER_ID, FIXED_NOW);
 
       expect(result.inProgress).toHaveLength(1);
       expect(result.startingSoon).toHaveLength(0);
@@ -159,7 +159,7 @@ describe("splitChallengesByStatus", () => {
         end_date: "2025-02-15T23:59:59Z",
       });
 
-      const result = splitChallengesByStatus([upcoming1, active1, upcoming2, active2], USER_ID);
+      const result = splitChallengesByStatus([upcoming1, active1, upcoming2, active2], USER_ID, FIXED_NOW);
 
       expect(result.startingSoon).toHaveLength(2);
       expect(result.inProgress).toHaveLength(2);
@@ -180,7 +180,7 @@ describe("splitChallengesByStatus", () => {
         end_date: "2025-02-28T23:59:59Z",
       });
 
-      const result = splitChallengesByStatus([cancelledChallenge], USER_ID);
+      const result = splitChallengesByStatus([cancelledChallenge], USER_ID, FIXED_NOW);
 
       // Cancelled challenges don't go into either bucket
       expect(result.inProgress).toHaveLength(0);
@@ -196,7 +196,7 @@ describe("splitChallengesByStatus", () => {
     test("sets is_creator=true when creator_id matches userId", () => {
       const myChallenge = makeChallenge({ creator_id: USER_ID });
 
-      const result = splitChallengesByStatus([myChallenge], USER_ID);
+      const result = splitChallengesByStatus([myChallenge], USER_ID, FIXED_NOW);
 
       expect(result.inProgress?.[0]?.is_creator).toBe(true);
     });
@@ -204,7 +204,7 @@ describe("splitChallengesByStatus", () => {
     test("sets is_creator=false when creator_id does not match userId", () => {
       const othersChallenge = makeChallenge({ creator_id: OTHER_USER_ID });
 
-      const result = splitChallengesByStatus([othersChallenge], USER_ID);
+      const result = splitChallengesByStatus([othersChallenge], USER_ID, FIXED_NOW);
 
       expect(result.inProgress?.[0]?.is_creator).toBe(false);
     });
@@ -219,7 +219,7 @@ describe("splitChallengesByStatus", () => {
         start_date: "2025-01-01T00:00:00Z",
       });
 
-      const result = splitChallengesByStatus([myUpcoming, othersActive], USER_ID);
+      const result = splitChallengesByStatus([myUpcoming, othersActive], USER_ID, FIXED_NOW);
 
       expect(result.startingSoon?.[0]?.is_creator).toBe(true);
       expect(result.inProgress?.[0]?.is_creator).toBe(false);
@@ -249,7 +249,7 @@ describe("splitChallengesByStatus", () => {
       });
 
       // Pass in unsorted order
-      const result = splitChallengesByStatus([later, sooner, middle], USER_ID);
+      const result = splitChallengesByStatus([later, sooner, middle], USER_ID, FIXED_NOW);
 
       expect(result.startingSoon?.map((c) => c.id)).toEqual(["sooner", "middle", "later"]);
     });
@@ -269,7 +269,7 @@ describe("splitChallengesByStatus", () => {
         start_date: "2025-01-15T00:00:00Z",
       });
 
-      const result = splitChallengesByStatus([c1, c2, c3], USER_ID);
+      const result = splitChallengesByStatus([c1, c2, c3], USER_ID, FIXED_NOW);
 
       // Order preserved from input
       expect(result.inProgress?.map((c) => c.id)).toEqual(["c1", "c2", "c3"]);
@@ -288,9 +288,10 @@ describe("splitChallengesByStatus", () => {
         end_date: "2025-02-28T23:59:59Z",
       });
 
-      splitChallengesByStatus([edgeChallenge], USER_ID);
+      splitChallengesByStatus([edgeChallenge], USER_ID, FIXED_NOW);
 
-      expect(mockGetServerNow).toHaveBeenCalled();
+      // With explicit `now` parameter, getServerNow is no longer called internally.
+      // Edge-case bucketing behavior is verified by the boundary test below.
     });
 
     test("boundary: challenge starting exactly at now is active (not upcoming)", () => {
@@ -300,7 +301,7 @@ describe("splitChallengesByStatus", () => {
         end_date: "2025-02-28T23:59:59Z",
       });
 
-      const result = splitChallengesByStatus([startsNow], USER_ID);
+      const result = splitChallengesByStatus([startsNow], USER_ID, FIXED_NOW);
 
       expect(result.inProgress).toHaveLength(1);
       expect(result.startingSoon).toHaveLength(0);
@@ -317,7 +318,7 @@ describe("splitChallengesByStatus", () => {
         end_date: "2025-02-28T23:59:59Z",
       });
 
-      const result = splitChallengesByStatus([challenge], USER_ID);
+      const result = splitChallengesByStatus([challenge], USER_ID, serverTime);
 
       // Should be active because server time (Feb 1) is past start_date
       expect(result.inProgress).toHaveLength(1);

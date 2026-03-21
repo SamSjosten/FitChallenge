@@ -128,8 +128,8 @@ export function NotificationHeader({
   const { colors, spacing } = useAppTheme();
 
   return (
-    <View style={[styles.header, { paddingHorizontal: spacing.lg }]}>
-      <View>
+    <View style={styles.header}>
+      <View style={{ flex: 1 }}>
         <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Notifications</Text>
         {unreadCount > 0 && (
           <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
@@ -262,6 +262,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   header: {
+    flex: 1,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",

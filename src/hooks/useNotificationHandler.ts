@@ -161,8 +161,12 @@ export function useNotificationHandler(isHydrated: boolean, hasSession: boolean)
       isColdStart = false,
     ) {
       if (cancelled) return;
-      if (!isHydrated || !hasSession) {
-        pendingResponse.current = response;
+      if (!isHydrated) {
+        pendingResponse.current = response; // Still loading — buffer
+        return;
+      }
+      if (!hasSession) {
+        pendingResponse.current = null; // Hydrated but no user — discard
         return;
       }
       routeFromResponse(response, isColdStart);

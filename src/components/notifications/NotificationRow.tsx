@@ -266,6 +266,7 @@ export function NotificationRow({
             onPress={onPress}
             activeOpacity={0.7}
             accessibilityRole="button"
+            accessibilityLabel={`${notification.title}: ${notification.body}`}
             accessibilityHint="Swipe left to archive"
             style={[
               styles.content,
