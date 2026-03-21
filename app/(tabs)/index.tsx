@@ -261,6 +261,7 @@ export default function HomeScreenV2() {
               style={styles.notificationButton}
               onPress={() => router.push("/notifications")}
               accessibilityLabel="Notifications"
+              accessibilityRole="button"
             >
               <BellIcon size={20} color={colors.textSecondary} />
               {unreadCount !== undefined && unreadCount > 0 && (
@@ -608,9 +609,9 @@ const styles = StyleSheet.create({
     fontFamily: "PlusJakartaSans_600SemiBold",
   },
   notificationButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: "center",
     justifyContent: "center",
   },

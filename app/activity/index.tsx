@@ -11,43 +11,8 @@ import { useRecentActivities, toDisplayActivity } from "@/hooks/useActivities";
 import { LoadingState, EmptyState } from "@/components/shared";
 import { ActivityListItem } from "@/components/shared/ActivityCard";
 import { ChevronLeftIcon } from "react-native-heroicons/outline";
+import { groupActivitiesByDate } from "@/lib/activityGrouping";
 import type { ActivityType } from "@/components/icons/ActivityIcons";
-
-// Group activities by date
-function groupActivitiesByDate<T extends { recorded_at: string }>(
-  activities: T[],
-): Record<string, T[]> {
-  const groups: Record<string, T[]> = {};
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const yesterday = new Date(today.getTime() - 86400000);
-
-  for (const activity of activities) {
-    const date = new Date(activity.recorded_at);
-    const activityDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-
-    let group: string;
-    if (activityDate.getTime() === today.getTime()) {
-      group = "Today";
-    } else if (activityDate.getTime() === yesterday.getTime()) {
-      group = "Yesterday";
-    } else {
-      // Use full date for older entries
-      group = activityDate.toLocaleDateString(undefined, {
-        weekday: "long",
-        month: "short",
-        day: "numeric",
-      });
-    }
-
-    if (!groups[group]) {
-      groups[group] = [];
-    }
-    groups[group].push(activity);
-  }
-
-  return groups;
-}
 
 export default function ActivityHistoryScreen() {
   const { colors, spacing, radius } = useAppTheme();

@@ -157,6 +157,9 @@ export default function ChallengesScreenV2() {
           ]}
           onPress={() => setActiveTab("active")}
           activeOpacity={0.7}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: activeTab === "active" }}
+          accessibilityLabel={`Active tab, ${activeCount} challenges`}
         >
           <Text
             style={[
@@ -180,6 +183,9 @@ export default function ChallengesScreenV2() {
           ]}
           onPress={() => setActiveTab("completed")}
           activeOpacity={0.7}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: activeTab === "completed" }}
+          accessibilityLabel={`Completed tab, ${completedCount} challenges`}
         >
           <Text
             style={[

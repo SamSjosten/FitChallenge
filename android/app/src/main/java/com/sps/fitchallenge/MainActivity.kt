@@ -1,4 +1,4 @@
-package com.yourcompany.fitchallenge
+package com.sps.fitchallenge
 
 import android.os.Build
 import android.os.Bundle

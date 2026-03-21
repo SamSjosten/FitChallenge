@@ -44,7 +44,23 @@ ios/sentry.properties
 
 # Native build output (managed by Expo prebuild)
 ios/
-android/
+android/*
+!android/app/
+android/app/*
+!android/app/src/
+android/app/src/*
+!android/app/src/main/
+android/app/src/main/*
+!android/app/src/main/java/
+android/app/src/main/java/*
+!android/app/src/main/java/com/
+android/app/src/main/java/com/*
+!android/app/src/main/java/com/sps/
+android/app/src/main/java/com/sps/*
+!android/app/src/main/java/com/sps/fitchallenge/
+android/app/src/main/java/com/sps/fitchallenge/*
+!android/app/src/main/java/com/sps/fitchallenge/MainActivity.kt
+!android/app/src/main/java/com/sps/fitchallenge/MainApplication.kt
 
 # Claude Code temp files
 .claude/worktrees/

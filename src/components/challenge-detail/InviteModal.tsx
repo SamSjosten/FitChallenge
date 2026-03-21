@@ -6,7 +6,7 @@
 // - Filters out existingParticipantIds from results (fixes U2)
 // - Filters out current user from results
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import { extractErrorMessage } from "@/lib/extractErrorMessage";
 import {
   View,
@@ -16,14 +16,14 @@ import {
   ScrollView,
   StyleSheet,
   Alert,
+  Keyboard,
 } from "react-native";
 import { XMarkIcon, MagnifyingGlassIcon } from "react-native-heroicons/outline";
 import { useAppTheme } from "@/providers/ThemeProvider";
 import { useAuth } from "@/hooks/useAuth";
-import { authService } from "@/services/auth";
+import { useUserSearch } from "@/hooks/useUserSearch";
 import { Avatar } from "@/components/shared";
 import { TestIDs } from "@/constants/testIDs";
-import type { ProfilePublic } from "@/types/database-helpers";
 import type { InviteModalProps } from "./types";
 
 export function InviteModal({
@@ -36,35 +36,39 @@ export function InviteModal({
   const { colors, spacing, radius, typography } = useAppTheme();
   const { profile } = useAuth();
 
-  // Internal search state — not parent's concern
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<ProfilePublic[]>([]);
-  const [searching, setSearching] = useState(false);
   const [invitingUserId, setInvitingUserId] = useState<string | null>(null);
+  const [invitedIds, setInvitedIds] = useState<Set<string>>(new Set());
+  const {
+    data: searchData,
+    isFetching: isSearching,
+    error: searchError,
+    debouncedQuery,
+  } = useUserSearch(searchQuery);
+  const trimmedSearchQuery = searchQuery.trim();
+  const isWaitingForDebounce =
+    trimmedSearchQuery.length >= 2 && debouncedQuery !== trimmedSearchQuery;
+  const excludeIds = useMemo(() => {
+    const ids = new Set(existingParticipantIds);
+    if (profile?.id) ids.add(profile.id);
 
-  const handleSearch = useCallback(async () => {
-    if (searchQuery.length < 2) return;
-    setSearching(true);
-    try {
-      const results = await authService.searchUsers(searchQuery);
-
-      // Filter out current user AND existing participants (fixes U2)
-      const excludeIds = new Set([...(profile?.id ? [profile.id] : []), ...existingParticipantIds]);
-      setSearchResults(results.filter((r) => !excludeIds.has(r.id)));
-    } catch (err) {
-      console.error("Search failed:", err);
-    } finally {
-      setSearching(false);
+    for (const invitedId of invitedIds) {
+      ids.add(invitedId);
     }
-  }, [searchQuery, profile?.id, existingParticipantIds]);
+
+    return ids;
+  }, [existingParticipantIds, invitedIds, profile?.id]);
+  const filteredResults = useMemo(
+    () => (searchData ?? []).filter((result) => !excludeIds.has(result.id)),
+    [searchData, excludeIds],
+  );
 
   const handleInvite = useCallback(
     async (userId: string) => {
       setInvitingUserId(userId);
       try {
         await onInvite(userId);
-        // Remove invited user from results
-        setSearchResults((prev) => prev.filter((r) => r.id !== userId));
+        setInvitedIds((prev) => new Set(prev).add(userId));
       } catch (err: unknown) {
         Alert.alert("Error", extractErrorMessage(err));
       } finally {
@@ -75,11 +79,9 @@ export function InviteModal({
   );
 
   const handleClose = useCallback(() => {
-    // Reset internal state on close
     setSearchQuery("");
-    setSearchResults([]);
-    setSearching(false);
     setInvitingUserId(null);
+    setInvitedIds(new Set());
     onClose();
   }, [onClose]);
 
@@ -171,7 +173,7 @@ export function InviteModal({
               placeholderTextColor={colors.textMuted}
               value={searchQuery}
               onChangeText={setSearchQuery}
-              onSubmitEditing={handleSearch}
+              onSubmitEditing={() => Keyboard.dismiss()}
               returnKeyType="search"
               accessibilityLabel="Search for users to invite"
             />
@@ -184,7 +186,7 @@ export function InviteModal({
               borderRadius: radius.md,
               justifyContent: "center",
             }}
-            onPress={handleSearch}
+            onPress={() => Keyboard.dismiss()}
             accessibilityLabel="Search"
             accessibilityRole="button"
           >
@@ -202,19 +204,38 @@ export function InviteModal({
 
         {/* Results */}
         <ScrollView style={{ maxHeight: 300 }}>
-          {searching && (
+          {trimmedSearchQuery.length > 0 && trimmedSearchQuery.length < 2 && (
+            <View style={{ padding: spacing.md, alignItems: "center" }}>
+              <Text style={{ color: colors.textMuted }}>Enter at least 2 characters</Text>
+            </View>
+          )}
+
+          {(isWaitingForDebounce || isSearching) && trimmedSearchQuery.length >= 2 && (
             <View style={{ padding: spacing.md, alignItems: "center" }}>
               <Text style={{ color: colors.textMuted }}>Searching...</Text>
             </View>
           )}
 
-          {!searching && searchResults.length === 0 && searchQuery.length >= 2 && (
-            <View style={{ padding: spacing.md, alignItems: "center" }}>
-              <Text style={{ color: colors.textMuted }}>No users found</Text>
-            </View>
-          )}
+          {!isWaitingForDebounce &&
+            !isSearching &&
+            searchError &&
+            trimmedSearchQuery.length >= 2 && (
+              <View style={{ padding: spacing.md, alignItems: "center" }}>
+                <Text style={{ color: colors.error }}>{extractErrorMessage(searchError)}</Text>
+              </View>
+            )}
 
-          {searchResults.map((user) => {
+          {!isWaitingForDebounce &&
+            !isSearching &&
+            !searchError &&
+            filteredResults.length === 0 &&
+            trimmedSearchQuery.length >= 2 && (
+              <View style={{ padding: spacing.md, alignItems: "center" }}>
+                <Text style={{ color: colors.textMuted }}>No users found</Text>
+              </View>
+            )}
+
+          {filteredResults.map((user) => {
             const isInviting = invitingUserId === user.id;
             return (
               <View

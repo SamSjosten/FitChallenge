@@ -58,3 +58,12 @@ export const friendsKeys = {
   list: () => [...friendsKeys.all, "list"] as const,
   pending: () => [...friendsKeys.all, "pending"] as const,
 };
+
+// =============================================================================
+// SEARCH KEYS
+// =============================================================================
+
+export const searchKeys = {
+  all: ["search"] as const,
+  users: (query: string) => [...searchKeys.all, "users", query] as const,
+};

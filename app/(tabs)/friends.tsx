@@ -8,7 +8,7 @@
 // - Friend request accept/decline
 // - Add friend functionality
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -30,7 +30,7 @@ import {
   useDeclineFriendRequest,
   useSendFriendRequest,
 } from "@/hooks/useFriends";
-import { authService } from "@/services/auth";
+import { useUserSearch } from "@/hooks/useUserSearch";
 import {
   LoadingState,
   EmptyState,
@@ -40,7 +40,6 @@ import {
 } from "@/components/shared";
 import { TestIDs } from "@/constants/testIDs";
 import { MagnifyingGlassIcon, XMarkIcon } from "react-native-heroicons/outline";
-import type { ProfilePublic } from "@/types/database-helpers";
 import { extractErrorMessage } from "@/lib/extractErrorMessage";
 
 type TabType = "friends" | "requests";
@@ -50,8 +49,6 @@ export default function FriendsScreenV2() {
   const [activeTab, setActiveTab] = useState<TabType>("friends");
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<ProfilePublic[]>([]);
-  const [searching, setSearching] = useState(false);
   const [sentRequests, setSentRequests] = useState<Set<string>>(new Set());
 
   const {
@@ -71,6 +68,31 @@ export default function FriendsScreenV2() {
   const acceptRequest = useAcceptFriendRequest();
   const declineRequest = useDeclineFriendRequest();
   const sendRequest = useSendFriendRequest();
+  const {
+    data: searchData,
+    isFetching: isSearching,
+    error: searchError,
+    debouncedQuery,
+  } = useUserSearch(searchQuery);
+  const friendsCount = friends?.length || 0;
+  const requestsCount = pendingRequests?.length || 0;
+  const trimmedSearchQuery = searchQuery.trim();
+  const isSearchActive = trimmedSearchQuery.length > 0;
+  const isWaitingForDebounce =
+    trimmedSearchQuery.length >= 2 && debouncedQuery !== trimmedSearchQuery;
+  const excludeIds = useMemo(() => {
+    const ids = new Set(friends?.map((friend) => friend.friend_profile.id) ?? []);
+
+    for (const request of pendingRequests ?? []) {
+      ids.add(request.requester.id);
+    }
+
+    return ids;
+  }, [friends, pendingRequests]);
+  const filteredResults = useMemo(
+    () => (searchData ?? []).filter((result) => !excludeIds.has(result.id)),
+    [searchData, excludeIds],
+  );
 
   // Auto-refresh on focus
   useFocusEffect(
@@ -86,28 +108,8 @@ export default function FriendsScreenV2() {
     setRefreshing(false);
   };
 
-  const handleSearch = async () => {
-    if (searchQuery.length < 2) return;
-
-    Keyboard.dismiss();
-    setSearching(true);
-
-    try {
-      const results = await authService.searchUsers(searchQuery);
-      // Filter out existing friends and pending requests
-      const friendIds = new Set(friends?.map((f) => f.friend_profile.id) || []);
-      const pendingIds = new Set(pendingRequests?.map((r) => r.requester.id) || []);
-      setSearchResults(results.filter((r) => !friendIds.has(r.id) && !pendingIds.has(r.id)));
-    } catch (err) {
-      console.error("Search failed:", err);
-    } finally {
-      setSearching(false);
-    }
-  };
-
   const handleClearSearch = () => {
     setSearchQuery("");
-    setSearchResults([]);
   };
 
   const handleSendRequest = async (userId: string) => {
@@ -174,10 +176,6 @@ export default function FriendsScreenV2() {
     );
   }
 
-  const friendsCount = friends?.length || 0;
-  const requestsCount = pendingRequests?.length || 0;
-  const isSearchActive = searchQuery.length > 0;
-
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: colors.background }]}
@@ -218,13 +216,17 @@ export default function FriendsScreenV2() {
             placeholderTextColor={colors.textMuted}
             value={searchQuery}
             onChangeText={setSearchQuery}
-            onSubmitEditing={handleSearch}
+            onSubmitEditing={() => Keyboard.dismiss()}
             returnKeyType="search"
             autoCapitalize="none"
             autoCorrect={false}
           />
           {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={handleClearSearch}>
+            <TouchableOpacity
+              onPress={handleClearSearch}
+              accessibilityLabel="Clear search"
+              accessibilityRole="button"
+            >
               <XMarkIcon size={18} color={colors.textMuted} />
             </TouchableOpacity>
           )}
@@ -239,16 +241,22 @@ export default function FriendsScreenV2() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {searching ? (
+          {trimmedSearchQuery.length < 2 ? (
+            <EmptyState variant="search" compact message="Enter at least 2 characters to search" />
+          ) : isWaitingForDebounce || isSearching ? (
             <LoadingState variant="inline" message="Searching..." />
-          ) : searchResults.length === 0 ? (
+          ) : searchError ? (
+            <Text style={[styles.sectionTitle, { color: colors.error }]}>
+              {extractErrorMessage(searchError)}
+            </Text>
+          ) : filteredResults.length === 0 ? (
             <EmptyState variant="search" compact message={`No users found for "${searchQuery}"`} />
           ) : (
             <View style={{ gap: spacing.sm }}>
               <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-                SEARCH RESULTS ({searchResults.length})
+                SEARCH RESULTS ({filteredResults.length})
               </Text>
-              {searchResults.map((user) => (
+              {filteredResults.map((user) => (
                 <SearchResultRow
                   key={user.id}
                   user={user}
@@ -284,6 +292,9 @@ export default function FriendsScreenV2() {
               ]}
               onPress={() => setActiveTab("friends")}
               activeOpacity={0.7}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: activeTab === "friends" }}
+              accessibilityLabel={`Friends tab, ${friendsCount} friends`}
             >
               <Text
                 style={[
@@ -307,6 +318,9 @@ export default function FriendsScreenV2() {
               ]}
               onPress={() => setActiveTab("requests")}
               activeOpacity={0.7}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: activeTab === "requests" }}
+              accessibilityLabel={`Requests tab, ${requestsCount} requests`}
             >
               <Text
                 style={[
