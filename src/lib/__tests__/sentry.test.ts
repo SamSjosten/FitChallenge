@@ -230,6 +230,18 @@ describe("installGlobalErrorHandlers", () => {
     const ErrorUtilsMock = (global as typeof global & { ErrorUtils: { setGlobalHandler: jest.Mock } }).ErrorUtils;
     expect(ErrorUtilsMock.setGlobalHandler).not.toHaveBeenCalled();
   });
+
+  it("should no-op when ErrorUtils is absent (non-RN runtime)", () => {
+    // Remove ErrorUtils from global to simulate a non-RN environment
+    const saved = (global as typeof global & { ErrorUtils?: unknown }).ErrorUtils;
+    delete (global as typeof global & { ErrorUtils?: unknown }).ErrorUtils;
+
+    expect(() => installGlobalErrorHandlers()).not.toThrow();
+    expect(Sentry.captureException).not.toHaveBeenCalled();
+
+    // Restore for other tests
+    (global as typeof global & { ErrorUtils?: unknown }).ErrorUtils = saved;
+  });
 });
 
 describe("error filtering edge cases", () => {

@@ -95,6 +95,8 @@ export function InviteCard({
             style={styles.viewDetailsLink}
             onPress={handleCardPress}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessibilityLabel="View challenge details"
+            accessibilityRole="button"
           >
             <Text style={[styles.viewDetailsText, { color: colors.primary.main }]}>
               View details

@@ -241,6 +241,9 @@ export function addBreadcrumb(message: string, data?: Record<string, string>): v
 export function installGlobalErrorHandlers(): void {
   if (!Config.sentryDsn || __DEV__) return;
 
+  // ErrorUtils is a React Native global — absent in web/test runtimes
+  if (typeof (globalThis as typeof globalThis & { ErrorUtils?: unknown }).ErrorUtils === "undefined") return;
+
   const originalHandler = ErrorUtils.getGlobalHandler();
 
   ErrorUtils.setGlobalHandler((error: Error, isFatal?: boolean) => {
