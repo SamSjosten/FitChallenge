@@ -438,6 +438,7 @@ export function LogActivitySheet({
               disabled={isLoading}
               accessibilityLabel="Submit activity"
               accessibilityRole="button"
+              accessibilityState={{ disabled: isLoading, busy: isLoading }}
             >
               <Text
                 style={{

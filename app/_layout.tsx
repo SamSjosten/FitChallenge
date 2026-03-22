@@ -35,7 +35,7 @@ import { configureForegroundHandler, setupNotificationChannel } from "@/lib/noti
 import { persistOptions } from "@/lib/queryPersister";
 import { queryRetryFn, mutationRetryFn } from "@/lib/queryRetry";
 import { isExpiredSessionError, handleExpiredSession } from "@/lib/authRecovery";
-import { initSentry, setUserContext } from "@/lib/sentry";
+import { initSentry, setUserContext, installGlobalErrorHandlers } from "@/lib/sentry";
 import { useOfflineStore } from "@/stores/offlineStore";
 import { invalidateAfterSync } from "@/lib/invalidateAfterSync";
 import { useNavigationStore, initNavigationStoreRecovery } from "@/stores/navigationStore";
@@ -53,6 +53,7 @@ import * as Sentry from "@sentry/react-native";
 // and enables mobile replay unconditionally, which keeps the main
 // thread busy and breaks Detox idle synchronization.
 initSentry();
+installGlobalErrorHandlers();
 
 // Configure foreground notification display
 configureForegroundHandler();

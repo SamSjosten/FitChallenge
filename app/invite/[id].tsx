@@ -61,6 +61,10 @@ export default function InviteDetailScreen() {
 
     setIsAccepting(true);
     try {
+      // Best-effort preflight: ensure push token is registered if permission
+      // is already granted, so the first notification isn't lost.
+      await pushTokenService.ensureRegisteredIfGranted();
+
       await respondToInvite.mutateAsync({
         challenge_id: challenge.id,
         response: "accepted",

@@ -5,7 +5,7 @@
 (global as typeof global & { __DEV__?: boolean }).__DEV__ = true;
 
 import * as Sentry from "@sentry/react-native";
-import { initSentry, captureError, setUserContext, addBreadcrumb } from "../sentry";
+import { initSentry, captureError, setUserContext, addBreadcrumb, installGlobalErrorHandlers } from "../sentry";
 
 // Mock @sentry/react-native before importing sentry.ts
 jest.mock("@sentry/react-native", () => ({
@@ -172,6 +172,63 @@ describe("addBreadcrumb", () => {
       data: { challengeId: "abc-123" },
       level: "info",
     });
+  });
+});
+
+describe("installGlobalErrorHandlers", () => {
+  const origDev = (global as typeof global & { __DEV__?: boolean }).__DEV__;
+  let mockOriginalHandler: jest.Mock;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (global as typeof global & { __DEV__?: boolean }).__DEV__ = false;
+    mockOriginalHandler = jest.fn();
+    (global as typeof global & { ErrorUtils?: unknown }).ErrorUtils = {
+      getGlobalHandler: jest.fn(() => mockOriginalHandler),
+      setGlobalHandler: jest.fn(),
+    };
+  });
+
+  afterEach(() => {
+    (global as typeof global & { __DEV__?: boolean }).__DEV__ = origDev;
+  });
+
+  it("should install a global handler that chains to the original", () => {
+    installGlobalErrorHandlers();
+
+    const ErrorUtilsMock = (global as typeof global & { ErrorUtils: { setGlobalHandler: jest.Mock } }).ErrorUtils;
+    expect(ErrorUtilsMock.setGlobalHandler).toHaveBeenCalledWith(expect.any(Function));
+
+    // Simulate an uncaught error
+    const handler = ErrorUtilsMock.setGlobalHandler.mock.calls[0][0];
+    const error = new Error("Unexpected crash");
+    handler(error, true);
+
+    expect(Sentry.captureException).toHaveBeenCalledWith(error, {
+      tags: { fatal: "true" },
+    });
+    expect(mockOriginalHandler).toHaveBeenCalledWith(error, true);
+  });
+
+  it("should respect shouldIgnoreError filter", () => {
+    installGlobalErrorHandlers();
+
+    const ErrorUtilsMock = (global as typeof global & { ErrorUtils: { setGlobalHandler: jest.Mock } }).ErrorUtils;
+    const handler = ErrorUtilsMock.setGlobalHandler.mock.calls[0][0];
+
+    // This should be filtered (JWT expired is in IGNORED_ERROR_PATTERNS)
+    handler(new Error("JWT expired"), false);
+
+    expect(Sentry.captureException).not.toHaveBeenCalled();
+    expect(mockOriginalHandler).toHaveBeenCalled();
+  });
+
+  it("should skip installation in __DEV__ mode", () => {
+    (global as typeof global & { __DEV__?: boolean }).__DEV__ = true;
+    installGlobalErrorHandlers();
+
+    const ErrorUtilsMock = (global as typeof global & { ErrorUtils: { setGlobalHandler: jest.Mock } }).ErrorUtils;
+    expect(ErrorUtilsMock.setGlobalHandler).not.toHaveBeenCalled();
   });
 });
 

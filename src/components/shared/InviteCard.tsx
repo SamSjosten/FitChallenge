@@ -137,6 +137,9 @@ export function InviteCard({
           onPress={() => onDecline(invite.challenge.id)}
           disabled={loading}
           activeOpacity={0.7}
+          accessibilityLabel="Decline invite"
+          accessibilityRole="button"
+          accessibilityState={{ disabled: loading }}
         >
           <XMarkIcon size={18} color={colors.textSecondary} />
           <Text style={[styles.declineText, { color: colors.textSecondary }]}>Decline</Text>
@@ -154,6 +157,9 @@ export function InviteCard({
           onPress={() => onAccept(invite.challenge.id)}
           disabled={loading}
           activeOpacity={0.7}
+          accessibilityLabel="Accept invite"
+          accessibilityRole="button"
+          accessibilityState={{ disabled: loading, busy: loading }}
         >
           <CheckIcon size={18} color="#FFFFFF" />
           <Text style={styles.acceptText}>Accept</Text>

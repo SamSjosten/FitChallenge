@@ -13,8 +13,12 @@ export const healthQueryKeys = {
   connection: ["health", "connection"] as const,
   summary: ["health", "summary"] as const,
   syncHistory: (limit?: number) => ["health", "syncHistory", limit] as const,
+  /** Prefix key for invalidating ALL syncHistory queries (any limit). */
+  syncHistoryPrefix: ["health", "syncHistory"] as const,
   recentActivities: (limit?: number, offset?: number) =>
     ["health", "activities", limit, offset] as const,
+  /** Prefix key for invalidating ALL recentActivities queries (any limit/offset). */
+  recentActivitiesPrefix: ["health", "activities"] as const,
 };
 
 export interface UseHealthConnectionResult {

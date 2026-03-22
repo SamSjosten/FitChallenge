@@ -69,6 +69,7 @@ jest.mock("@/lib/supabase", () => ({
   })),
   withAuth: jest.fn((operation) => operation("test-user-123")),
   requireUserId: jest.fn(() => Promise.resolve("test-user-123")),
+  getUserId: jest.fn(() => Promise.resolve("test-user-123")),
 }));
 
 // Mock validation to pass through

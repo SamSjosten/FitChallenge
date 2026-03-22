@@ -265,6 +265,7 @@ export function ChallengeDetailScreen({ challengeId }: ChallengeDetailScreenProp
         text: "Decline",
         style: "destructive",
         onPress: async () => {
+          if (respondToInvite.isPending) return;
           try {
             await respondToInvite.mutateAsync({
               challenge_id: challenge.id,
@@ -287,6 +288,7 @@ export function ChallengeDetailScreen({ challengeId }: ChallengeDetailScreenProp
         text: "Leave",
         style: "destructive",
         onPress: async () => {
+          if (leaveChallenge.isPending) return;
           try {
             await leaveChallenge.mutateAsync(challenge.id);
             handleBack();
@@ -306,6 +308,7 @@ export function ChallengeDetailScreen({ challengeId }: ChallengeDetailScreenProp
         text: "Cancel Challenge",
         style: "destructive",
         onPress: async () => {
+          if (cancelChallenge.isPending) return;
           try {
             await cancelChallenge.mutateAsync(challenge.id);
             handleBack();

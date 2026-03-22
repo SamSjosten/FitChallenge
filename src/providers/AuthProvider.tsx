@@ -225,9 +225,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
           console.log(
             `[AuthProvider] 🎬 Bootstrap: loading profile for ${session.user.id.substring(0, 8)}`,
           );
+          addBreadcrumb("auth_session_restored");
           await loadProfileAndSetState(session);
         } else {
           console.log(`[AuthProvider] 🎬 Bootstrap: no session`);
+          addBreadcrumb("auth_no_session");
           setState((prev) => ({ ...prev, loading: false }));
         }
         return;
@@ -238,6 +240,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       // =================================================================
       if (event === "SIGNED_OUT" || !session) {
         console.log(`[AuthProvider] 🚪 Signed out (event=${event})`);
+        addBreadcrumb("auth_signed_out");
         bootstrapComplete = true;
         resetHealthService();
         // Clear in-memory query cache on sign-out to prevent stale data
@@ -264,6 +267,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           return;
         }
         console.log(`[AuthProvider] 🔄 Token refreshed — updating session`);
+        addBreadcrumb("auth_token_refreshed");
         setState((prev) => ({
           ...prev,
           session,
@@ -287,6 +291,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           return;
         }
         console.log(`[AuthProvider] 📝 User updated — updating session`);
+        addBreadcrumb("auth_user_updated");
         setState((prev) => ({
           ...prev,
           session,

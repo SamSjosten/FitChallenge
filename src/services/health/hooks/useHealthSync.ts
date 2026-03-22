@@ -8,7 +8,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/providers/AuthProvider";
 import { getHealthService } from "../healthService";
 import { healthQueryKeys } from "./useHealthConnection";
-import { activityKeys } from "@/lib/queryKeys";
+import { activityKeys, challengeKeys } from "@/lib/queryKeys";
 import type { SyncOptions, SyncResult, HealthSyncLog } from "../types";
 
 export interface UseHealthSyncResult {
@@ -35,12 +35,12 @@ export function useHealthSync(): UseHealthSyncResult {
       queryClient.invalidateQueries({ queryKey: healthQueryKeys.summary });
       // Use prefix keys for invalidation so all parameterized variants are matched
       queryClient.invalidateQueries({
-        queryKey: ["health", "syncHistory"],
+        queryKey: healthQueryKeys.syncHistoryPrefix,
       });
       queryClient.invalidateQueries({
-        queryKey: ["health", "activities"],
+        queryKey: healthQueryKeys.recentActivitiesPrefix,
       });
-      queryClient.invalidateQueries({ queryKey: ["challenges"] });
+      queryClient.invalidateQueries({ queryKey: challengeKeys.all });
       // Health sync writes to activity_logs — invalidate activity caches too
       queryClient.invalidateQueries({ queryKey: activityKeys.all });
     },

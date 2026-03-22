@@ -49,6 +49,8 @@ export interface HomeScreenData {
   isRefreshing: boolean;
   isError: boolean;
   error: Error | null;
+  /** True when secondary queries (completed, activities, unread) fail silently */
+  hasPartialError: boolean;
 
   // Actions
   handleRefresh: () => Promise<void>;
@@ -138,11 +140,11 @@ export function useHomeScreenData(): HomeScreenData {
     refetch: refetchPending,
   } = usePendingInvites();
 
-  const { data: completedChallenges, refetch: refetchCompleted } = useCompletedChallenges();
+  const { data: completedChallenges, isError: errorCompleted, refetch: refetchCompleted } = useCompletedChallenges();
 
-  const { data: recentActivities, refetch: refetchActivities } = useRecentActivities(5);
+  const { data: recentActivities, isError: errorActivities, refetch: refetchActivities } = useRecentActivities(5);
 
-  const { data: unreadCount } = useUnreadNotificationCount();
+  const { data: unreadCount, isError: errorUnread } = useUnreadNotificationCount();
 
   const respondToInvite = useRespondToInvite();
 
@@ -176,6 +178,10 @@ export function useHomeScreenData(): HomeScreenData {
   // Invite handlers
   const handleAcceptInvite = useCallback(
     async (challengeId: string) => {
+      // Best-effort preflight: ensure push token is registered if permission
+      // is already granted, so the first notification isn't lost.
+      await pushTokenService.ensureRegisteredIfGranted();
+
       await respondToInvite.mutateAsync({
         challenge_id: challengeId,
         response: "accepted",
@@ -216,6 +222,7 @@ export function useHomeScreenData(): HomeScreenData {
     isRefreshing: refreshing,
     isError: errorActive || errorPending,
     error: (activeError ?? pendingError) as Error | null,
+    hasPartialError: errorCompleted || errorActivities || errorUnread,
 
     // Actions
     handleRefresh,

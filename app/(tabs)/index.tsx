@@ -91,6 +91,7 @@ export default function HomeScreenV2() {
     isLoading,
     isRefreshing,
     isError,
+    hasPartialError,
     handleRefresh,
     handleAcceptInvite,
     handleDeclineInvite,
@@ -240,6 +241,22 @@ export default function HomeScreenV2() {
           />
         }
       >
+        {/* Partial data warning — secondary queries failed silently */}
+        {hasPartialError && (
+          <View
+            style={{
+              backgroundColor: colors.energy.subtle,
+              borderRadius: radius.md,
+              padding: spacing.sm,
+              marginBottom: spacing.sm,
+            }}
+          >
+            <Text style={{ color: colors.textSecondary, fontSize: 13, textAlign: "center" }}>
+              Some data may be outdated. Pull to refresh.
+            </Text>
+          </View>
+        )}
+
         {/* ================================================================ */}
         {/* HEADER - "Welcome, {name}" + streak badge (when dismissed) + bell */}
         {/* ================================================================ */}

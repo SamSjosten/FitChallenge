@@ -227,4 +227,25 @@ export const pushTokenService = {
 
     return this.registerToken(true); // Skip permission check since we just requested
   },
+
+  /**
+   * Ensure push token is registered if permission is already granted.
+   *
+   * Unlike requestAndRegister(), this NEVER prompts the user — it only
+   * registers if permission was previously granted. Use as a best-effort
+   * preflight before notification-producing mutations so the first
+   * notification isn't lost.
+   *
+   * Errors are swallowed internally — this must never block the caller.
+   */
+  async ensureRegisteredIfGranted(): Promise<void> {
+    try {
+      const granted = await this.hasPermission();
+      if (!granted) return;
+
+      await this.registerToken(true); // Skip permission check — already verified
+    } catch {
+      // Best-effort — swallow all errors so the caller's mutation is never blocked
+    }
+  },
 };

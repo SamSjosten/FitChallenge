@@ -4,7 +4,7 @@
 // GUARDRAIL 3: Falls back to queue if offline
 
 import { SupabaseClient } from "@supabase/supabase-js";
-import { getSupabaseClient, withAuth, requireUserId } from "@/lib/supabase";
+import { getSupabaseClient, withAuth, requireUserId, getUserId } from "@/lib/supabase";
 import { validate, logActivitySchema, logWorkoutSchema, uuidSchema, challengeIdSchema } from "@/lib/validation";
 import { checkNetworkStatus } from "@/lib/network";
 import { useOfflineStore } from "@/stores/offlineStore";
@@ -179,20 +179,28 @@ export const activityService = {
   async logActivity(input: unknown): Promise<LogActivityResult> {
     const validated = validate(logActivitySchema, input);
 
+    // Capture user ID once for queue provenance (C3: cross-account guard)
+    // getUserId() returns null when unauthenticated — coerce to undefined
+    // to match addToQueue's optional parameter type (legacy skip behavior).
+    const userId = (await getUserId()) ?? undefined;
+
     // Check network before attempting
     const isOnline = await checkNetworkStatus();
 
     if (!isOnline) {
       // Queue for later
-      useOfflineStore.getState().addToQueue({
-        type: "LOG_ACTIVITY",
-        payload: {
-          challenge_id: validated.challenge_id,
-          activity_type: validated.activity_type,
-          value: validated.value,
-          client_event_id: validated.client_event_id,
+      useOfflineStore.getState().addToQueue(
+        {
+          type: "LOG_ACTIVITY",
+          payload: {
+            challenge_id: validated.challenge_id,
+            activity_type: validated.activity_type,
+            value: validated.value,
+            client_event_id: validated.client_event_id,
+          },
         },
-      });
+        userId,
+      );
 
       return { queued: true };
     }
@@ -211,15 +219,18 @@ export const activityService = {
       } catch (error) {
         // Network error during request - queue it
         if (isNetworkError(error)) {
-          useOfflineStore.getState().addToQueue({
-            type: "LOG_ACTIVITY",
-            payload: {
-              challenge_id: validated.challenge_id,
-              activity_type: validated.activity_type,
-              value: validated.value,
-              client_event_id: validated.client_event_id,
+          useOfflineStore.getState().addToQueue(
+            {
+              type: "LOG_ACTIVITY",
+              payload: {
+                challenge_id: validated.challenge_id,
+                activity_type: validated.activity_type,
+                value: validated.value,
+                client_event_id: validated.client_event_id,
+              },
             },
-          });
+            userId,
+          );
 
           return { queued: true };
         }
@@ -242,22 +253,28 @@ export const activityService = {
     // This timestamp is used for both live execution and offline replay.
     const recordedAt = getServerNow().toISOString();
 
+    // Capture user ID once for queue provenance (C3: cross-account guard)
+    const userId = (await getUserId()) ?? undefined;
+
     // Check network before attempting
     const isOnline = await checkNetworkStatus();
 
     if (!isOnline) {
       // Queue for later — store full workout params + recorded_at so replay
       // preserves the original event time, not replay time.
-      useOfflineStore.getState().addToQueue({
-        type: "LOG_WORKOUT",
-        payload: {
-          challenge_id: validated.challenge_id,
-          workout_type: validated.workout_type,
-          duration_minutes: validated.duration_minutes,
-          client_event_id: validated.client_event_id,
-          recorded_at: recordedAt,
+      useOfflineStore.getState().addToQueue(
+        {
+          type: "LOG_WORKOUT",
+          payload: {
+            challenge_id: validated.challenge_id,
+            workout_type: validated.workout_type,
+            duration_minutes: validated.duration_minutes,
+            client_event_id: validated.client_event_id,
+            recorded_at: recordedAt,
+          },
         },
-      });
+        userId,
+      );
 
       return { queued: true };
     }
@@ -277,16 +294,19 @@ export const activityService = {
       } catch (error) {
         // Network error during request - queue it with full workout params + recorded_at
         if (isNetworkError(error)) {
-          useOfflineStore.getState().addToQueue({
-            type: "LOG_WORKOUT",
-            payload: {
-              challenge_id: validated.challenge_id,
-              workout_type: validated.workout_type,
-              duration_minutes: validated.duration_minutes,
-              client_event_id: validated.client_event_id,
-              recorded_at: recordedAt,
+          useOfflineStore.getState().addToQueue(
+            {
+              type: "LOG_WORKOUT",
+              payload: {
+                challenge_id: validated.challenge_id,
+                workout_type: validated.workout_type,
+                duration_minutes: validated.duration_minutes,
+                client_event_id: validated.client_event_id,
+                recorded_at: recordedAt,
+              },
             },
-          });
+            userId,
+          );
 
           return { queued: true };
         }

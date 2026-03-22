@@ -231,6 +231,10 @@ export function CreateChallengeOrchestrator() {
       // Parse optional daily target
       const dailyTarget = parseInt(formData.dailyTarget, 10);
 
+      // Best-effort preflight: ensure push token is registered if permission
+      // is already granted, so the first notification isn't lost.
+      await pushTokenService.ensureRegisteredIfGranted();
+
       const result = await createChallenge.mutateAsync({
         title: formData.name.trim(),
         description: formData.description.trim() || undefined,

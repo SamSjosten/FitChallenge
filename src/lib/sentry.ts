@@ -227,3 +227,32 @@ export function addBreadcrumb(message: string, data?: Record<string, string>): v
     level: "info",
   });
 }
+
+/**
+ * Install a global JS exception handler that captures uncaught errors
+ * via Sentry, then chains to the original React Native handler.
+ *
+ * Call at module scope in _layout.tsx immediately after initSentry().
+ *
+ * Scoped to uncaught JS exceptions via ErrorUtils — does not add a
+ * custom promise-rejection shim. Sentry RN v7 may already capture
+ * unhandled rejections; verify before adding more.
+ */
+export function installGlobalErrorHandlers(): void {
+  if (!Config.sentryDsn || __DEV__) return;
+
+  const originalHandler = ErrorUtils.getGlobalHandler();
+
+  ErrorUtils.setGlobalHandler((error: Error, isFatal?: boolean) => {
+    if (!shouldIgnoreError(error)) {
+      Sentry.captureException(error, {
+        tags: { fatal: String(!!isFatal) },
+      });
+    }
+
+    // Chain to the original handler (Sentry's or RN's default)
+    if (originalHandler) {
+      originalHandler(error, isFatal);
+    }
+  });
+}
